@@ -1,0 +1,6 @@
+# Ignore all files in suspended/
+*
+
+# Except README.md and .gitignore
+!README.md
+!.gitignore

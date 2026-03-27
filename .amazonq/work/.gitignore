@@ -1,0 +1,10 @@
+# Ignore all files in work/
+*
+current/*
+
+# Except README.md and .gitignore
+!README.md
+!.gitignore
+
+#save current folder
+!current/.gitkeep
