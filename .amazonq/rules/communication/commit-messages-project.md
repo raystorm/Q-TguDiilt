@@ -9,6 +9,7 @@ Examples might include:
 - Conventional commit prefixes used by this repo
 - Hook scripts to validate commit messages
 - Examples of commit summaries for frequent change types in this project
+- How to link commits to stories/issues
 
 Follow the structure of the core file when adding examples.
 

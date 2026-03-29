@@ -41,12 +41,6 @@ Should I proceed with creating these documentation files?
 - Any documentation files
 - Commit messages (always display before proceeding)
 
-## Commit Messages
-- Follow `docs/dev/commit-style-guide.md`
-- Use plain language, imperative headers
-- Semantic bullets (+/-/*)
-- Order by importance (production logic, tests, docs, formatting)
-
 ## Multi-Story Feature Progress
 
 ### When FEATURE.md Exists

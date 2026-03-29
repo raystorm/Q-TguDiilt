@@ -11,9 +11,9 @@ Projects adopting Q‑TguDiilt should place stack-specific examples in:
 Examples may include:
 - What to write for commit messages
 - How to format/write commit messages
+- How to link commits to stories/issues
 
 ---
-
 
 ## Critical Rule
 - ALWAYS follow the commit style guide in `docs/dev/commit-style-guide.md`
