@@ -37,7 +37,7 @@ A single‑page architectural explanation of how the system works.
 
 ### **2. Contract**
 The domain definition and invariants the system operates on.  
-[contract.md](./contract.md)
+[contract.md](./dev/contract.md)
 
 ### **3. Profiles**
 Responsibilities, boundaries, and behaviors of each profile.  

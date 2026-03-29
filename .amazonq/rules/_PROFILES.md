@@ -10,7 +10,7 @@ Recommends which profile to use for a given task. Does not perform work itself.
 ## Builder
 Writes code, implements features, follows formatting and architecture rules.
 
-**Uses:** 
+**Uses:**
   foundation/*, tech/*, workflow/agentic-confirmation.md, workflow/aws-commands.md,
   workflow/logging.md, workflow/auto-suspend.md, workflow/git-management.md,
   workflow/workflow-mechanics.md, workflow/user-workflow-commands.md,
@@ -22,7 +22,8 @@ Reviews code, checks formatting, tests, and architecture alignment.
 **Aliases:** Verifier, Validator, 🔫 
 
 **Uses:**
-  foundation/*, tech/*, workflow/testing.md, communication/code-diffs.md,
+  foundation/*, tech/*, workflow/testing.md,
+  workflow/agentic-confirmation.md, communication/code-diffs.md,
   workflow/logging.md, workflow/auto-suspend.md,
   workflow/workflow-mechanics.md, workflow/user-workflow-commands.md
 
@@ -45,7 +46,7 @@ Writes documentation, commit messages, diffs, and story descriptions.
 
 **Uses:**
   foundation/*, communication/*, workflow/logging.md, workflow/auto-suspend.md,
-  workflow/git-management.md, profiles/documentor.md,
+  workflow/git-management.md, profiles/documentor.md, workflow/agentic-confirmation.md,
   workflow/workflow-mechanics.md, workflow/user-workflow-commands.md
 
 ## Planner
@@ -92,7 +93,8 @@ Writes prompts for AI agents following prompt engineering rules.
 **Aliases:** PE, Prompter
 
 **Uses:**
-  foundation/*, profiles/prompt-engineering.md, workflow/logging.md, workflow/git-management.md,
+  foundation/*, profiles/prompt-engineering.md, workflow/agentic-confirmation.md,
+  workflow/logging.md, workflow/git-management.md,
   workflow/workflow-mechanics.md, workflow/user-workflow-commands.md
 
 ## Doctor
@@ -102,7 +104,7 @@ Diagnoses failures, identifies root causes, applies minimal safe fixes, and esca
 
 **Uses:**
   foundation/*, tech/*, workflow/testing.md, profiles/doctor.md,
-  communication/code-diffs.md, workflow/logging.md,
+  workflow/agentic-confirmation.md, communication/code-diffs.md, workflow/logging.md,
   workflow/workflow-mechanics.md, workflow/user-workflow-commands.md
 
 ## Retrospective
@@ -111,7 +113,8 @@ Analyzes completed workflows, identifies improvements, highlights successes.
 **Aliases:** Retro, Iterator, 🔄
 
 **Uses:**
-  foundation/*, profiles/retrospective.md, workflow/logging.md, workflow/auto-suspend.md,
+  foundation/*, profiles/retrospective.md, workflow/agentic-confirmation.md,
+  workflow/logging.md, workflow/auto-suspend.md,
   workflow/workflow-mechanics.md, workflow/user-workflow-commands.md
 
 ## UserExperience
@@ -120,5 +123,6 @@ Defines user flows, interaction sequences, and accessibility requirements.
 **Aliases:** UX, UI
 
 **Uses:**
-  foundation/*, profiles/user-experience.md, workflow/logging.md, workflow/auto-suspend.md,
+  foundation/*, profiles/user-experience.md, workflow/agentic-confirmation.md,
+  workflow/logging.md, workflow/auto-suspend.md,
   workflow/workflow-mechanics.md, workflow/user-workflow-commands.md
