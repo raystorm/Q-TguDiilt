@@ -134,7 +134,7 @@ Each override must be declared explicitly wherever it is needed.
 
 > [!WARNING]
 > Overrides can be placed into any `*-project.md` file.
-> We **strongly recommend** that all overrides are placed
+> It is **strongly recommended** that all overrides are placed
 > in the `*-project.md` file that matches the rule they override.
 > 
 > Placing rule overrides in *unrelated* `*-project.md` files can lead to
