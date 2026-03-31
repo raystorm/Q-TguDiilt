@@ -47,14 +47,14 @@ Responsibilities, boundaries, and behaviors of each profile.
 The execution shapes: Normal Build, TDD, Multi‑Story, Retrospective.  
 [workflow-patterns.md](./dev/workflow-patterns.md)
 
-### **5. Workflow Commands**
+### **5. User Commands**
 The runtime primitives that move work between profiles:  
 `@handoff`, `@start`, `@send`, `@receive`, `@suspend`, `@resume`, etc.  
-[workflow-commands.md](./workflow-commands.md)
+[user-commands.md](user-commands.md)
 
 ### **6. Rules & Governance**
 Universal rules, project‑level overrides, and the `Override:` mechanism.  
-[rules-and-governance.md](./rules-and-governance.md)
+[rules-and-governance.md](./dev/rules-and-governance.md)
 
 ### **7. Drift**
 The central failure mode of AI systems. 

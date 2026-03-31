@@ -230,15 +230,18 @@ Example:
 
 ---
 
-### 3.3 Renames
+### 3.3 Arrow Syntax (Deltas)
 
-Use arrows `->` to show renames or conceptual transitions:
+Use arrows `->` to show transitions from before *to* after (before -> after):  
+(moves, renames, etc)  
 
 Example:
 
 ```
-  * Content -> Document
+  * Rename Content -> Document
   * Message -> MessageDisplay
+  * Move `docs/README.md` -> `docs/dev/README.md`
+  * Change Page Header H1 -> H2
 ```
 
 This format is compact and unambiguous.

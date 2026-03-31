@@ -82,17 +82,17 @@ User‑facing documentation (to be expanded as features land).
 
 (Each of these will get its own section as the system evolves.)
 
-# 📦 Installation
+## 📦 Installation
 
 Follow these steps to install the Amazon Q prompts, rules, and documentation
 into your repository and activate them in your IDE.
 
-## Prerequisite
+### Prerequisite
 
 Ensure Amazon Q is installed, signed in, and configured in your IDE (VS Code, JetBrains, etc.).  
 Amazon Q must be active and authenticated before it can load prompts from this repository.
 
-## 1. Copy the required folders into your repository
+### 1. Copy the required folders into your repository
 
 Place the following directories at the root of your repository:
 
@@ -101,16 +101,16 @@ Place the following directories at the root of your repository:
 
 Commit these folders so Amazon Q can index them.
 
-## 2. Open your IDE with Amazon Q enabled
+### 2. Open your IDE with Amazon Q enabled
 
 Launch your editor with Amazon Q active.  
 Amazon Q will automatically detect the repository boundary and read the files you added.
 
-## 3. Open the Amazon Q chat panel
+### 3. Open the Amazon Q chat panel
 
 Open the Amazon Q chat sidebar inside your IDE.
 
-## 4. Install the prompts, rules, and docs into Amazon Q’s active configuration
+### 4. Install the prompts, rules, and docs into Amazon Q’s active configuration
 
 Type the following message into the Amazon Q chat:
 

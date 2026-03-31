@@ -159,13 +159,13 @@ These invariants must hold across all workflows, profiles, and mechanics.
 
 ---
 
-## **4. Command Contract**
+## **4. User Command Contract**
 
 User commands are the **only defined workflow actions** in the engine.  
 Some commands **create or modify workflow artifacts** (state transitions),
 while others **only reveal information** or **enter conversational mode**.
 
-### **Commands that *change workflow state***
+### **User Commands that *change workflow state***
 (these create or modify workflow artifacts or workflow position)
 
 - `@handoff` — creates HANDOFF.md
@@ -176,7 +176,7 @@ while others **only reveal information** or **enter conversational mode**.
 - `@resume` — loads suspended context
 - `@note` — appends to workflow.log
 
-### **Commands that *do not* change workflow state**
+### **User Commands that *do not* change workflow state**
 
 - `@list` — displays suspended contexts
 - `@inquiry` — enters question‑only mode, and prevents state transitions
