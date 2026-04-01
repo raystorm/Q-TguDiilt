@@ -124,7 +124,7 @@ Profiles influencing each other’s behavior or collapsing into a single blended
 Mixing unrelated context, threads, or workflows.
 
 ### **L. Thread Drift**
-Side‑Trips leaking into the main thread or vice‑versa.
+Side trips leaking into the main thread or vice‑versa.
 
 ### **M. Workflow Drift**
 A Cycle deviating from the governed sequence (Analyze → Retro).
@@ -197,24 +197,24 @@ Retro then produces **improvement recommendations**.
 
 ---
 
-## **7. How Side‑Trips Correct Drift**
-Side‑Trips run in a separate thread using `@send`/`@receive`,
+## **7. How Side Trips Correct Drift**
+Side trips run in a separate thread using `@send`/`@receive`,
 following the same drift prevention mechanics as `@handoff`/`@start` in the main thread,
 allowing work to happen in parallel without affecting the main thread’s context or state.
 
-When a Side-Trip is performed:
+When a side trip is performed:
 
-1. A Side-Trip is initiated
-2. The Side‑Trip runs in a separate thread with isolated context
+1. A side trip is initiated
+2. The side trip runs in a separate thread with isolated context
 3. The appropriate profile (Architect, Documentor, Enforcer, etc.) performs the requested action
-4. If the Side-Trip is multi-profile a new `@send` is initiated,
+4. If the side trip is multi-profile a new `@send` is initiated,
    and reviewed before being picked up by the next profile in line
    1. The next profile does a `@receive` and performs the requested action 
-5. The user reviews the Side-trip output and confirms completion 
+5. The user reviews the side trip output and confirms completion 
 6. The user notifies the main thread when complete
 7. The Cycle resumes with side trip complete
 
-Side‑Trips ensure parallel operation does not contaminate the main thread.
+Side trips ensure parallel operation does not contaminate the main thread.
 
 ---
 

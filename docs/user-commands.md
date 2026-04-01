@@ -35,7 +35,7 @@ Create a side‑trip message for parallel work.
 - Produces `MESSAGE.md`
 - Current profile summarizes work and requests confirmation
 - User reviews and approves
-- Next profile activated *in a side-trip tab* via `@receive`
+- Next profile activated *in a side trip tab* via `@receive`
 - Target profile performs isolated work
 - User can return to main thread
 
@@ -63,7 +63,7 @@ Activate a profile from a **handoff**, and performs the requested action.
 Activate a profile from a **message**, and performs the requested action.
 
 - Loads `MESSAGE.md`
-- Continues or begins a side-trip workflow
+- Continues or begins a side trip workflow
 
 **Symmetry:**  
 Both commands activate a profile and load context.  

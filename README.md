@@ -169,7 +169,7 @@ repeatable workflow execution with no cross‑profile drift.
 ### **Self‑Improving Workflow System**
 The engine improves itself through governed retrospectives.
 Retrospective identifies drift or inefficiency, lists recommendations,
-and once the user selects one, starts a side-trip workflow to apply updates to 
+and once the user selects one, starts a side trip workflow to apply updates to 
 rules and/or documentation. Improving the system for future cycles,
 evolving it without losing architectural integrity.
 

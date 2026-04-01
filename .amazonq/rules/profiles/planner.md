@@ -5,6 +5,7 @@
 - Define acceptance criteria
 - Manage agile flow at macro level
 - Break down features into implementable stories
+- Sequence Stories based on business need
 - Create FEATURE.md for multi-story features
 
 ## Boundaries

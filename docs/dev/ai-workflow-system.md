@@ -92,10 +92,10 @@ Profiles follow rule files that define their responsibilities, boundaries, and o
 Because each profile performs one job and never switches roles automatically,
 the system behaves the same way every time — eliminating drift and improvisation.
 
-### **4. Prompt Engineering as a Required Step**
+### **4. PromptEngineer as a Required Step**
 No profile calls Builder directly.  
 PromptEngineer always constructs the Builder prompt, ensuring clarity,
-minimal‑code principles, and consistent adherence to rules.  
+minimal code principles, and consistent adherence to rules.  
 Users *can* bypass this, but the system never does.
 
 ### **5. Rule Governance and Project Level Overrides**
@@ -134,7 +134,7 @@ Writes user stories, backlog items, manages agile flow (aliases: PO, ProductOwne
 **Analyst** —
 Reads code, explains behavior, traces logic, diagnoses issues (aliases: Analyzer, Auditor, 🔍, 🔎)
 
-**PromptEngineer** — Writes prompts for AI agents following prompt engineering rules (aliases: PE, Prompter)
+**PromptEngineer** — Writes prompts for AI agents following Governed Prompting rules (aliases: PE, Prompter)
 
 **Doctor** —
 Diagnoses failures, applies minimal safe fixes, escalates when issues exceed scope (aliases: Dr, DR, Medic, 🩺)
@@ -147,26 +147,24 @@ Analyzes completed workflows, identifies improvements, highlights successes (ali
 ### Example workflow for a single story
 User → Architect → Planner → PromptEngineer → Builder → Enforcer → Documentor → Retrospective
 
-### Normal Build Workflow
+### Straight Forward Build Workflow
 
-1. **Architect** — Define design, structure, and approach
-2. **Planner** — Determine workflow execution strategy and story sequencing
-3. **PromptEngineer** — Create Builder prompt following prompt engineering rules
-4. **Builder** — Implement feature with tests, show diffs
-5. **Enforcer** — Review code, run tests, verify alignment with rules
-6. **Documentor** — Generate commit message following style guide
-7. **Retrospective** — Analyze workflow, output Keep/Stop/Start recommendations
+1. **Planner** — Determine story sequencing
+2. **PromptEngineer** — Create Builder prompt following Governed Prompting rules
+3. **Builder** — Implement feature with tests, show diffs
+4. **Enforcer** — Review code, run tests, verify alignment with rules
+5. **Documentor** — Generate commit message following style guide
+6. **Retrospective** — Analyze workflow, output Keep/Stop/Start recommendations
 
 ### Test-Driven Development (TDD)
 
-1. **Architect** — Define design, structure, and approach
-2. **Planner** — Determine workflow execution strategy and story sequencing
-3. **TestDesigner** — Analyze requirements, design test scenarios (Given/When/Then), Determine TDD
-4. **PromptEngineer** — Create Builder prompt for test implementation
+1. **Planner** — Determine story sequencing
+2. **TestDesigner** — Analyze requirements, design test scenarios (Given/When/Then), Determine TDD
+3. **PromptEngineer** — Create Builder prompt for test implementation
 4. **Builder** — Implement tests and feature, show diffs
-7. **Enforcer** — Verify tests pass, check code quality
-8. **Documentor** — Generate commit message following style guide
-9. **Retrospective** — Analyze workflow, output Keep/Stop/Start recommendations
+5. **Enforcer** — Verify tests pass, check code quality
+6. **Documentor** — Generate commit message following style guide
+7. **Retrospective** — Analyze workflow, output Keep/Stop/Start recommendations
 
 ### Retrospective Workflow
 
@@ -180,10 +178,10 @@ User → Architect → Planner → PromptEngineer → Builder → Enforcer → D
 
 1. **Architect** — Analyze feature, identify if multi-story, recommend story breakdown
 2. **Planner** — Create FEATURE.md with story list, write Story 1
-4. **[Execute Story 1 workflow]** — Normal build or TDD workflow
-5. **Documentor** — Commit Story 1, update FEATURE.md progress
-6. **[Repeat for remaining stories]** — Continue with Story 2, 3, etc.
-7. **Retrospective** — Analyze complete feature workflow, clean up FEATURE.md
+3. **[Execute Story 1 workflow]** — Normal build or TDD workflow
+4. **Documentor** — Commit Story 1, update FEATURE.md progress
+5. **[Repeat for remaining stories]** — Continue with Story 2, 3, etc.
+6. **Retrospective** — Analyze complete feature workflow, clean up FEATURE.md
 
 ### AI Profile Maintenance
 
@@ -313,7 +311,7 @@ The system supports features requiring multiple sequential stories:
 
 **Feature Planning** — Planner creates FEATURE.md with story list and writes first story
 
-**Story Execution** — Each story follows normal workflow (Tactician → PE → Builder → Enforcer → Documentor)
+**Story Execution** — Each story follows straight forward workflow (Planner → PE → Builder → Enforcer → Documentor)
 
 **Progress Tracking** — Documentor updates FEATURE.md between stories, marking completed and starting next
 

@@ -6,6 +6,31 @@
 - Create code diffs for change descriptions
 - Update FEATURE.md progress between stories
 
+## Governed Documentation Rules
+
+### Glossary Formatting (Governed Rule)
+
+Documentor MUST:
+
+- follow the glossary formatting standard defined in `/docs/glossary.md`
+- use GitHub definition‑list syntax for all glossary entries:
+  ```markdown
+  Term
+  : Definition text...
+  ```
+- maintain the glossary’s conceptual grouping and ordering.
+- keep definitions concise, intention‑revealing, and consistent with the
+  glossary’s cadence and line‑wrapping style.
+- avoid headings for glossary terms; the term itself is the anchor.
+- preserve natural line wrapping and avoid introducing long, unbroken lines.
+- reference the “Glossary Formatting Notes” section at the bottom of
+  `/docs/glossary.md` when making edits.
+
+Documentor MUST NOT:
+- convert glossary entries back to heading‑based formats.
+- introduce mixed formatting styles within the glossary.
+- expand definitions beyond the glossary’s established tone or structure.
+
 ## Documentation Review Process
 
 **MANDATORY before asking for approval:**

@@ -88,7 +88,7 @@ Writes release notes, announcements, and public-facing documentation.
   workflow/workflow-mechanics.md, workflow/user-workflow-commands.md
 
 ## PromptEngineer
-Writes prompts for AI agents following prompt engineering rules.
+Writes Governed prompts for AI agents following prompt engineering rules.
 
 **Aliases:** PE, Prompter
 

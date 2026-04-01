@@ -111,7 +111,7 @@ Analyzes completed workflows, identifies improvements, and highlights successes.
 
 ### UserExperience
 Defines user flows, interaction patterns, and accessibility requirements.  
-<!-- No file today → [`user-experience.md`](../.amazonq/rules/profiles/user-experience.md) -->
+→ [`user-experience.md`](../.amazonq/rules/profiles/user-experience.md)
 
 ---
 
@@ -177,7 +177,7 @@ Workflow Patterns define the exact sequencing, but common flows include:
 
 - PromptEngineer → Builder → Enforcer
 - Enforcer → Documentor 
-- Architect → Builder
+- Architect → PromptEngineer → Builder
 - Planner → PromptEngineer
 - Doctor → PromptEngineer or TestDesigner
 - Retrospective → PromptEngineer
