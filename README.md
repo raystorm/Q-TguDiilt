@@ -246,4 +246,4 @@ while the full project remains the canonical source of truth.
 📋 [GitHub Project Tracker](https://github.com/raystorm?tab=projects) TODO: make project public
 
 ## Contributing
-See `/docs/dev/CONTRIBUTING.md` for contribution guidelines.
+See [`/docs/dev/CONTRIBUTING.md`](docs/dev/CONTRIBUTING.md) for contribution guidelines.

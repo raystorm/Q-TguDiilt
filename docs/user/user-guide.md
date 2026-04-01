@@ -1,0 +1,489 @@
+# **User Guide**
+*A practical guide for operating the  
+**Self‑Improving AI Software Engineering Workflow Engine***
+
+This guide explains how to **use** the workflow engine day‑to‑day.  
+It is written for the human operator — the person issuing commands,
+reviewing handoffs, and steering multi‑profile workflows.
+
+If you want to understand the philosophy, architecture, or rules behind the system,  
+see:
+
+- [**Workflow System One-Pager Deep Dive**](../dev/ai-workflow-system.md)
+- [**Overview**](../overview.md)
+- [**Profiles**](../profiles.md)
+- [**User Commands**](../user-commands.md)
+- [**Workflow Patterns**](../dev/workflow-patterns.md)
+- [**Mindset**](../mindset.md)
+
+This guide focuses on *practical usage*.
+
+---
+
+# 1. What This System Is
+
+This workflow engine is a **governed, multi‑profile AI development workflow system**
+built on Amazon Q.  
+It structures work into predictable steps, each performed by a specialized profile:
+
+- Architect
+- Planner
+- TestDesigner
+- Builder
+- Enforcer
+- Documentor
+- Retrospective
+- …and others
+
+Each profile has a **single responsibility**, a **bounded worldview**,
+and **deterministic behavior** defined by rule files.
+
+You, the human operator, guide the system by issuing **User Commands** and reviewing **handoffs**.
+
+---
+
+# 2. How to Start a Workflow
+
+Once installation is complete (see [Installation Guide](../../README.md#-installation)),
+open Amazon Q and begin with a safe analytical task:
+
+```
+@workspace
+As Architect, analyze my repository and summarize its current structure,
+boundaries, and responsibilities.
+```
+
+This:
+
+- activates the **Architect** profile
+- loads repository context
+- produces a deterministic analysis
+- begins an action
+- further requests to make a change will begin a workflow
+
+From here, continue with deeper architectural evaluation
+or ask for a change to initiate a workflow.
+
+---
+
+# 3. Understanding Workflow Files
+
+The engine uses explicit, file‑based handoffs to maintain clarity and auditability.
+
+These files represent workflow state.  
+They are created **only** by User Commands.  
+Profiles never create workflow artifacts on their own.
+
+### **HANDOFF.md**
+A structured, reviewable transfer of responsibility between profiles, in the **main thread**.
+
+Contains:
+- summary of work
+- requested next action
+- context capsule
+- expected outcome
+
+Location:
+`.amazonq/work/current/HANDOFF.md`
+
+### **MESSAGE.md**
+A structured request for parallel or isolated work, in a **side‑trip**. 
+
+Contains:
+- summary of work
+- requested action
+- context capsule
+- expected outcome
+
+Location:
+`.amazonq/work/current/MESSAGE.md`
+
+### **Suspended Contexts**
+A serialized snapshot of workflow state.
+
+Context Capsule Contains:
+- full workflow state
+- active profile
+- goal / requested action
+- key decisions
+- resume instructions
+- metadata
+- execution history
+
+Location:
+`.amazonq/suspended/[name].md`
+
+**Note:**
+The Workflow system periodically and automatically creates a suspended context
+(auto‑suspend) to preserve continuity. 
+Auto‑suspend files are lightweight, appear in the same directory
+and are resumed the same way as manually suspended contexts.
+
+### **INDEX.md**
+Tracks all suspended and auto-suspended contexts.
+
+Location:
+`.amazonq/suspended/INDEX.md`
+
+### **workflow.log**
+An append‑only JSONL formatted log of workflow events and human insights.
+
+Contains:
+- workflow events (starts, handoffs, decisions, corrections, etc)
+- suspends/resumes
+- notes (human insights)
+- timestamps
+
+Location:
+`.amazonq/workflow.log`
+
+---
+
+# 4. How to Use Commands
+
+User Commands are the **verbs** of the system.  
+They fall into five groups.
+
+For each command, this section lists:
+
+- **What it does**  
+- **Which file(s) it creates, reads, or updates**  
+- **Arguments in the prompt (if any)**  
+- **Usage examples**  
+
+## 4.1 Transfer Commands
+
+### `@handoff`
+Linear progression to the next profile.  
+
+**Creates:**  
+- `HANDOFF.md`
+
+**Arguments:**  
+- `next=<Profile>` (optional) — override the next profile
+
+**Usage:**  
+```
+@handoff
+@handoff next=Planner
+@handoff next=Enforcer
+```
+
+### `@send`
+Create a side‑trip message for parallel or isolated work.
+
+Use when:
+
+- you need parallel expertise
+- you want isolated work
+- you don’t want to block the main thread
+
+**Creates:**  
+- `MESSAGE.md`
+
+**Arguments:**  
+- `to=<Profile>` (optional) — override the target profile  
+- `purpose="<text>"` (optional) — short description of what you want done  
+
+**Usage:**  
+```
+@send
+@send to=Architect
+@send to=Enforcer purpose="validate the test plan"
+@send purpose="review this schema"
+```
+
+---
+
+## 4.2 Activation Commands
+
+### `@start`
+Activate a profile from a handoff.
+
+**Reads:**  
+- `HANDOFF.md`
+
+**Usage:**  
+```
+@start
+```
+
+### `@receive`
+Activate a profile from a message.
+
+**Reads:**  
+- `MESSAGE.md`
+
+**Usage:**  
+```
+@receive
+```
+
+---
+
+## 4.3 Save / Restore Commands
+
+### `@suspend [name]`
+Save full workflow context.
+
+**Creates:**  
+- `.amazonq/suspended/[name].md`  
+- updates `.amazonq/suspended/INDEX.md`
+
+**Arguments:**  
+- `name` (optional) — custom label for the suspended context
+
+**Usage:**  
+```
+@suspend
+@suspend login-feature
+```
+
+### `@resume [name]`
+Restore a suspended (or auto-suspended) context.
+
+**Reads:**  
+- `.amazonq/suspended/[name].md`
+
+**Arguments:**  
+- `name` (optional) — if omitted, shows a list
+
+**Usage:**  
+```
+@resume
+@resume login-feature
+```
+
+### `@list`
+Show all suspended and auto-suspended contexts.
+
+**Reads:**  
+- `.amazonq/suspended/INDEX.md`
+
+**Usage:**  
+```
+@list
+```
+
+---
+
+## 4.4 Logging Commands
+
+### `@note [text]`
+Append a human insight to the workflow log.
+
+Use this to preserve decisions, constraints, or clarifications.
+
+**Appends to:**  
+- `workflow.log`
+
+**Arguments:**  
+- `[text]` (required)
+
+**Usage:**  
+```
+@note how do we "enforce" documentation auto-updates cleanly?
+```
+
+---
+
+## 4.5 Convenience Commands
+These are UX shortcuts, not workflow primitives.
+They exist to reduce friction, not to define workflow mechanics.
+
+### `@dr`  
+Start Doctor to troubleshoot a test failure.
+
+**Arguments:**  
+- pasted test output
+
+**Usage:**  
+```
+@dr
+<paste test failure>
+```
+
+### `@inquiry`
+Enter question‑only mode for a single message.  
+Prevents accidental activation of workflow commands.
+
+**Arguments:**
+- prompt text question
+
+**Usage:**
+```
+@inquiry What is the next profile after handoff?
+```
+
+### `@epr`
+Evaluate a prompt/response pair for rule compliance.
+
+**Arguments:**  
+- raw pasted text  
+- optional separator (`---`, `===`, etc.) to distinguish prompt vs response  
+
+**Usage:**  
+```
+@epr
+<prompt>
+---
+<response>
+```
+
+Or simply:
+
+```
+@epr
+<raw terminal transcript>
+```
+
+### `@send-epr`  
+Side‑trip version of `@epr`.  
+Sends the evaluation request to Enforcer in a separate tab.
+
+**Creates:**  
+- `MESSAGE.md` (with `To: Enforcer` and `Purpose: epr`)
+
+**Arguments:**
+- raw pasted text
+- optional separator (`---`, `===`, etc.) to distinguish prompt vs response
+
+**Usage:**  
+```
+@send-epr
+<prompt>
+===
+<response>
+```
+
+Or simply:
+
+```
+@send-epr
+<raw terminal transcript>
+```
+
+---
+
+# 5. How Profiles Behave
+
+Profiles are **governed actors**.  
+They:
+
+- load rule files
+- operate within strict boundaries
+- perform one job
+- produce artifacts
+- hand off work
+- never improvise
+- never cross domains
+
+You can expect:
+
+- Architect → structural analysis
+- Planner → write stories
+- TestDesigner → acceptance criteria
+- Builder → code + tests
+- Enforcer → validation
+- Documentor → commit messages + docs
+- Retrospective → suggest system improvement
+
+Profiles are not simple personas.  
+They execute deterministic behavior defined by rules.
+
+---
+
+# 6. The Plan + Development Loop
+
+A typical workflow follows this pattern:
+
+1. **Plan**  
+   Planner writes stories. Planner can optionally escalate to
+   Architect or Analyst if more information is required.
+
+2. ***(Optional)* Analyze**  
+   Architect or Analyst evaluates structure and boundaries.
+   *Only when Planner escalates, or from explicit user request.*
+
+3. **Define Tests**  
+   TestDesigner writes acceptance criteria.
+
+4. **Implement**  
+   Builder writes tests and code.
+
+5. **Review**  
+   Enforcer validates code, formatting, and architecture.
+
+6. **Commit**  
+   Documentor writes commit messages and updates docs.
+
+7. **Retrospective**  
+   Retrospective analyzes the cycle and suggests improvements.
+
+Each step is profile‑scoped and rule‑constrained.
+
+---
+
+# 7. When to Switch Profiles
+
+Switch profiles when:
+
+- the current profile’s job is complete
+- the next step belongs to another domain/profile
+- a handoff or message is required
+- a profile hits a boundary
+- a profile escalates
+
+The system is designed so that **you never guess**.  
+The profile will tell you when it’s time to hand off.
+
+---
+
+# 8. How to Recover from Mistakes
+
+### Wrong profile?
+If you activated the wrong profile, recovery depends on whether a workflow file was created.
+
+- If no file was created: simply switch to the correct profile. `Act as CorrectProfile` 
+- If a file *was* created (HANDOFF.md, MESSAGE.md): delete the file and re‑issue the correct command.
+- If you were in the middle of a workflow: resume a previous suspended context.
+
+### Wrong command?
+Recovery depends on the command:
+
+- If it created a file (handoff, send, suspend): re‑issue the correct command.
+- If it activated a profile (start, receive): switch back or resume a previous context.
+- If it logged a note: ignore it (notes are harmless and append‑only).
+- If it was a convenience command (inquiry, epr, send‑epr, dr): no recovery needed.
+
+### Lost context? (e.g., accidental tab closure)
+Use:
+
+```
+@list
+@resume  [suspendFileName]
+```
+If auto‑suspend is enabled, resume the most recent auto‑checkpoint.
+
+### Misaligned handoff?
+Ask the profile to regenerate the handoff with corrected intent.
+Approve the new handoff and continue the workflow.
+
+
+---
+
+# 9. Where to Go Next
+
+For deeper understanding:
+
+- [**Workflow System One-Pager Deep Dive**](../dev/ai-workflow-system.md)
+- [**Overview**](../overview.md) — entry point
+- [**Workflow Patterns**](../dev/workflow-patterns.md) — execution shapes
+- [**Profiles**](../profiles.md) — actors
+- [**User Commands**](../user-commands.md) — verbs
+- [**Contract**](../dev/contract.md) — invariants
+- [**Governance**](../dev/governance.md) — rule interpretation
+- [**Mindset**](../mindset.md) — philosophy
+
+This guide teaches you how to *use* the system.  
+The rest of the documentation teaches you how the system *works*.
