@@ -67,6 +67,24 @@ Design → Prompt → Build → Verify → Document → Improve
 The specific steps may change and be extended. Design and then plan.
 And they can be Split, workflow planning vs test planning for example.
 
+## The Gap This System Fills
+*(As of April 2026)*
+
+Modern AI tools, offer powerful capabilities, but they often fall short
+in software development. This system was designed to address AIs fundamental limitations
+without explicit governance and workflow.  
+It tackles the following structural gaps that commonly arise:
+  * **Drift and role collapse** — models shift behavior mid‑workflow and blur responsibilities
+  * **Context loss and stale documentation** — long tasks degrade, and keeping docs aligned is costly
+  * **Human‑targeted planning** — planning tools assume human cadence and judgment, not machine execution
+  * **Uncoordinated parallelism** — multiple agents run at once but interfere without shared rules
+  * **Inconsistent quality** — outputs vary run‑to‑run, making review and maintenance difficult
+  * **No enforced lifecycle or rigor** — no deterministic process, no audit trail, no reproducibility
+
+**These aren’t bugs**  
+They’re a natural consequence of using AI without explicit structure, governance,
+or team‑like orchestration.
+
 ## Differentiators
 
 This system is not a single AI improvising across tasks.
@@ -76,7 +94,7 @@ Three capabilities make it fundamentally different from normal AI usage:
 ### **1. Full Agile Lifecycle Simulation**
 Every change moves through the same structured loop:
 
-**Design → Prompt → Build → Verify → Document → Improve**
+**Design/Plan → Prompt → Build → Verify → Document → Improve**
 
 This mirrors a real engineering team and ensures that AI‑generated work is consistent,
 reviewable, and aligned with project standards.
@@ -95,7 +113,7 @@ the system behaves the same way every time — eliminating drift and improvisati
 ### **4. PromptEngineer as a Required Step**
 No profile calls Builder directly.  
 PromptEngineer always constructs the Builder prompt, ensuring clarity,
-minimal code principles, and consistent adherence to rules.  
+Minimal Code principles, and consistent adherence to rules.  
 Users *can* bypass this, but the system never does.
 
 ### **5. Rule Governance and Project Level Overrides**
@@ -376,7 +394,7 @@ Saved Prompts can be roughly divided into categories:
 
 ### Quality of Life Enhancements
 
-**@epr** — Activates Enforcer to validate prompt/response pair against prompt engineering rules
+**@epr** — Activates Enforcer to validate prompt/response pairs
 - Checks: profile activation, imperative form, anchoring, confirmation, minimal focus
 - Reports violations with specific examples
 
@@ -435,7 +453,7 @@ Use saved prompts:
 - `@resume [name]` — Load workflow context
 - `@list` — Show suspended contexts
 - `@note [observation]` — Log user observation
-- `@epr` — Validate prompt engineering
+- `@epr` — Validate prompt and response pairs
 - `@send-epr` — Request rule compliance review
 
 Trigger retrospective analysis:

@@ -82,24 +82,26 @@ Profile B continues work
 - Prevents cascade of incomplete work
 - Gives user control over workflow progression
 
-**Profile behavior when work is complete:**
-1. Inform user that work is complete
-2. Summarize what was accomplished
-3. Tell user how to proceed in the SAME message: "Ready to hand off to [NextProfile]? Use: `@handoff`"
-4. **Do NOT stop after summary - include the handoff instruction immediately**
-5. **Wait for user to trigger `@handoff` command**
-6. **Do NOT create HANDOFF.md until user requests it with `@handoff`**
+### **Profile behavior when work is complete:**
 
-**Example completion message (all in one):**
-```
-[Profile]: "Work complete. [Summary of what was accomplished].
-
-Ready to hand off to [NextProfile]? Use: `@handoff`"
-```
+1. **"Single Message" Completion Rule**  
+   To minimize unnecessary back-and-forth, and simplify interactions,
+   profiles must provide: completion, summary, and the next-step in a **Single Message**.  
+   **Example "Single Message":**
+   ```
+   [Profile] [Task] complete.
+   [Summary of results]
+   Ready to hand off to [NextProfile]? Use: `@handoff`
+   ```
+   *The message MUST appear as one message, with no pause, no STOP, and no wait.*
+2. **Wait for user to trigger `@handoff` command**
+3. **Do NOT create HANDOFF.md until user requests it with `@handoff`**
 
 **What NOT to do:**
 - ❌ Print summary, then stop, then wait for user, then ask about handoff (double interaction)
 - ❌ "Work complete. [Summary]." [stops] ... [user types something] ... "Should I proceed?"
+
+**What to do "Single Message":**
 - ✅ "Work complete. [Summary]. Ready to hand off? Use: `@handoff`" (single message)
 
 **For side trips (when profile needs another profile's help):**
@@ -465,51 +467,28 @@ See `workflow/logging.md` for detailed logging specification.
 
 ### What is Inquiry Mode?
 
-Inquiry mode allows asking questions without triggering workflow commands or actions.
-
-**Purpose:**
-- Ask clarifying questions about workflow state
-- Explore ideas without committing to actions
-- Understand context without triggering next steps
-- Think through decisions before proceeding
+Inquiry Mode is a **workflow safety state** that allows questions without
+triggering workflow commands, state transitions, file creation,
+or workflow execution. Normal reasoning and analysis are allowed.
 
 ### Usage
 
 `@inquiry [question]`
 
-**Examples:**
-```
-@inquiry What files were modified in the last workflow?
-@inquiry Should I suspend here or continue?
-@inquiry What would happen if I handoff to Architect?
-@inquiry Why did Builder use a helper function?
-```
+**Example:**
+`@inquiry What files were modified in the last workflow?`
 
 ### Behavior
 
 When `@inquiry` is used:
 - No workflow commands processed (@handoff, @send, @suspend, etc.)
 - No workflow files created (HANDOFF.md, MESSAGE.md)
-- No workflow logging
 - No profile activation
 - Conversational Q&A only
 
 ### Exit Inquiry Mode
 
 Start a new message without `@inquiry`.
-
-### When to Use
-
-**Use inquiry mode when:**
-- Uncertain about next step
-- Need to understand current state
-- Want to explore options
-- Thinking through decisions
-
-**Don't use inquiry mode when:**
-- Ready to take action
-- Want to trigger workflow commands
-- Need to create workflow artifacts
 
 ---
 

@@ -98,14 +98,51 @@ Show all suspended contexts.
 
 ---
 
-## 4. Logging Commands
-Commands that record user insights.
+## 4. Stateless Commands
+Commands work across the entire workflow, regardless of the current state
 
 ### `@note`
 Append a user observation to `workflow.log`.
 
 - Logs an event in a JSONL format
 - Captures human insight for later retrospective analysis
+
+### `@inquiry`
+Inquiry Mode lets you ask questions safely without triggering workflow commands
+or actions.
+
+**Purpose:**
+- Ask clarifying questions about workflow state
+- Explore ideas without committing to actions
+- Understand context without triggering next steps
+- Think through decisions before proceeding
+
+#### Usage
+`@inquiry [question]`
+
+**Examples:**
+```
+@inquiry What files were modified in the last workflow?
+@inquiry Should I suspend here or continue?
+@inquiry What would happen if I handoff to Architect?
+@inquiry Why did Builder use a helper function?
+```
+
+#### Exit Inquiry Mode
+Start a new message without `@inquiry`.
+
+#### When to Use
+
+**Use inquiry mode when:**
+- Uncertain about next step
+- Need to understand current state
+- Want to explore options
+- Thinking through decisions
+
+**Don't use inquiry mode when:**
+- Ready to take action
+- Want to trigger workflow commands
+- Need to create workflow artifacts
 
 ---
 

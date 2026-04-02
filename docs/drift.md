@@ -124,7 +124,7 @@ Profiles influencing each other’s behavior or collapsing into a single blended
 Mixing unrelated context, threads, or workflows.
 
 ### **L. Thread Drift**
-Side trips leaking into the main thread or vice‑versa.
+Side trips leaking into the Main Thread or vice‑versa.
 
 ### **M. Workflow Drift**
 A Cycle deviating from the governed sequence (Analyze → Retro).

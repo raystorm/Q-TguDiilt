@@ -230,17 +230,18 @@ Side trips may involve multiple steps.
 A profile performing isolated work can initiate additional side trips
 before returning to the main workflow.  
 Only the **first** step opens a new tab.  
-Subsequent steps occur in the **same Side‑Trip Thread**, and each `@recieve` replaces the active profile.
+Subsequent steps occur in the **same Side‑Trip Thread**,
+and each `@recieve` replaces the active profile.
 
 ### **Execution Shape**
 ```
 MAIN THREAD (Profile A) → @send Profile B
   ↓
-User opens SIDE‑TRIP THREAD → @receive → Profile B performs isolated work
+User opens SIDE TRIP THREAD → @receive → Profile B performs isolated work
   ↓
-Profile B needs Profile C → @send Profile C (same SIDE‑TRIP THREAD) → @receive
+Profile B needs Profile C → @send Profile C (same SIDE TRIP THREAD) → @receive
   ↓
-Profile C performs isolated work → Profile C completes work → User closes SIDE‑TRIP THREAD
+Profile C performs isolated work → Profile C completes work → User closes SIDE TRIP THREAD
   ↓
 MAIN THREAD resumes (Profile A)
 ```
@@ -248,11 +249,13 @@ MAIN THREAD resumes (Profile A)
 ### **Key Characteristics**
 - Only the first `@send` performed in the Main Thread
 - Opening a new tab is a user action
-- Subsequent `@send`/`@receive` calls occur in the same Side‑Trip Thread
+- Subsequent `@send`/`@receive` calls occur in the same Side Trip Thread
 - Each `@receive` **replaces** the active profile
 - **Control never returns to B**
-- The chain ends by closing the Side‑Trip Thread
+- The chain ends when all side trip work is complete.
 - The main workflow remains suspended until the chain completes
+- If Profile A was waiting on the side trip,
+  the user must inform Profile A of side trip completion to continue  
 
 ---
 
