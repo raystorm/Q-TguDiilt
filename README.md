@@ -152,6 +152,8 @@ Refer to `/docs/dev` for deeper architectural context as needed
 
 This section provides the minimal activation steps.  
 All deeper explanations, examples, and workflow patterns live in the documentation.
+See the [User Guide](docs/user/user-guide.md#2-how-to-start-a-workflow) for a
+more detailed picture of running a workflow.
 
 ---
 

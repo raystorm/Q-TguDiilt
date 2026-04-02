@@ -451,6 +451,16 @@ User: (closes tab, done)
 
 ---
 
+## Workflow Identity
+
+Every workflow execution receives a unique **Workflow ID** when it begins.
+This ID is generated automatically by the system and remains stable for the lifetime of the workflow.
+It ties together all workflow artifacts—handoffs, messages, suspends, auto‑suspends,
+and logs, allowing the system to maintain continuity, traceability,
+and isolation across workflow steps.
+
+---
+
 ## Workflow Logging
 
 All profiles that reference `workflow/logging.md` MUST log:

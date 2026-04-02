@@ -94,6 +94,10 @@ from one profile to another.
 Marks a state transition in the Main Thread  
 and ensures work continues with the correct role, rules, and artifacts.
 
+Thread
+: an isolated workflow execution context, represented by a single chat instance,
+with its own workflowId and state.
+
 Main Thread
 : The primary, sequential execution path of a workflow cycle  
 (e.g., Architect → Planner → … → Retrospective).
@@ -102,6 +106,12 @@ Side Trip
 : A temporary, secondary, isolated workflow that runs outside the Main Thread.  
 Used for clarity, diagnosis, exploration,  
 or small corrective actions without disturbing the primary workflow’s state or momentum.
+
+Workflow ID
+: A unique, stable identifier assigned to a workflow execution
+at the moment the workflow begins.  
+It is used to correlate all artifacts, logs, suspends, resumes,
+and auto‑suspend checkpoints that belong to the same workflow instance.
 
 Minimal Code
 : The architectural principle that changes should be the smallest, simplest change  

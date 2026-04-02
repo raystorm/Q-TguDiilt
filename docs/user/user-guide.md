@@ -42,27 +42,38 @@ You, the human operator, guide the system by issuing **User Commands** and revie
 
 ---
 
-# 2. How to Start a Workflow
+# 2. How to *Run* a Workflow
 
 Once installation is complete (see [Installation Guide](../../README.md#-installation)),
 open Amazon Q and begin with a safe analytical task:
 
+After completing the initial safe analysis from the [README](../../README.md#getting-started),
+the next step is to turn that analysis into a governed workflow.
+
+Begin by asking Architect to identify and prioritize the most important change:
+
 ```
-@workspace
-As Architect, analyze my repository and summarize its current structure,
-boundaries, and responsibilities.
+Help me implement the most critical issue already identified.
+Explain why it is the most critical finding.
 ```
 
-This:
+**Architect** will:
+- interpret the analysis
+- identify the highest‑impact issue
+- justify the prioritization
+- outline the minimal change required
+- prepare the problem for Planner
 
-- activates the **Architect** profile
-- loads repository context
-- produces a deterministic analysis
-- begins an action
-- further requests to make a change will begin a workflow
+From here, the workflow engine follows a predictable governed sequence:
+**Architect** will ask you to `@handoff` and send you to **Planner**,   
+which will begin a *workflow Cycle* as defined in [*Section 6*](#6-your-role-in-the-workflow-cycle).
 
-From here, continue with deeper architectural evaluation
-or ask for a change to initiate a workflow.
+Each transition between profiles uses a **reviewable handoff**,
+which you must approve before the next profile begins.
+Each handoff begins with `@handoff`, and the next profile starts with `@start`.
+
+This section teaches you how to operate the workflow.  
+For deeper architectural context, see the [Workflow System Deep Dive](../dev/ai-workflow-system.md).
 
 ---
 
@@ -70,60 +81,27 @@ or ask for a change to initiate a workflow.
 
 The engine uses explicit, file‑based handoffs to maintain clarity and auditability.
 
+See the [Workflow Artifacts](../dev/contract.md#2-canonical-workflow-artifacts)
+for full details.
+
 These files represent workflow state.  
 They are created **only** by User Commands.  
 Profiles never create workflow artifacts on their own.
 
-### **HANDOFF.md**
+**HANDOFF.md**  
 A structured, reviewable transfer of responsibility between profiles, in the **main thread**.
 
-Contains:
-- summary of work
-- requested next action
-- context capsule
-- expected outcome
+**MESSAGE.md**  
+A structured request for parallel or isolated work, in a **side‑trip**.
 
-Location:
-`.amazonq/work/current/HANDOFF.md`
-
-### **MESSAGE.md**
-A structured request for parallel or isolated work, in a **side‑trip**. 
-
-Contains:
-- summary of work
-- requested action
-- context capsule
-- expected outcome
-
-Location:
-`.amazonq/work/current/MESSAGE.md`
-
-### **Suspended Contexts**
+**Suspended Contexts**
 A serialized snapshot of workflow state.
 
-Context Capsule Contains:
-- full workflow state
-- active profile
-- goal / requested action
-- key decisions
-- resume instructions
-- metadata
-- execution history
+**Auto-Suspended Contexts**
+Lightweight, automatically maintained recovery checkpoints.
 
-Location:
-`.amazonq/suspended/[name].md`
-
-**Note:**
-The Workflow system periodically and automatically creates a suspended context
-(auto‑suspend) to preserve continuity. 
-Auto‑suspend files are lightweight, appear in the same directory
-and are resumed the same way as manually suspended contexts.
-
-### **INDEX.md**
+**INDEX.md**
 Tracks all suspended and auto-suspended contexts.
-
-Location:
-`.amazonq/suspended/INDEX.md`
 
 ### **workflow.log**
 An append‑only JSONL formatted log of workflow events and human insights.
@@ -378,49 +356,91 @@ They:
 - never improvise
 - never cross domains
 
-You can expect:
+**Profiles are not simple personas.  
+They execute deterministic behavior defined by rules.**
 
-- Architect → structural analysis
-- Planner → write stories
-- TestDesigner → acceptance criteria
-- Builder → code + tests
-- Enforcer → validation
-- Documentor → commit messages + docs
-- Retrospective → suggest system improvement
+## Who you gonna call?
+When in doubt, call the **Operator**.
+```
+Act as Operator, who I do talk to solve [problem statement or question]?
+```
 
-Profiles are not simple personas.  
-They execute deterministic behavior defined by rules.
+Operator will route your request to the correct profile based on:
+- the type of work
+- the workflow state
+- the next governed step
+
+## Full Profile definitions
+For a full list of  Profiles and definitions see: [profiles.md](../profiles.md)
 
 ---
 
-# 6. The Plan + Development Loop
+# 6. Your Role in the Workflow Cycle
 
-A typical workflow follows this pattern:
+The workflow engine runs a governed sequence of profiles,
+but **you**, the user, control the loop.
 
-1. **Plan**  
-   Planner writes stories. Planner can optionally escalate to
-   Architect or Analyst if more information is required.
+At each step, your job is to:
 
-2. ***(Optional)* Analyze**  
-   Architect or Analyst evaluates structure and boundaries.
-   *Only when Planner escalates, or from explicit user request.*
+- review what the profile produced
+- trigger the handoff with `@handoff`
+- approve or reject the handoff
+- trigger the next step with `@start`
+- keep the workflow on track
 
-3. **Define Tests**  
-   TestDesigner writes acceptance criteria.
+Below is your role at each stage.
 
-4. **Implement**  
-   Builder writes tests and code.
+## 1. **Plan**  
+**Your job:**  
+- review the story  
+- ensure acceptance criteria are needed  
+- approve the handoff
 
-5. **Review**  
-   Enforcer validates code, formatting, and architecture.
+## 2. ***(Optional)* Analyze**
+*Only when Planner escalates, or from explicit user request.*
+**Your job:**  
+- confirm the architectural interpretation  
+- ensure the scope is correct  
+- approve the handoff
 
-6. **Commit**  
-   Documentor writes commit messages and updates docs.
+## 3. **Define Tests**  
+**Your job:**  
+- check that test scenarios match the story  
+- ensure nothing is missing  
+- approve the handoff
 
-7. **Retrospective**  
-   Retrospective analyzes the cycle and suggests improvements.
+## 4. **Prepare to Implement**  
+**Your job:**  
+- confirm the Builder prompt is clear  
+- ensure minimal‑change principles are followed  
+- approve the handoff 
 
-Each step is profile‑scoped and rule‑constrained.
+## 5. **Implement**
+**Your job:**  
+- review diffs  
+- confirm changes are correct  
+- approve the handoff
+
+## 6. **Review**  
+**Your job:**  
+- confirm validation passed  
+- ensure no issues remain  
+- approve the handoff
+
+## 7. **Commit**  
+**Your job:**  
+- review the commit message for completeness and clarity
+- commit the change
+- decide whether to continue the feature or run a retrospective  
+- approve the handoff
+
+## 8. **Retrospective**  
+**Your job:**  
+- review improvement suggestions  
+- choose which (if any) to apply  
+- trigger the next workflow or close the loop
+
+*Each step is profile‑scoped and rule‑constrained.*
 
 ---
 

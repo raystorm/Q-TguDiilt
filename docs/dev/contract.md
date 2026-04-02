@@ -44,13 +44,24 @@ A structured, reviewable transfer of responsibility between profiles.
 
 Created **only** when the user triggers `@handoff`.
 
+**Contains:**  
+- From
+- Task
+- Summary of Work
+- Requested Next Action
+- Context Capsule
+- Artifacts
+- Expected Outcome
+
 **Invariants:**
 
-- must include: From, Task, Context, Artifacts, Expected Outcome
+- must include all fields listed under **Contains**
 - must be complete and reviewable
 - must not be auto‑created
 - must require explicit user approval
-- must live at: `.amazonq/work/current/HANDOFF.md`
+
+Location:
+`.amazonq/work/current/HANDOFF.md`
 
 ---
 
@@ -60,12 +71,24 @@ A structured request for parallel work by another profile.
 
 Created **only** when the user triggers `@send [Profile]`.
 
+**Contains:**  
+- From
+- Task
+- Summary of Work
+- Requested Action
+- Context Capsule
+- Artifact
+- Expected Outcome
+
 **Invariants:**
 
-- must include: From, Task, Context, Artifact Location, Expected Outcome
+- must include all fields listed under **Contains**
 - must be isolated from main workflow
+- must require explicit user approval
 - must return control to original profile
-- must live at: `.amazonq/work/current/MESSAGE.md`
+
+Location:
+`.amazonq/work/current/MESSAGE.md`
 
 ---
 
@@ -75,13 +98,25 @@ A serialized snapshot of workflow state.
 
 Created **only** via `@suspend`.
 
+**Contains:**
+- Full Workflow State (Context Capsule)
+- Active Profile
+- Goal / Requested Action
+- Key Decisions
+- Resume Instructions
+- Metadata
+- Execution History
+
 **Invariants:**
 
-- must include: Profile, Goal, Key Decisions, Current State, Resume Instructions, Metadata
+- must include all fields listed under **Contains**
 - must be sufficient to resume work without loss of meaning
 - must follow naming rules in [`user-commands.md`][commands]
 - must not be modified by profiles
 - must be resumable via `@resume`
+
+Location:
+`.amazonq/suspended/[name].md`
 
 ### **2.3.1 Auto‑Suspend (Background Continuity Mechanism)**
 
@@ -100,6 +135,30 @@ resume semantics as manual suspended contexts.
 - cleaned up automatically on workflow completion or manual suspend
 
 See [`auto-suspend.md`][auto-suspend] for full rules.
+
+### **2.3.2 Suspended Index (`INDEX.md`)**
+
+Tracks all suspended workflow contexts in a human‑readable list.
+
+**Purpose:**
+Provide a single, scannable index of suspended contexts so users can see
+what’s parked and choose what to resume or clean up.
+
+**Contains:**
+- **Active Contexts** section
+- **Completed Contexts** section (optional, when present)
+- One entry per context in the form:
+    - `[name] - [description] - [date]`
+
+**Invariants:**
+- must list every file in `.amazonq/suspended/` that represents a suspended context
+- must format each entry as: `[name] - [description] - [date]`
+- must be updated whenever a context is suspended or resumed
+- must remain human‑readable and safe to inspect in an editor
+- must not contain implementation details beyond what `@list` displays
+
+Location:
+`.amazonq/suspended/INDEX.md`
 
 ---
 

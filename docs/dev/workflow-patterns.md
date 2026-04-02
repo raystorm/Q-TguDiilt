@@ -166,6 +166,10 @@ Side trips can be initiated in two ways:
 
 ---
 
+## Thread
+A Thread is an isolated workflow execution context,
+represented by a single chat instance, with its own workflowId and state.
+
 ## **Thread Labels**
 
 Side trips use two threads:

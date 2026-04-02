@@ -54,7 +54,7 @@ The runtime primitives that move work between profiles:
 
 ### **6. Rules & Governance**
 Universal rules, project‑level overrides, and the `Override:` mechanism.  
-[rules-and-governance.md](./dev/governance.md)
+[governance.md](./dev/governance.md)
 
 ### **7. Drift**
 The central failure mode of AI systems. 

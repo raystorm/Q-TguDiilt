@@ -58,6 +58,7 @@ For full behavioral rules, see:
 `../.amazonq/rules/profiles/<profileName>.md`
 
 ### Operator
+The primary entry point for user questions. **When in doubt, *call Operator*.**
 Routes tasks to the correct profile. Does not perform work.  
 → [`operator.md`](../.amazonq/rules/profiles/operator.md)
 
@@ -139,9 +140,96 @@ These have rule files that define:
 - escalation paths (if needed)
 - required outputs (if needed)
 
-
 This model keeps the system flexible, minimal, and drift‑resistant:  
 profiles only gain governance when they need it.
+
+# 4.1 Why Profiles Are Conceptual or Governed
+
+Profiles come in two forms — **Conceptual Profiles** and **Governed Profiles** — and the distinction exists to keep the system minimal, predictable, and drift‑resistant.
+
+## Purpose of the Distinction
+
+Some profiles only need an identity and a worldview.  
+Others need strict rules, boundaries, and escalation behavior.
+
+The system stays minimal by only adding governance when a profile’s role *requires* it.  
+This prevents unnecessary bureaucracy and keeps conceptual roles lightweight.
+
+---
+
+# 4.2 How Users Interact With Each Type
+
+### Conceptual Profiles
+These are identity‑level roles. They define:
+- what the profile notices
+- what it cares about
+- what it ignores
+
+But they do **not** enforce rules or produce boundary artifacts.
+
+**User expectation:**  
+A conceptual profile will stay in its lane, but it will not stop, warn,
+or escalate if asked to do something outside its worldview.
+It simply declines or ignores the work.
+
+**Mental model:**  
+“Think of me as a role with a perspective, not a rule engine.”
+
+---
+
+### Governed Profiles
+These profiles have rule files that define:
+- domain of authority
+- invariants
+- boundaries
+- escalation paths (if any)
+- required outputs
+
+Governed profiles enforce their rules deterministically.
+
+**User expectation:**  
+A governed profile will:
+- stop when work is out of scope
+- document the boundary
+- escalate if an escalation path exists
+- produce minimal artifacts when required
+
+**Mental model:**  
+“Think of me as a role with obligations, constraints, and formal behavior.”
+
+---
+
+# **4.3 How the System Treats Them Differently**
+
+| Behavior                  | Conceptual Profile | Governed Profile              |
+|---------------------------|--------------------|-------------------------------|
+| Has a rule file           | No                 | Yes                           |
+| Enforces invariants       | No                 | Yes                           |
+| Stops on boundary         | No                 | Yes                           |
+| Escalates                 | No                 | Only if defined               |
+| Produces required outputs | No                 | Yes                           |
+| Ignores out‑of‑scope work | Yes                | No (must document + escalate) |
+
+This table gives users a quick, operational understanding of what to expect.
+
+---
+
+# **4.4 How Users Know Which One They’re Dealing With**
+
+A profile is **conceptual** when:
+- it has no rule file
+- it exists to define identity, worldview, or responsibility
+- it is used for routing, framing, or perspective
+
+A profile is **governed** when:
+- it has a rule file
+- it must enforce boundaries
+- it participates in escalation
+- it has required outputs or invariants
+
+**Rule of thumb:**  
+If a profile has obligations, it’s governed.  
+If it only has a worldview, it’s conceptual.
 
 ---
 

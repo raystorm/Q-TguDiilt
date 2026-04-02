@@ -128,6 +128,7 @@ Override:
 ```
 
 This makes overrides explicit, and easy to find.
+See: [governance.md](governance.md#4-override-mechanism) for details.
 
 ## Common Profiles
 
@@ -211,51 +212,66 @@ User → Architect → Planner → PromptEngineer → Builder → Enforcer → D
 1. **Analyst** — Analyze existing rules, identify gaps or conflicts
 2. **PromptEngineer** — Update rule files in `.amazonq/rules/`
 
----
+## System Invariants & Principles
 
-## Guardrails
+The AI Workflow System is structured, disciplined, and governed.  
+These invariants define what the system *always* does, what it *never* does,
+and how profiles behave.
 
-The AI Workflow System is structured and disciplined, but it is not autonomous.
-It has clear boundaries that define what it does and does not do.
+### **1. Profile Stability**
+**Profiles never auto‑switch.**  
+A profile remains active until explicitly switched or a saved command is invoked.  
+Profiles do not infer intent or guess which persona should run next.
 
-### **1. Profiles Do Not Auto‑Switch**
-A profile remains active until the user explicitly switches or triggers a saved command.  
-The system never infers or guesses which profile should run next.
+#### **1.1 Single‑Responsibility Profiles**
+Each profile performs only its own responsibilities.  
+When work falls outside its domain, it escalates, or stops, rather than improvises.
 
-### **2. Profiles Do Not Perform Each Other’s Jobs**
-Builder does not design.  
-Architect does not write code.  
-Enforcer does not generate prompts.  
-Each profile has one responsibility and stays within it.  
-When a profile encounters work outside its scope, it escalates to the appropriate profile.
+### **2. Builder Routing**
+All Builder work routes through PromptEngineer.  
+No profile calls Builder directly.  
+This ensures prompt quality, architectural alignment, and drift‑resistant execution.
 
-### **3. Users Can Bypass the Workflow (But the System Never Does)**
-The system enforces discipline internally:
-- no profile calls Builder directly (all Builder work routes through PromptEngineer)
-- no profile skips PromptEngineer
-- no profile modifies files without explicit user confirmation
-- Planner escalates domain behavior questions to Architect
-- Doctor escalates architectural issues to Architect
+### **3. Explicit User Confirmation**
+No file is ever modified without explicit user approval.  
+Builder, Doctor, and Enforcer all require confirmation before writing.
 
-Users *can* break the loop, but the system itself never will.
-
-### **4. No Implicit Context Sharing**
+### **4. Explicit Context, No Implicit Sharing**
 Profiles do not share chat history or memory.  
-All communication happens through explicit file‑based handoffs.  
-This prevents drift and hidden dependencies.
+All coordination happens through explicit file‑based handoffs.  
+This prevents drift, hidden dependencies, and accidental coupling.
 
 ### **5. No Autonomous Rule Changes**
-Retrospective can recommend improvements, but:
+Retrospective may recommend improvements, but:
 - rules are never modified automatically
 - user approval is always required
-- changes are always explicit and reviewable
+- changes are explicit, reviewable, and logged
 
-### **6. No Speculative Work**
-Profiles only act on the current task.  
-They do not anticipate future steps, generate extra files, or apply patterns prematurely.  
+### **6. Minimal, Task‑Bound Work**
+Profiles act only on the current task.  
+They do not anticipate future steps, or generate speculative artifacts.  
 Minimal‑change principles always apply.
 
-### **7. Human Judgment Is Still Required**
+### **7. Pattern Earning**
+Patterns are earned, not assumed.  
+A pattern is applied only when the task and artifacts justify it.  
+Partial implementation is acceptable.
+
+### **8. Context‑Aware Changes**
+The system gathers and checks relevant context before acting.
+Profiles do not rely on chat history or assumptions.
+They ground their behavior in explicit artifacts.
+
+### **9. Workflow Logging**
+Profiles log *workflow_start* and key events.  
+This enables retrospective analysis, debugging, and the **self-improving loop**.
+
+### **10. Self‑Improving Through Retrospective**
+Retrospective analyzes workflow logs and proposes improvements.  
+The user approves or rejects the suggested changes.  
+This creates a governed, user‑directed feedback loop.
+
+### **11. Human Judgment Remains Central**
 The system does not replace:
 - product decisions
 - architectural intent
@@ -263,32 +279,12 @@ The system does not replace:
 - acceptance criteria
 - domain expertise
 
-It amplifies human judgment; it does not eliminate it.
-
-
-## Key Principles
-
-**Profile Stability** — Profiles stay active until explicitly switched, never auto-switch
-
-**Builder Routing** — All Builder work routes through PromptEngineer first to ensure prompt quality
-
-**Confirmation Required** — All file changes require user confirmation before execution
-
-**Context Awareness** — Doctor and Enforcer check context before fixing (FEATURE.md, workflow log, git diff)
-
-**Minimal Code** — Write only the absolute minimal code needed to address requirements correctly
-
-**Pattern Earning** — Patterns must be earned, not applied by default; partial implementation is acceptable
-
-**Schema-First** — New data types defined in GraphQL schema first, then codegen generates TypeScript types
-
-**Workflow Logging** — Profiles log workflow_start and key events to enable retrospective analysis
-
-**Self Improving** —
-Retrospective analyzes workflow logs recommends improvements 
-for the user to approve to streamline future workflows.
+***The system amplifies human judgment; it does not eliminate it.***
 
 ## Workflow Logging
+
+Each workflow execution is assigned a unique Workflow ID,
+which ties together all logs, suspends, resumes, and workflow artifacts.
 
 All profiles that reference `workflow/logging.md` must log:
 - `workflow_start` on activation
@@ -358,60 +354,30 @@ Saved Prompts can be roughly divided into categories:
 
 ### Workflow Commands
 
-**@handoff** — Current profile writes handoff to `.amazonq/work/HANDOFF.md` for next profile
-- Specifies: To, From, Next, Task, Files, Context, Action
-- Requests user confirmation before proceeding
-- Cleans up old work files on approval
-- User runs `/compact` then `@start` to activate next profile
+The system exposes a set of saved prompts (“commands”) that activate profiles,  
+transfer work, or manage workflow state. Below is the **minimal conceptual list**.  
+For full syntax, arguments, and examples, see:  
+`docs/user/user-guide.md` (Section 4: User Commands).
 
-**@start** — Reads `HANDOFF.md`, activates profile specified in "To:" field, executes task
-- Ignores prior conversation history
-- Displays next profile to handoff to when complete
+**Transfer Commands** — Hand off work between profiles.  
+- **`@handoff`** — create `HANDOFF.md` and prepare work for the next profile.
+- **`@send`** — send a message or artifact to another profile via `MESSAGE.md`.
 
-**@send** — Current profile writes message to `.amazonq/work/MESSAGE.md` for another profile
-- Used for cross-tab communication (Retrospective → PE/Architect)
-- Does not change current profile
-- User opens new tab and runs `@receive`
+**Activation Commands** — Switch profiles or start workflows.  
+- **`@start`** — activate the profile named in `HANDOFF.md`.
+- **`@receive`** — activate the profile named in `MESSAGE.md`.
 
-**@receive** — Reads `MESSAGE.md`, activates profile specified in "To:" field, executes request
-- Used in new chat tab for isolated work
-- Does not modify handoff state
-- User returns to original tab when done
+**Suspend / Resume Commands** — Save and restore workflow state.  
+- **`@suspend`** — save the current context as a suspended workflow.
+- **`@resume`** — restore a previously suspended workflow.
+- **`@list`** — show all suspended workflows.
 
-**@suspend** — Save workflow context for later resumption
-- Saves to `.amazonq/suspended/[name].md`
-- Updates `.amazonq/suspended/INDEX.md`
-- Enables multi-story/multi-phase work without context loss
+**Stateless Commands** — Operate across the entire workflow, regardless of state.  
+- **`@note`** — append a log entry to `workflow.log`.
+- **`@inquiry`** — enter question‑only mode (no state changes allowed).
 
-**@resume** — Load previously suspended workflow context
-- Lists available contexts if no name provided
-- Loads context and activates appropriate profile
-- Continues work from checkpoint
-
-**@list** — Display all suspended workflow contexts
-- Shows active vs completed contexts
-- Reads from `.amazonq/suspended/INDEX.md`
-
-### Quality of Life Enhancements
-
-**@epr** — Activates Enforcer to validate prompt/response pairs
-- Checks: profile activation, imperative form, anchoring, confirmation, minimal focus
-- Reports violations with specific examples
-
-**@send-epr** — Writes message for Enforcer to review current work for rule compliance
-- Checks: formatting, architecture, testing rules
-- Does not change current profile or clean up work directory
-
-**@note** — Log user observations to workflow log
-- Captures user insights during workflow execution
-- Appends to `.amazonq/workflow.log` with accurate timestamp
-- Enriches retrospective analysis with human observations
-
-**@inquiry** - Allows the User to ask workflow questions without risking command activation
-- DOES NOT ACTIVATE ANY WORKFLOW COMMANDS
-- only lasts for the current prompt
-
-**@dr** - Activates Doctor to trouble shoot the pasted test failure 
+**Convenience Commands**  — UX shortcuts that wrap common patterns.  
+- **`@dr`** — start Doctor and troubleshoot a test result.
 
 ## Handoff vs Send/Receive
 
