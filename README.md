@@ -1,11 +1,13 @@
 # Q-TguDiilt
-## A Self‑Improving AI Software Engineering Workflow Engine
+*A Self‑Improving AI Software Engineering Workflow Engine*
 
 <!-- Placeholder, no logo created yet
 <p align="center">
   <img src="images/logo.svg" alt="Project Logo" width="200"/>
 </p>
 -->
+
+---
 
 ## Overview
 A governed, multi‑profile AI workflow engine designed for structured software development.
@@ -31,6 +33,8 @@ how the engine operates, learns, and maintains architectural integrity over time
 > ensuring consistent and reliable behavior for AI‑assisted development.
 
 ![Plan Dev Loop](images/Plan-Dev-Flow.png)
+
+---
 
 ## What This Repository Contains
 - The AI rule system (`.amazonq/rules/`)
@@ -72,6 +76,8 @@ while the full versions remain available for human review and cross‑reference.
 ### `/docs/user`
 User‑facing documentation (to be expanded as features land).
 
+---
+
 ## Core Concepts
 - Governed rule system
 - Multi‑profile AI collaboration
@@ -82,7 +88,9 @@ User‑facing documentation (to be expanded as features land).
 
 (Each of these will get its own section as the system evolves.)
 
-## 📦 Installation
+---
+
+## Installation
 
 Follow these steps to install the Amazon Q prompts, rules, and documentation
 into your repository and activate them in your IDE.
@@ -113,8 +121,7 @@ Open the Amazon Q chat sidebar inside your IDE.
 ### 4. Install the prompts, rules, and docs into Amazon Q’s active configuration
 
 Type the following message into the Amazon Q chat:
-
-```
+```text
 Install the saved prompts, from @prompts
 into your active Amazon Q prompts directory.
 ```
@@ -123,13 +130,15 @@ into your active Amazon Q prompts directory.
 Amazon Q will copy saved prompts from the repository, to the user's prompt directory.  
 *Note:* Amazon Q will need permission to update a folder, `~/.aws/amazonq/prompts`
 
+---
+
 ## Getting Started
 Once the prompts, rules, and documentation are installed,
 the workflow engine is ready to operate.
 
   1. Open Amazon Q in your IDE
   2. Start with a safe analytical first task
-     ```
+     ```text
      @workspace
      As Architect, analyze my repository and summarize its current structure,
      boundaries, and responsibilities.
@@ -140,7 +149,7 @@ the workflow engine is ready to operate.
      (The Architect profile is still active from step 2,  
       as long as you remain in the same chat  
       and the profile has not been explicitly changed.)
-     ```
+     ```text
      @workspace
      identify structural gaps, missing boundaries, or incomplete features
      based on the current state of the repository. 
@@ -152,7 +161,7 @@ Refer to `/docs/dev` for deeper architectural context as needed
 
 This section provides the minimal activation steps.  
 All deeper explanations, examples, and workflow patterns live in the documentation.
-See the [User Guide](docs/user/user-guide.md#2-how-to-start-a-workflow) for a
+See the [User Guide](docs/user/user-guide.md#2-how-to-run-a-workflow) for a
 more detailed picture of running a workflow.
 
 ---
@@ -162,39 +171,39 @@ This workflow engine provides a governed,
 multi‑profile AI development environment designed for structured,
 drift‑resistant software engineering.
 
-### **Deterministic Multi‑Profile Workflow Engine**
+### Deterministic Multi‑Profile Workflow Engine
 The system executes work in a governed sequence of profile‑scoped steps.
 Each profile has isolated responsibilities, explicit handoff mechanics,  
 and rule‑enforced behavior, ensuring predictable,
 repeatable workflow execution with no cross‑profile drift.
 
-### **Self‑Improving Workflow System**
+### Self‑Improving Workflow System
 The engine improves itself through governed retrospectives.
 Retrospective identifies drift or inefficiency, lists recommendations,
 and once the user selects one, starts a side trip workflow to apply updates to 
 rules and/or documentation. Improving the system for future cycles,
 evolving it without losing architectural integrity.
 
-### **Domain‑Agnostic Workflow Framework**
+### Domain‑Agnostic Workflow Framework
 Although this repository ships with software‑engineering profiles,
 the underlying workflow engine is domain‑agnostic.
 By defining new profiles, this system can be adapted to other domains
 such as business analysis, data science, operations, research workflows,
 or any governed multi‑step process.
 
-### **Governed Rule System**
+### Governed Rule System
 A universal rule layer that enforces architectural boundaries,
 communication standards, and deterministic behavior across all AI profiles.
 
-### **Multi‑Profile Collaboration**
+### Multi‑Profile Collaboration
 Specialized profiles (Architect, Planner, Analyst, Developer, Reviewer, etc.)  
 operate with isolated responsibilities, context windows, and explicit handoff mechanics.
 
-### **Workspace‑Aware Reasoning**
+### Workspace‑Aware Reasoning
 Profiles operate on real project context and use Amazon Q's `@workspace` command,
 enabling accurate analysis, planning, and code generation grounded in the repository.
 
-### **Structured Development Loop**
+### Structured Development Loop
 A repeatable, governed workflow:
 - **Analyze** - *Architect/Analyst* evaluate Boundaries Structure, and gaps
 - **Plan** - *Planner* writes stories
@@ -206,7 +215,7 @@ A repeatable, governed workflow:
 
 Each step is profile‑scoped and rule‑constrained.
 
-### **Drift‑Resistant Architecture**
+### Drift‑Resistant Architecture
 The engine maintains consistency over time through:
 - **Explicit user review of `@handoff` at every step, preventing drift before it happens.**
 - explicit extension points
@@ -221,11 +230,11 @@ The Retrospective Process detects when drift has happened since the last retrosp
 and will suggest ways to reduce or eliminate that kind of drift in future cycles,  
 usually via documentation or rule updates.
 
-### **AI‑Ready Documentation Pipeline**
+### AI‑Ready Documentation Pipeline
 The system distills `/docs/dev` into focused, profile‑specific AI files,  
 ensuring the AI operates on curated, relevant context rather than raw documents.
 
-### **Commit and Communication Standards**
+### Commit and Communication Standards
 Built‑in conventions for:
 - commit messages
 - diffs
@@ -234,6 +243,8 @@ Built‑in conventions for:
 - handoff messages
 
 Ensuring clarity and traceability across all AI‑assisted work.
+
+---
 
 ## Roadmap
 The roadmap is a living planning artifact, maintained in GitHub Projects
@@ -246,6 +257,8 @@ while the full project remains the canonical source of truth.
 
 **View the full roadmap:**  
 📋 [GitHub Project Tracker](https://github.com/users/raystorm/projects/2)
+
+---
 
 ## Contributing
 See [`/docs/dev/CONTRIBUTING.md`](docs/dev/CONTRIBUTING.md) for contribution guidelines.

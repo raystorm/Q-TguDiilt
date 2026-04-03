@@ -1,21 +1,22 @@
-# 🌀 **Drift — A Complete Guide**
+# Drift — A Complete Guide
+
 *A reference document defining drift, its canonical types, how it manifests,  
 and how the workflow engine prevents, detects, and corrects it.*
 
 ---
 
-## **Overview**
+## Overview
+
 Drift is the central failure mode of all AI systems.
 
 It is the gradual deviation from expected:
-
-- patterns
-- rules
-- responsibilities
-- communication standards
-- identity
-- reasoning
-- boundaries
+* patterns
+* rules
+* responsibilities
+* communication standards
+* identity
+* reasoning
+* boundaries
 
 Drift is not a single phenomenon.  
 It is a **family of failure modes** that degrade cognition, collapse roles,
@@ -25,17 +26,17 @@ This document defines the canonical drift types, how they relate,
 and how the workflow engine prevents and corrects them.
 
 ### What About Hallucinations?
+
 **Hallucination** is not a separate failure mode.  
 It is the visible symptom of underlying drift.
 
 When an AI “hallucinates,” it is usually because one or more drift types have already occurred:
-
-  * semantic drift
-  * continuity drift
-  * boundary drift
-  * identity drift
-  * pattern drift
-  * lineage drift
+* semantic drift
+* continuity drift
+* boundary drift
+* identity drift
+* pattern drift
+* lineage drift
 
 Hallucination is the *result*, not the cause.
 Drift is the *process* that makes hallucinations possible.
@@ -44,166 +45,190 @@ This architecture focuses on preventing drift so hallucinations never occur in t
 
 ---
 
-## **1. What Is Drift?**
+## 1. What Is Drift?
+
 **Drift** is any deviation from the system’s expected behavior, patterns, or rules.  
 It can occur:
-
-- **within a Cycle** (local drift)
-- **across Cycles** (systemic drift)
-- **within a profile** (identity drift)
-- **across profiles** (boundary drift)
-- **within documentation** (lineage drift)
-- **within rules** (governance drift)
+* within a Cycle (local drift)
+* across Cycles (systemic drift)
+* within a profile (identity drift)
+* across profiles (boundary drift)
+* within documentation (lineage drift)
+* within rules (governance drift)
 
 Drift is the opposite of governed cognition.
 
 ---
 
-## **2. The Two Primary Drift Categories**
+## 2. The Two Primary Drift Categories
+
 All drift ultimately collapses into two root causes:
 
-### **1. Semantic Drift**
+### 1. Semantic Drift
+
 Degradation of meaning, intent, or interpretation.  
 Examples:
-- misreading a requirement
-- forgetting a boundary
-- misinterpreting a rule
-- forgetting a rule
-- hallucinating structure
-- hallucinating context
-- losing context
+* misreading a requirement
+* forgetting a boundary
+* misinterpreting a rule
+* forgetting a rule
+* hallucinating structure
+* hallucinating context
+* losing context
 
-### **2. Persona / Role Drift**
+### 2. Persona / Role Drift
+
 Deviation from a profile’s identity, responsibilities, or boundaries.  
 Examples:
-- Planner writing code
-- Architect generating tests
-- Enforcer rewriting stories
-- Documentor making architectural decisions
+* Planner writing code
+* Architect generating tests
+* Enforcer rewriting stories
+* Documentor making architectural decisions
 
 These two categories are the **root**.  
 Everything else is a manifestation.
 
 ---
 
-## **3. Canonical Drift Types**
+## 3. Canonical Drift Types
+
 These are the full, explicit drift types observed across real multi‑agent workflows.  
 They all reduce to the two primaries above.
 
-### **A. Continuity Drift**
+### A. Continuity Drift
+
 Loss of context, memory, or reasoning continuity within a Cycle.
 
-### **B. Boundary Drift**
+### B. Boundary Drift
+
 Crossing profile responsibilities or violating role separation.
 
-### **C. Identity Drift**
+### C. Identity Drift
+
 A profile losing or mutating its identity, tone, purpose, or self‑definition.
 
-### **D. Structural Drift**
+### D. Structural Drift
+
 Deviation from expected workflow structure (skipping steps, merging steps, inventing steps).
 
-### **E. Pattern Drift**
+### E. Pattern Drift
+
 Breaking established patterns, formats, or conventions.
 
-### **F. Communication Drift**
+### F. Communication Drift
+
 Responding in the wrong format, verbosity, or structure.
 
-### **G. Governance Drift**
+### G. Governance Drift
+
 Ignoring rules, extension points, or override mechanics.
 
-### **H. Lineage Drift**
+### H. Lineage Drift
+
 Documentation or rules falling out of sync with actual behavior.
 
-### **I. Objective Drift**
+### I. Objective Drift
+
 Losing sight of the user’s stated goal or task.
 
-### **J. Multi‑Agent Drift**
+### J. Multi‑Agent Drift
+
 Profiles influencing each other’s behavior or collapsing into a single blended persona.
 
-### **K. Context Collapse**
+### K. Context Collapse
+
 Mixing unrelated context, threads, or workflows.
 
-### **L. Thread Drift**
+### L. Thread Drift
+
 Side trips leaking into the Main Thread or vice‑versa.
 
-### **M. Workflow Drift**
+### M. Workflow Drift
+
 A Cycle deviating from the governed sequence (Analyze → Retro).
 
 ---
 
-## **4. How Drift Manifests**
+## 4. How Drift Manifests
+
 Drift rarely appears as a catastrophic failure.  
 It usually shows up as:
-
-- small inconsistencies
-- subtle tone changes
-- missing steps
-- incorrect assumptions
-- boundary violations
-- formatting errors
-- unexpected verbosity
-- invented structure
-- incorrect persona activation
+* small inconsistencies
+* subtle tone changes
+* missing steps
+* incorrect assumptions
+* boundary violations
+* formatting errors
+* unexpected verbosity
+* invented structure
+* incorrect persona activation
 
 Left unchecked, these accumulate into systemic drift.
 
 ---
 
-## **5. How the Engine Prevents Drift**
+## 5. How the Engine Prevents Drift
+
 The architecture includes multiple drift‑prevention mechanisms:
 
-### **A. Profile Contracts**
+### A. Profile Contracts
+
 Each profile has strict responsibilities and boundaries.
 
-### **B. Governed Communication**
+### B. Governed Communication
+
 `@handoff` and `@start` enforce deterministic transitions.
 
-### **C. Context Isolation**
+### C. Context Isolation
+
 Threads prevent cross‑contamination between workflows.
 
-### **D. Documentation Anchors**
+### D. Documentation Anchors
+
 AI‑ready files provide curated, stable context.
 
-### **E. Rule Enforcement**
+### E. Rule Enforcement
+
 Universal rules prevent mutation, overreach, and identity collapse.
 
-### **F. Pattern Anchoring**
+### F. Pattern Anchoring
+
 Commit messages, diffs, and stories follow strict formats.
 
-### **G. User Review at Every Handoff**
+### G. User Review at Every Handoff
+
 The user acts as the governance checkpoint.
 
 ---
 
-## **6. How Retro Detects Drift**
-Retrospective analyzes:
+## 6. How Retro Detects Drift
 
-- the Cycle’s reasoning
-- profile behavior
-- communication patterns
-- rule adherence
-- documentation alignment
-- structural consistency
+Retrospective analyzes:
+* the Cycle’s reasoning
+* profile behavior
+* communication patterns
+* rule adherence
+* documentation alignment
+* structural consistency
 
 Retro identifies drift by comparing:
-
-- expected patterns
-- actual behavior
-- rule definitions
-- profile contracts
-- documentation lineage
+* expected patterns
+* actual behavior
+* rule definitions
+* profile contracts
+* documentation lineage
 
 Retro then produces **improvement recommendations**.
 
 ---
 
-## **7. How Side Trips Correct Drift**
+## 7. How Side Trips Correct Drift
+
 Side trips run in a separate thread using `@send`/`@receive`,
 following the same drift prevention mechanics as `@handoff`/`@start` in the main thread,
 allowing work to happen in parallel without affecting the main thread’s context or state.
 
 When a side trip is performed:
-
 1. A side trip is initiated
 2. The side trip runs in a separate thread with isolated context
 3. The appropriate profile (Architect, Documentor, Enforcer, etc.) performs the requested action
@@ -218,7 +243,7 @@ Side trips ensure parallel operation does not contaminate the main thread.
 
 ---
 
-## **8. Drift Is Managed, Not Eliminated**
+## 8. Drift Is Managed, Not Eliminated
 
 Drift is a natural force in cognitive systems.  
 This architecture governs drift through structure, isolation, detection, correction, and user review.

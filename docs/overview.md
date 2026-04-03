@@ -14,7 +14,7 @@ This overview introduces the system at a high level and links to the deeper docu
 
 ---
 
-## **What This System Provides**
+## What This System Provides
 
 - **Stable, predictable AI behavior** through governed profiles
 - **Deterministic workflows** that mirror real engineering processes
@@ -27,46 +27,46 @@ For a deeper architectural explanation, see the **1‑page deep dive**.
 
 ---
 
-## **Documentation Structure**
+## Documentation Structure
 
 The documentation is organized into clear sections that mirror the architecture of the system.
 
-### **1. Deep Dive**
+### 1. Deep Dive
 A single‑page architectural explanation of how the system works.  
 [ai-workflow-system.md](./dev/ai-workflow-system.md)
 
-### **2. Contract**
+### 2. Contract
 The domain definition and invariants the system operates on.  
 [contract.md](./dev/contract.md)
 
-### **3. Profiles**
+### 3. Profiles
 Responsibilities, boundaries, and behaviors of each profile.  
 [profiles.md](./profiles.md)
 
-### **4. Workflow Patterns**
+### 4. Workflow Patterns
 The execution shapes: Normal Build, TDD, Multi‑Story, Retrospective.  
 [workflow-patterns.md](./dev/workflow-patterns.md)
 
-### **5. User Commands**
+### 5. User Commands
 The runtime primitives that move work between profiles:  
 `@handoff`, `@start`, `@send`, `@receive`, `@suspend`, `@resume`, etc.  
 [user-commands.md](user-commands.md)
 
-### **6. Rules & Governance**
+### 6. Rules & Governance
 Universal rules, project‑level overrides, and the `Override:` mechanism.  
 [governance.md](./dev/governance.md)
 
-### **7. Drift**
+### 7. Drift
 The central failure mode of AI systems. 
 Defines the canonical drift types, how drift manifests,
 and how the workflow engine prevents and corrects it.  
 [drift.md](./drift.md)
 
-### **8. Extending the System**
+### 8. Extending the System
 How to safely add profiles, rules, workflows, or capabilities.  
 [extending.md](./extending.md)
 
-### **9. Mindset**
+### 9. Mindset
 How to think about the system, its philosophy, and its evaluation lens.  
 [mindset.md](./mindset.md)
 
@@ -74,12 +74,12 @@ How to think about the system, its philosophy, and its evaluation lens.
 
 ## Supporting Docs
 - [Glossary](./glossary.md)
-- [FAQ](./faq.md)
+- [FAQ](FAQ.md)
 - [Origin Story](./origin.md)
 
 ---
 
-## **Next Steps**
+## Next Steps
 
 If you’re new to the system, start with:
 

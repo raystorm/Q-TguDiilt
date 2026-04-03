@@ -1,6 +1,6 @@
-## Origin Story
+# Origin Story
 
-### Free Prompting
+## Free Prompting
 
 Before there was structure, before there were profiles or capsules or workflows,  
 there were just prompts.
@@ -18,7 +18,7 @@ I didn’t know it yet, but this was the beginning.
 
 ---
 
-### Meta‑Prompting (Copilot → Q)
+## Meta‑Prompting (Copilot → Q)
 
 At one point, I tried to scale prompting by having Microsoft Copilot generate prompts for Amazon Q.
 
@@ -41,7 +41,7 @@ I needed **structure**.
 
 ---
 
-### The BMAD Method
+## The BMAD Method
 
 BMAD wasn’t just personas.  
 It was **prompt chaining**.
@@ -105,17 +105,16 @@ Profiles became the second.
 Together, they transformed BMAD prompt chaining
 into the foundation of a workflow system.
 
-
 ---
 
-### More Profiles, and the First Workflow
+## More Profiles, and the First Workflow
 
 Once capsules existed, more profiles followed.
 
 I started defining:
-- who does what
-- who hands off to whom
-- what each profile is allowed to care about
+* who does what
+* who hands off to whom
+* what each profile is allowed to care about
 
 At some point, it stopped being a collection of clever prompts
 and started looking like a **workflow**.

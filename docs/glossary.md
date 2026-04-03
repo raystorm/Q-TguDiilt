@@ -1,4 +1,5 @@
 # 📘 **GLOSSARY**
+
 *A reference dictionary for the terminology used throughout this architecture.*
 
 ---
@@ -199,7 +200,8 @@ which replaced personas as the system matured.
 
 ---
 
-### **Glossary Formatting Notes**
+### Glossary Formatting Notes
+
 This glossary uses GitHub definition‑list syntax.  
 Definitions should be concise, intention‑revealing, and grouped conceptually.  
 Line wrapping is natural; headings are not used for terms.

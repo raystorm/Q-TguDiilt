@@ -58,59 +58,73 @@ For full behavioral rules, see:
 `../.amazonq/rules/profiles/<profileName>.md`
 
 ### Operator
+
 The primary entry point for user questions. **When in doubt, *call Operator*.**
 Routes tasks to the correct profile. Does not perform work.  
 → [`operator.md`](../.amazonq/rules/profiles/operator.md)
 
 ### Builder
+
 Implements features, writes code, follows formatting and architecture rules.  
 → [`builder.md`](../.amazonq/rules/profiles/builder.md)
 
 ### Enforcer
+
 Validates code, formatting, tests, and architectural alignment.  
 → [`enforcer.md`](../.amazonq/rules/profiles/enforcer.md)
 
 ### TestDesigner
+
 Identifies test scenarios, edge cases, and validation strategies.  
 → [`test-designer.md`](../.amazonq/rules/profiles/test-designer.md)
 
 ### Documentor
+
 Writes documentation, commit messages, diffs, and story descriptions.  
 → [`documentor.md`](../.amazonq/rules/profiles/documentor.md)
 
 ### Planner
+
 Creates user stories, backlog items, and manages macro‑level flow.  
 → [`planner.md`](../.amazonq/rules/profiles/planner.md)
 
 ### Tactician
+
 Determines execution order, sequencing, and workflow strategy.  
 → [`tactician.md`](../.amazonq/rules/profiles/tactician.md)
 
 ### Architect
+
 Defines system design, domain models, and long‑term structure.  
 → [`architect.md`](../.amazonq/rules/profiles/architect.md)
 
 ### Analyst
+
 Reads code, explains behavior, traces logic, and diagnoses issues.  
-<!-- No file today → [`analyst.md`](../.amazonq/rules/profiles/analyst.md) -->
+<!-- Conceptual, placeholder for if goverened → [`analyst.md`](../.amazonq/rules/profiles/analyst.md) -->
 
 ### Communicator
+
 Writes release notes, announcements, and public‑facing documentation.  
-<!-- No file today → [`communicator.md`](../.amazonq/rules/profiles/communicator.md) -->
+<!-- Conceptual, placeholder for if goverened → [`communicator.md`](../.amazonq/rules/profiles/communicator.md) -->
 
 ### PromptEngineer
+
 Writes prompts and governs AI‑facing instructions.  
 → [`prompt-engineering.md`](../.amazonq/rules/profiles/prompt-engineering.md)
 
 ### Doctor
+
 Diagnoses failures, applies minimal safe fixes, and escalates when needed.  
 → [`doctor.md`](../.amazonq/rules/profiles/doctor.md)
 
 ### Retrospective
+
 Analyzes completed workflows, identifies improvements, and highlights successes.  
 → [`retrospective.md`](../.amazonq/rules/profiles/retrospective.md)
 
 ### UserExperience
+
 Defines user flows, interaction patterns, and accessibility requirements.  
 → [`user-experience.md`](../.amazonq/rules/profiles/user-experience.md)
 
@@ -126,13 +140,17 @@ Some profiles also have **explicit boundaries**, **invariants**, or **escalation
 but these only exist when the profile has a need for them,
 and will be implemented in a rule file.
 
+### 4.1 Profile Categories
+
 Profiles fall into two categories:
 
 #### 1. Conceptual Profiles
+
 These define identity and responsibility but do not require strict governance.  
 They may not have a rule file, and they simply ignore work outside their worldview.
 
 #### 2. Governed Profiles
+
 These have rule files that define:
 - domain of authority
 - invariants
@@ -143,7 +161,7 @@ These have rule files that define:
 This model keeps the system flexible, minimal, and drift‑resistant:  
 profiles only gain governance when they need it.
 
-### 4.1 Why Profiles Are Conceptual or Governed
+### 4.2 Why Profiles Are Conceptual or Governed
 
 Profiles come in two forms — **Conceptual Profiles** and **Governed Profiles** —
 and the distinction exists to keep the system minimal, predictable, and drift‑resistant.
@@ -158,7 +176,7 @@ This prevents unnecessary bureaucracy and keeps conceptual roles lightweight.
 
 ---
 
-### 4.2 How Users Interact With Each Type
+### 4.3 How Users Interact With Each Type
 
 #### Conceptual Profiles
 These are identity‑level roles. They define:
@@ -200,7 +218,7 @@ A governed profile will:
 
 ---
 
-### **4.3 How the System Treats Them Differently**
+### 4.4 How the System Treats Them Differently
 
 | Behavior                  | Conceptual Profile | Governed Profile              |
 |---------------------------|--------------------|-------------------------------|
@@ -215,7 +233,7 @@ This table gives users a quick, operational understanding of what to expect.
 
 ---
 
-### **4.4 How Users Know Which One They’re Dealing With**
+### 4.5 How Users Know Which One They’re Dealing With
 
 A profile is **conceptual** when:
 - it has no rule file
@@ -234,7 +252,7 @@ If it only has a worldview, it’s conceptual.
 
 ---
 
-## 5.Escalation
+## 5. Escalation
 
 Not all profiles have defined escalation paths.  
 Only governed profiles with rule files may support escalation.

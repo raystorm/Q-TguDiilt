@@ -5,7 +5,8 @@
 
 ---
 
-## **What is this architecture trying to solve?**
+## What is this architecture trying to solve?
+
 Modern AI systems drift, lose context, mutate identity, and collapse boundaries.  
 This architecture introduces **governed cognition**, **context integrity**,
 and **multi‑agent coordination** so AI systems can think, collaborate,
@@ -15,38 +16,39 @@ It turns AI from a prompt‑driven tool into a **structured cognitive system**.
 
 ---
 
-## **What does the name mean?**
+## What does the name mean?
 
 The name comes from Smalgyax, the language of the Tsimshian people.  
 The name reflects the core functionality of the workflow system.  
-- **Diilt** - means work together.
-- **Tgu** - is a prefix for around, or round.
-So together you have `TguDiilt` = Working together in a loop, a "workflow."
+  * **Diilt** - means work together.
+  * **Tgu** - is a prefix for around, or round.
+
+Together you have `TguDiilt` = Working together in a loop, a "workflow."
 this workflow system is built to mimic agile loops with AI.
 
 ---
 
-## **Why do you use the term “Cognitive Engineering”?**
+## Why do you use the term “Cognitive Engineering”?
+
 Because this architecture focuses on **how an AI thinks**, not just how it is prompted.
 
 Cognitive Engineering describes:
-
-- structured reasoning
-- drift‑resistant thinking
-- context continuity
-- self‑improvement loops
-- semantic clarity
+  * structured reasoning
+  * drift‑resistant thinking
+  * context continuity
+  * self‑improvement loops
+  * semantic clarity
 
 It is not a claim to own cognition.  
 It is a name for the engineering discipline that governs AI reasoning.
 
 ---
 
-## **How is Cognitive Engineering different from Agentic Engineering?**
-They address different layers:
+## How is Cognitive Engineering different from Agentic Engineering?
 
-- **Cognitive Engineering** → how an AI thinks
-- **Agentic Engineering** → how multiple AIs coordinate
+They address different layers:
+  * **Cognitive Engineering** → how an AI thinks
+  * **Agentic Engineering** → how multiple AIs coordinate
 
 Cognition is internal.  
 Agency is external.  
@@ -54,40 +56,40 @@ They complement each other but are not the same.
 
 ---
 
-## **Why separate Context Engineering, Context Governance, and Context Control?**
+## Why separate Context Engineering, Context Governance, and Context Control?
+
 Because context is the backbone of cognition.  
 These three layers mirror real engineering disciplines:
-
-- **Context Engineering** → how context is structured
-- **Context Governance** → what rules context must follow
-- **Context Control** → how those rules are enforced
+  * **Context Engineering** → how context is structured
+  * **Context Governance** → what rules context must follow
+  * **Context Control** → how those rules are enforced
 
 This separation prevents drift, mutation, and context collapse.
 
 ---
 
-## **Why not just use prompts? Why all this structure?**
-Prompts are:
+## Why not just use prompts? Why all this structure?
 
-- ephemeral
-- fragile
-- unbounded
-- non‑auditable
-- prone to drift
+Prompts are:
+  * ephemeral
+  * fragile
+  * unbounded
+  * non‑auditable
+  * prone to drift
 
 This architecture replaces ad‑hoc prompting with:
-
-- context capsules
-- profile contracts
-- lineage
-- governance
-- enforcement
+  * context capsules
+  * profile contracts
+  * lineage
+  * governance
+  * enforcement
 
 It treats cognition as an engineered system, not a text hack.
 
 ---
 
-## **Is this architecture tied to any specific model or vendor?**
+## Is this architecture tied to any specific model or vendor?
+
 Not permanently.
 
 The architecture is **designed to be model‑agnostic and vendor‑agnostic**,
@@ -95,17 +97,17 @@ but today it is **implemented on Amazon Q** because Q provides the governed,
 multi‑agent substrate this system needs.
 
 The long‑term goal is full portability:
-
-- profile contracts should work anywhere
-- context capsules should work anywhere
-- governance should work anywhere
-- drift‑resistant cognition should work anywhere
+  * profile contracts should work anywhere
+  * context capsules should work anywhere
+  * governance should work anywhere
+  * drift‑resistant cognition should work anywhere
 
 Amazon Q is the *current* implementation environment, not the architectural dependency.
 
 ---
 
-## **Is this meant for production systems or research?**
+## Is this meant for production systems or research?
+
 Both — and it’s already running in production today.
 
 This architecture powers the system at:
@@ -118,98 +120,98 @@ It’s a **live, governed cognitive system** used in real workflows.
 
 ---
 
-## **Is this the same as LangChain, AutoGen, or CrewAI?**
+## Is this the same as LangChain, AutoGen, or CrewAI?
+
 No.
 
 Those frameworks focus on **tooling and orchestration**.  
 This architecture focuses on:
-
-- governed cognition
-- context integrity
-- drift‑resistant reasoning
-- multi‑agent contracts
-- semantic lineage
+  * governed cognition
+  * context integrity
+  * drift‑resistant reasoning
+  * multi‑agent contracts
+  * semantic lineage
 
 It is an **architectural discipline**, not a framework.
 
 ---
 
-## **Why is drift‑resistance so important?**
-Because without drift‑resistance:
+## Why is drift‑resistance so important?
 
-- agents mutate identity
-- rules collapse
-- context degrades
-- reasoning becomes inconsistent
-- workflows become unpredictable
+Because without drift‑resistance:
+  * agents mutate identity
+  * rules collapse
+  * context degrades
+  * reasoning becomes inconsistent
+  * workflows become unpredictable
 
 Drift‑resistance is the foundation of reliable cognitive systems.
 
 ---
 
-## **Why do you emphasize governance so much?**
-Because governance is what makes cognition:
+## Why do you emphasize governance so much?
 
-- safe
-- predictable
-- auditable
-- bounded
-- intentional
+Because governance is what makes cognition:
+  * safe
+  * predictable
+  * auditable
+  * bounded
+  * intentional
 
 Without governance, multi‑agent systems become chaotic.  
 With governance, they become reliable.
 
 ---
 
-## **What is a Profile Contract and why do agents need them?**
-A Profile Contract defines:
+## What is a Profile Contract and why do agents need them?
 
-- identity
-- responsibilities
-- boundaries
-- allowed behaviors
+A Profile Contract defines:
+  * identity
+  * responsibilities
+  * boundaries
+  * allowed behaviors
 
 It prevents agents from:
-
-- drifting
-- overstepping
-- collapsing roles
-- mutating identity
+  * drifting
+  * overstepping
+  * collapsing roles
+  * mutating identity
 
 Profile contracts make multi‑agent systems predictable and safe.
 
 ---
 
-## **What does “Governed Cognitive Workflow” mean?**
-It means the system:
+## What does “Governed Cognitive Workflow” mean?
 
-- reasons
-- reflects
-- corrects
-- improves
-- maintains continuity
-- follows rules
-- respects boundaries
-- preserves lineage
+It means the system:
+  * reasons
+  * reflects
+  * corrects
+  * improves
+  * maintains continuity
+  * follows rules
+  * respects boundaries
+  * preserves lineage
 
 It is cognition with structure, not free‑form prompting.
 
 ---
 
-## **Why is formatting part of the architecture?**
-Because formatting is:
+## Why is formatting part of the architecture?
 
-- a boundary
-- a contract
-- a governance mechanism
-- a drift‑resistant structure
-- a teachable artifact
+Because formatting is:
+  * a boundary
+  * a contract
+  * a governance mechanism
+  * a drift‑resistant structure
+  * a teachable artifact
 
 Formatting is not cosmetic — it is cognitive scaffolding.
 
 ---
 
-## **Is this architecture compatible with LLMOps or MLOps?**
+## Is this architecture compatible with LLMOps or MLOps?
+
 Yes — but it sits **above** them.
 
 LLMOps manages models.  
@@ -219,40 +221,14 @@ They complement each other but operate at different layers.
 
 ---
 
-## **Why does this repo define its own terminology?**
+## Why does this repo define its own terminology?
+
 Because the industry lacks precise language for:
+  * governed cognition
+  * context integrity
+  * multi‑agent contracts
+  * drift‑resistant reasoning
+  * cognitive workflows
 
-- governed cognition
-- context integrity
-- multi‑agent contracts
-- drift‑resistant reasoning
-- cognitive workflows
-
-This glossary and FAQ establish the vocabulary needed to describe the architecture accurately.
-
----
-
-### **Cycle**
-The governed, end‑to‑end sequence of profile‑scoped steps a story travels through (Analyze → Retro).  
-A Cycle is the unit of transformation in the system.
-
----
-
-### **Side‑Trip**
-A governed, parallel path that runs in a separate thread using @send/@receive.
-Side‑Trips have isolated context, do not block or modify the main Cycle, and do not return control.
-They may be initiated by Retrospective, or directly by the user for diagnostic or validation purposes.
-If the main Cycle is waiting on a Side‑Trip, the user notifies the main thread when the Side‑Trip is complete.
-
----
-
-### **Drift**
-Any deviation from expected patterns, rules, responsibilities, or communication standards.  
-Drift can occur within a Cycle or across Cycles.
-
----
-
-### **Thread**
-A chat‑tab execution context with its own workflowId.
-Threads isolate context and state, allowing cycles to run in parallel.
-
+The [glossary](glossary.md) and FAQ establish the vocabulary needed
+to describe the architecture accurately.
