@@ -121,7 +121,7 @@ or actions.
 `@inquiry [question]`
 
 **Examples:**
-```
+```text
 @inquiry What files were modified in the last workflow?
 @inquiry Should I suspend here or continue?
 @inquiry What would happen if I handoff to Architect?

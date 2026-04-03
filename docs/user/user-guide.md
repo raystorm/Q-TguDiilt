@@ -52,7 +52,7 @@ the next step is to turn that analysis into a governed workflow.
 
 Begin by asking Architect to identify and prioritize the most important change:
 
-```
+```text
 Help me implement the most critical issue already identified.
 Explain why it is the most critical finding.
 ```
@@ -141,7 +141,7 @@ Linear progression to the next profile.
 - `next=<Profile>` (optional) — override the next profile
 
 **Usage:**  
-```
+```text
 @handoff
 @handoff next=Planner
 @handoff next=Enforcer
@@ -164,7 +164,7 @@ Use when:
 - `purpose="<text>"` (optional) — short description of what you want done  
 
 **Usage:**  
-```
+```text
 @send
 @send to=Architect
 @send to=Enforcer purpose="validate the test plan"
@@ -182,9 +182,7 @@ Activate a profile from a handoff.
 - `HANDOFF.md`
 
 **Usage:**  
-```
-@start
-```
+`@start`
 
 ### `@receive`
 Activate a profile from a message.
@@ -193,9 +191,7 @@ Activate a profile from a message.
 - `MESSAGE.md`
 
 **Usage:**  
-```
-@receive
-```
+`@receive`
 
 ---
 
@@ -239,9 +235,7 @@ Show all suspended and auto-suspended contexts.
 - `.amazonq/suspended/INDEX.md`
 
 **Usage:**  
-```
-@list
-```
+`@list`
 
 ---
 
@@ -259,9 +253,7 @@ Use this to preserve decisions, constraints, or clarifications.
 - `[text]` (required)
 
 **Usage:**  
-```
-@note how do we "enforce" documentation auto-updates cleanly?
-```
+`@note how do we "enforce" documentation auto-updates cleanly?`
 
 ---
 
@@ -276,7 +268,7 @@ Start Doctor to troubleshoot a test failure.
 - pasted test output
 
 **Usage:**  
-```
+```text
 @dr
 <paste test failure>
 ```
@@ -289,9 +281,7 @@ Prevents accidental activation of workflow commands.
 - prompt text question
 
 **Usage:**
-```
-@inquiry What is the next profile after handoff?
-```
+`@inquiry What is the next profile after handoff?`
 
 ### `@epr`
 Evaluate a prompt/response pair for rule compliance.
@@ -301,7 +291,7 @@ Evaluate a prompt/response pair for rule compliance.
 - optional separator (`---`, `===`, etc.) to distinguish prompt vs response  
 
 **Usage:**  
-```
+```text
 @epr
 <prompt>
 ---
@@ -310,7 +300,7 @@ Evaluate a prompt/response pair for rule compliance.
 
 Or simply:
 
-```
+```text
 @epr
 <raw terminal transcript>
 ```
@@ -327,7 +317,7 @@ Sends the evaluation request to Enforcer in a separate tab.
 - optional separator (`---`, `===`, etc.) to distinguish prompt vs response
 
 **Usage:**  
-```
+```text
 @send-epr
 <prompt>
 ===
@@ -336,7 +326,7 @@ Sends the evaluation request to Enforcer in a separate tab.
 
 Or simply:
 
-```
+```text
 @send-epr
 <raw terminal transcript>
 ```

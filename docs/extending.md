@@ -91,10 +91,7 @@ To add a profile:
 
 5. ***(Optional)* Create a rule file** 
    Rule files are only created when governance or explicit boundaries are needed.
-   Example:
-   ```
-   .amazonq/rules/profiles/new-profile.md
-   ```
+   Example: `.amazonq/rules/profiles/new-profile.md`
 
 6. **Preserve identity**  
    A profile must not overlap with existing profiles.  
@@ -127,17 +124,13 @@ but only when those changes are consistent with the profile's core identity.
 Rules define the behavior of the system.  
 They follow a strict lineage:
 
-```
+```text
 Contract → Universal Rule → Project Override
 ```
 
 ## **4.1 Universal Rules**
 
-Universal rules live in:
-
-```
-.amazonq/rules/<category>/*.md
-```
+Universal rules live in: `.amazonq/rules/<category>/*.md`
 
 They define baseline behavior for all projects.
 
@@ -156,11 +149,7 @@ Universal rules must be:
 
 ## **4.2 Project‑Level Overrides**
 
-Project overrides live in:
-
-```
-*-project.md
-```
+Project overrides live in: `*-project.md`
 
 They refine or supersede universal rules.
 
@@ -187,11 +176,8 @@ It contains both:
   * universal technical rules (e.g., formatting.md)
   * project‑specific technical rules, added by the project as needed
 
-Projects may add their own tech rule files to:
+Projects may add their own tech rule files to: `.amazonq/rules/tech/*.md`
 
-```
-.amazonq/rules/tech/*.md
-```
 These rules are not universal.  
 They apply only to the project and do not require the `Override:` marker.
 

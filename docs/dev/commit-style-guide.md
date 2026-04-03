@@ -50,7 +50,7 @@ Write for future maintainers.
 Summary Lines may include prefixes that encode additional information. 
 Prefixes are separated with a `-`
 
-```
+```text
 [link] - [status] - [summary]
 ```
 
@@ -100,7 +100,7 @@ Bullets are indented by two spaces for clean Markdown rendering.
 
 Example:
 
-```
+```markdown
   + add validation rule for new entity type `myNewType`
   * updated UI behavior for disabled state
   - remove deprecated configuration flag `someDeprecatedFlag`
@@ -161,7 +161,7 @@ Typical groups include:
 
 Example:
 
-```
+```markdown
   * Create/Update forces WRITE access for Owner
   * MyTypeDTO enforces permissions on retrieval
   + add tests for SomeOtherType permissions helpers
@@ -177,7 +177,7 @@ especially when referencing multiple files or multiple steps in a refactor.
 
 Example:
 
-```
+```markdown
   * improve notification handling
     * update type definitions
     * replace legacy helper with shared utility
@@ -199,7 +199,7 @@ Wrap file names and code objects (functions, classes, helpers, constants, etc.) 
 
 Example:
 
-```
+```markdown
   * cleanup `verifyDateField` helper
     * `Document.ext` reorganized
     * `verifyDateField.ext` simplified
@@ -223,7 +223,7 @@ Commit messages double as domain documentation.
 
 Example:
 
-```
+```markdown
   * update `RecordValidator` to enforce new `RecordPolicy`
     * `RecordView` now displays validation errors
 ```
@@ -237,7 +237,7 @@ Use arrows `->` to show transitions from before *to* after (before -> after):
 
 Example:
 
-```
+```markdown
   * Rename Content -> Document
   * Message -> MessageDisplay
   * Move `docs/README.md` -> `docs/dev/README.md`
@@ -254,9 +254,9 @@ When a commit reinforces or proves a domain rule, state the rule explicitly in t
 
 Examples:
 
-```
+```markdown
   * Only 1 USER allowed per container.
-  * Collection updates preserve contained item[]
+  * Collection updates preserve contained `item[]`
   * Resource modifications require WRITE permission.
 ```
 

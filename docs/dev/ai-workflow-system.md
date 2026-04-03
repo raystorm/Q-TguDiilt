@@ -61,7 +61,7 @@ Profiles run independently in separate chat tabs,
 follow rule files that define their behavior, and never switch roles automatically.
 
 At a high level, every workflow moves through the same loop:
-```
+```text
 Design → Prompt → Build → Verify → Document → Improve
 ```
 The specific steps may change and be extended. Design and then plan.
@@ -121,10 +121,10 @@ Rules follow a consistent structure, overridable Rules have a companion `-projec
 Project specific files may override or supersede core rules. 
 Overrides must be explicitly tagged `Override:`
 
-```
+```markdown
 Override:
-<new rule>
-<Another new rule>
+{new rule}
+{Another new rule}
 ```
 
 This makes overrides explicit, and easy to find.
@@ -357,7 +357,8 @@ Saved Prompts can be roughly divided into categories:
 The system exposes a set of saved prompts (“commands”) that activate profiles,  
 transfer work, or manage workflow state. Below is the **minimal conceptual list**.  
 For full syntax, arguments, and examples, see:  
-`docs/user/user-guide.md` (Section 4: User Commands).
+[`docs/user/user-guide.md`](../user/user-guide.md#4-how-to-use-commands)
+(Section 4: User Commands).
 
 **Transfer Commands** — Hand off work between profiles.  
 - **`@handoff`** — create `HANDOFF.md` and prepare work for the next profile.
@@ -396,12 +397,12 @@ For full syntax, arguments, and examples, see:
 ## Getting Started
 
 Activate a profile with explicit goal:
-```
+```text
 As [Profile], [goal description]
 ```
 
 Switch profiles explicitly:
-```
+```text
 Act as [Profile]
 ```
 
@@ -423,7 +424,7 @@ Use saved prompts:
 - `@send-epr` — Request rule compliance review
 
 Trigger retrospective analysis:
-```
+```text
 As Retrospective, analyze recent workflows
 ```
 

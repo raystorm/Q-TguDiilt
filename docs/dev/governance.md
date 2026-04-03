@@ -105,14 +105,14 @@ Overrides must be:
 
 Overrides MUST use one of the following: `Override:` *or* `**Override:**`
 
-```
+```markdown
 Universal Rule: "Profile switches require explicit commands:"
 
 Project Override (in general-project.md):
 **Override:**
 Profiles may also be switched with:
-  - "Become [Profile]"
-  - "Identify as [Profile]"
+  - "Become {Profile}"
+  - "Identify as {Profile}"
 ```
 
 No other phrasing is valid.
@@ -145,7 +145,7 @@ Each override must be declared explicitly wherever it is needed.
 
 Project‑level overrides must appear in:
 
-```
+```text
 .amazonq/rules/foundation/general-project.md
 .amazonq/rules/architecture/*-project.md
 .amazonq/rules/communication/*-project.md
@@ -284,7 +284,7 @@ These define the system itself and **MUST NOT** be changed.
 
 Rules are organized by category:
 
-```
+```text
 .amazonq/rules/
   foundation/
   architecture/
@@ -307,7 +307,7 @@ Rules must not be duplicated across categories.
 
 Every rule has a lineage chain:
 
-```
+```text
 Contract → Universal Rule → Project Override (optional)
 ```
 

@@ -193,8 +193,7 @@ and a way to pass information without repetition.
 Persona
 : An informal role used during early prompting experiments  
 (e.g., “planner,” “reviewer,” “critic”).  
-Personas were conceptual and inconsistent, lacking boundaries, contracts,  
-or governance.  
+Personas were conceptual and inconsistent, lacking boundaries, contracts, or governance.  
 They were the precursor to **profiles**,  
 which replaced personas as the system matured.
 

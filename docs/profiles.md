@@ -128,11 +128,11 @@ and will be implemented in a rule file.
 
 Profiles fall into two categories:
 
-### 1. Conceptual Profiles
+#### 1. Conceptual Profiles
 These define identity and responsibility but do not require strict governance.  
 They may not have a rule file, and they simply ignore work outside their worldview.
 
-### 2. Governed Profiles
+#### 2. Governed Profiles
 These have rule files that define:
 - domain of authority
 - invariants
@@ -143,11 +143,12 @@ These have rule files that define:
 This model keeps the system flexible, minimal, and drift‑resistant:  
 profiles only gain governance when they need it.
 
-# 4.1 Why Profiles Are Conceptual or Governed
+### 4.1 Why Profiles Are Conceptual or Governed
 
-Profiles come in two forms — **Conceptual Profiles** and **Governed Profiles** — and the distinction exists to keep the system minimal, predictable, and drift‑resistant.
+Profiles come in two forms — **Conceptual Profiles** and **Governed Profiles** —
+and the distinction exists to keep the system minimal, predictable, and drift‑resistant.
 
-## Purpose of the Distinction
+#### Purpose of the Distinction
 
 Some profiles only need an identity and a worldview.  
 Others need strict rules, boundaries, and escalation behavior.
@@ -157,9 +158,9 @@ This prevents unnecessary bureaucracy and keeps conceptual roles lightweight.
 
 ---
 
-# 4.2 How Users Interact With Each Type
+### 4.2 How Users Interact With Each Type
 
-### Conceptual Profiles
+#### Conceptual Profiles
 These are identity‑level roles. They define:
 - what the profile notices
 - what it cares about
@@ -177,7 +178,7 @@ It simply declines or ignores the work.
 
 ---
 
-### Governed Profiles
+#### Governed Profiles
 These profiles have rule files that define:
 - domain of authority
 - invariants
@@ -199,7 +200,7 @@ A governed profile will:
 
 ---
 
-# **4.3 How the System Treats Them Differently**
+### **4.3 How the System Treats Them Differently**
 
 | Behavior                  | Conceptual Profile | Governed Profile              |
 |---------------------------|--------------------|-------------------------------|
@@ -214,7 +215,7 @@ This table gives users a quick, operational understanding of what to expect.
 
 ---
 
-# **4.4 How Users Know Which One They’re Dealing With**
+### **4.4 How Users Know Which One They’re Dealing With**
 
 A profile is **conceptual** when:
 - it has no rule file

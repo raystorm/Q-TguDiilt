@@ -245,7 +245,7 @@ It extracts relevant items into focused AI‑ready files,
 while the full project remains the canonical source of truth.
 
 **View the full roadmap:**  
-📋 [GitHub Project Tracker](https://github.com/raystorm?tab=projects) TODO: make project public
+📋 [GitHub Project Tracker](https://github.com/users/raystorm/projects/2)
 
 ## Contributing
 See [`/docs/dev/CONTRIBUTING.md`](docs/dev/CONTRIBUTING.md) for contribution guidelines.

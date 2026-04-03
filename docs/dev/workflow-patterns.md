@@ -43,7 +43,7 @@ Always, unless:
 - the user explicitly requests Normal mode
 
 ## **Profile Sequence**
-```
+```text
 Architect → Planner → TestDesigner → PromptEngineer → Builder → Enforcer → Documentor → Retrospective
 ```
 
@@ -70,7 +70,7 @@ This pattern is used when:
 - the tests already cover the change, and no updates are necessary
 
 ## **Profile Sequence**
-```
+```text
 Architect → Planner → TestDesigner(optional) → PromptEngineer → Builder → Enforcer → Documentor → Retrospective
 ```
 
@@ -100,7 +100,7 @@ Used when a feature requires multiple sequential stories.
 - Cleaned up by Retrospective after feature completion
 
 ## **Execution Shape**
-```
+```text
 Architect → Planner → FEATURE.md
     ↓
 Story 1 Workflow (TDD by default)
@@ -133,7 +133,7 @@ Retrospective may generate improvement artifacts that require other profiles to 
 - When the user wants workflow improvements
 
 ## **Execution Shape**
-```
+```text
 Retrospective → Analyze workflow.log → (Optional) Create improvement artifacts
   ↓
 (Optional) Side trips to other profiles for isolated work
@@ -185,7 +185,7 @@ but no additional threads are created, or supported.
 
 ## **A. Profile‑Initiated Side Trip (send/receive)**
 
-```
+```text
 MAIN THREAD (Profile A) → @send Profile B
   ↓
 User opens SIDE‑TRIP THREAD → @receive → Profile B performs isolated work → User closes SIDE‑TRIP THREAD
@@ -202,7 +202,7 @@ MAIN THREAD resumes (Profile A)
 
 ## **B. User‑Initiated Side Trip (fresh chat)**
 
-```
+```text
 User opens SIDE‑TRIP THREAD
 Act as [Profile]
 Profile performs isolated work
@@ -212,7 +212,7 @@ MAIN THREAD resumes
 
 ### **Most Common Example: Doctor**
 
-```
+```text
 User opens SIDE‑TRIP THREAD
 @dr
 Doctor diagnoses failing tests or issues
@@ -238,7 +238,7 @@ Subsequent steps occur in the **same Side‑Trip Thread**,
 and each `@recieve` replaces the active profile.
 
 ### **Execution Shape**
-```
+```text
 MAIN THREAD (Profile A) → @send Profile B
   ↓
 User opens SIDE TRIP THREAD → @receive → Profile B performs isolated work
@@ -274,7 +274,7 @@ Auto‑Suspend provides lightweight recovery checkpoints.
 - Recovering from accidental tab closure
 
 ## **Execution Shape**
-```
+```text
 @suspend [name]
   ↓
 Context saved to .amazonq/suspended/
