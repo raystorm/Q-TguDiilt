@@ -90,7 +90,7 @@ Creates user stories, backlog items, and manages macro‑level flow.
 
 ### Tactician
 
-Determines execution order, sequencing, and workflow strategy.  
+Validates execution order, sequencing, and workflow strategy.  
 → [`tactician.md`](../.amazonq/rules/profiles/tactician.md)
 
 ### Architect
@@ -111,7 +111,7 @@ Writes release notes, announcements, and public‑facing documentation.
 ### PromptEngineer
 
 Writes prompts and governs AI‑facing instructions.  
-→ [`prompt-engineering.md`](../.amazonq/rules/profiles/prompt-engineering.md)
+→ [`prompt-engineer.md`](../.amazonq/rules/profiles/prompt-engineer.md)
 
 ### Doctor
 
@@ -142,16 +142,26 @@ and will be implemented in a rule file.
 
 ### 4.1 Profile Categories
 
+Profile categories exist for human understanding only.
+The system itself does not treat “Conceptual” and “Governed” as functional states;
+the only operational distinction is whether a profile has a profile-specific
+`.amazonq/rules/profiles/{profileName}.md` rule file.
+
 Profiles fall into two categories:
 
 #### 1. Conceptual Profiles
 
-These define identity and responsibility but do not require strict governance.  
-They may not have a rule file, and they simply ignore work outside their worldview.
+These define identity and responsibility but do not require profile-specific configuration.  
+They consume shared rules files, but they do not have a profile-specific
+(.amazonq/rules/profiles/{profileName}.md) rule file,
+and they simply ignore work outside their worldview.
+
+**Mental model:** A role with a perspective.
 
 #### 2. Governed Profiles
 
-These have rule files that define:
+These have a profile-specific (.amazonq/rules/profiles/{profileName}.md) rule file
+that defines:
 - domain of authority
 - invariants
 - boundaries
@@ -159,84 +169,30 @@ These have rule files that define:
 - required outputs (if needed)
 
 This model keeps the system flexible, minimal, and drift‑resistant:  
-profiles only gain governance when they need it.
+profiles only gain profile-specific rules when they need it.
 
-### 4.2 Why Profiles Are Conceptual or Governed
+**Mental model:** A role with obligations and constraints.
 
-Profiles come in two forms — **Conceptual Profiles** and **Governed Profiles** —
-and the distinction exists to keep the system minimal, predictable, and drift‑resistant.
+### **4.2 Operational Differences (Single Table)**
 
-#### Purpose of the Distinction
+This table consolidates all behavioral distinctions into one view:
 
-Some profiles only need an identity and a worldview.  
-Others need strict rules, boundaries, and escalation behavior.
+| Behavior                         | Conceptual Profile | Governed Profile           |
+|----------------------------------|--------------------|----------------------------|
+| Has a profile-specific rule file | No                 | Yes                        |
+| Has rule files                   | Yes                | Yes                        |
+| Enforces invariants              | Yes                | Yes                        |
+| Stops on boundary                | Yes                | Yes                        |
+| Escalates                        | No                 | Only if defined            |
+| Produces required outputs        | No                 | Yes                        |
+| Ignores out‑of‑scope work        | Yes                | No (documents + escalates) |
 
-The system stays minimal by only adding governance when a profile’s role *requires* it.  
-This prevents unnecessary bureaucracy and keeps conceptual roles lightweight.
+“This table gives users a quick, operational understanding of what to expect.”
 
----
-
-### 4.3 How Users Interact With Each Type
-
-#### Conceptual Profiles
-These are identity‑level roles. They define:
-- what the profile notices
-- what it cares about
-- what it ignores
-
-But they do **not** enforce rules or produce boundary artifacts.
-
-**User expectation:**  
-A conceptual profile will stay in its lane, but it will not stop, warn,
-or escalate if asked to do something outside its worldview.
-It simply declines or ignores the work.
-
-**Mental model:**  
-“Think of me as a role with a perspective, not a rule engine.”
-
----
-
-#### Governed Profiles
-These profiles have rule files that define:
-- domain of authority
-- invariants
-- boundaries
-- escalation paths (if any)
-- required outputs
-
-Governed profiles enforce their rules deterministically.
-
-**User expectation:**  
-A governed profile will:
-- stop when work is out of scope
-- document the boundary
-- escalate if an escalation path exists
-- produce minimal artifacts when required
-
-**Mental model:**  
-“Think of me as a role with obligations, constraints, and formal behavior.”
-
----
-
-### 4.4 How the System Treats Them Differently
-
-| Behavior                  | Conceptual Profile | Governed Profile              |
-|---------------------------|--------------------|-------------------------------|
-| Has a rule file           | No                 | Yes                           |
-| Enforces invariants       | No                 | Yes                           |
-| Stops on boundary         | No                 | Yes                           |
-| Escalates                 | No                 | Only if defined               |
-| Produces required outputs | No                 | Yes                           |
-| Ignores out‑of‑scope work | Yes                | No (must document + escalate) |
-
-This table gives users a quick, operational understanding of what to expect.
-
----
-
-### 4.5 How Users Know Which One They’re Dealing With
+### 4.3 How Users Know Which One They’re Dealing With
 
 A profile is **conceptual** when:
-- it has no rule file
+- it has no profile-specific rule file
 - it exists to define identity, worldview, or responsibility
 - it is used for routing, framing, or perspective
 
@@ -247,7 +203,7 @@ A profile is **governed** when:
 - it has required outputs or invariants
 
 **Rule of thumb:**  
-If a profile has obligations, it’s governed.  
+If a profile has specific obligations, it’s governed.  
 If it only has a worldview, it’s conceptual.
 
 ---
@@ -272,8 +228,8 @@ Other profiles simply do not perform work outside their domain or worldview.
 ## 6. Handoffs
 
 Handoffs are explicit and file‑based.  
+**Every profile transition to another profile occurs via *handoff***
 They preserve:
-
 - context
 - intent
 - artifacts
@@ -281,7 +237,6 @@ They preserve:
 - audit trail
 
 Workflow Patterns define the exact sequencing, but common flows include:
-
 - PromptEngineer → Builder → Enforcer
 - Enforcer → Documentor 
 - Architect → PromptEngineer → Builder

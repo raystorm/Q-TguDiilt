@@ -46,6 +46,18 @@ enforces access rules, and maintains context integrity across workflows.
 Where Context Engineering defines structure and Context Governance defines rules,  
 Context Control enforces them at runtime.
 
+Workflow Artifact
+: A user‑visible project or workflow file, whose creation or modification materially affects the workflow.
+: **Includes (project artifacts)**  
+  code, tests, configuration, documentation, shared team files
+: **Includes (workflow artifacts)**  
+  `HANDOFF.md`, `MESSAGE.md`, baton files, and context  capsules
+: **Excludes**  
+  System‑owned plumbing (`workflow.log`, auto‑suspend state, internal metadata),
+  temp files, and working files.
+: **Invariant**  
+  All creation or modification of workflow artifacts requires explicit user confirmation.
+
 Prompt Engineering (Legacy)
 : The practice of shaping model outputs through carefully crafted prompts.  
 Operates at the **surface layer** of model interaction.  

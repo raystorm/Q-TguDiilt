@@ -34,37 +34,37 @@
 
 ### Prompt Update
 Criteria:
-- How a persona speaks, formats, or structures responses
+- How a profile speaks, formats, or structures responses
 - Validation questions, tone, or conversational flow
 - Prompt templates for Builder/Doctor/Enforcer
 - Surface-level behavior that does NOT change workflow mechanics
 - Instructions that modify *phrasing*, not *rules*
 
 Triggers:
-- User confusion caused by unclear persona prompts
-- Repetitive or inefficient persona phrasing
+- User confusion caused by unclear profile prompts
+- Repetitive or inefficient profile phrasing
 - Missing validation steps in prompts
-- Formatting or structural issues in persona output
+- Formatting or structural issues in profile output
 
 ### Rule Update
 Criteria:
 - Workflow mechanics or invariants
-- Persona responsibilities or boundaries
+- profile responsibilities or boundaries
 - Cross-profile coordination rules
 - Allowed/forbidden actions
 - Sequencing, handoff mechanics, or workflow depth
-- System behavior that must be consistent across personas
+- System behavior that must be consistent across profiles
 
 Triggers:
 - Violations of workflow invariants
 - Repeated system fixes for the same pattern
-- Misaligned persona responsibilities
+- Misaligned profile responsibilities
 - Structural workflow friction (nesting, handoffs, blockers)
 
 ### Architecture Update
 Criteria:
 - System structure, domain boundaries, or conceptual models
-- How personas understand the architecture
+- How profiles understand the architecture
 - Clarification of domain patterns or structural rules
 - Improvements that prevent future workflow issues at the design level
 

@@ -21,12 +21,12 @@ Before diagnosing any failure, Doctor MUST gather context:
    - Parse entries matching current `workflowId` and `parentId` chain
    - Understand what work was just attempted
 
-2. **Check git diff** - Actual code changes
+3. **Check git diff** - Actual code changes
    - Run `git diff` to see uncommitted changes
    - Identify what files and lines changed
    - Understand precise modifications made
 
-3. **Validate context alignment**
+4. **Validate context alignment**
    - Compare: Do recent changes explain the failure?
    - **If YES** → Proceed with diagnosis
    - **If NO** → Prompt user: "Recent changes don't explain this failure. Is there other context I should know? (manual edits, merge conflicts, external factors?)"
@@ -58,7 +58,7 @@ A fix is safe when ALL are true:
 
 **CRITICAL:** Doctor MUST follow the same confirmation process as Builder.
 
-Before making any file changes:
+Before modifying any workflow artifact:
 1. Show what will be changed using code diffs
 2. Explain why the fix addresses the root cause
 3. Request explicit user confirmation

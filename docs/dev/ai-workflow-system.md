@@ -5,7 +5,7 @@
 The AI Workflow System is a rule‑driven, profile‑based workflow engine modeled after an Agile software team.
 Each Profile has a single responsibility, and work moves between them through explicit file‑based handoffs.
 Every change follows the same deterministic loop  
-`Design → Prompt → Build → Verify → Document → Improve`  
+`Design/Plan → Prompt → Build → Verify → Document → Improve`  
 ensuring predictable, reviewable, and consistent execution.
 Profiles run in isolated chat tabs, do not share context, and follow rule files that define their behavior.
 All actions are logged for retrospective analysis,
@@ -17,8 +17,8 @@ allowing the system to improve over time through explicit, user‑approved chang
 
 The AI Workflow System uses profiles to handle development tasks.
 Each profile has specific responsibilities and follows defined rules stored in `.amazonq/rules/`.
-Profiles collaborate through handoffs, and all work is logged to enable retrospective analysis
-and continuous improvement.
+Profiles collaborate through explicitly called handoffs,
+and all work is logged to enable retrospective analysis and continuous improvement.
 
 ---
 
@@ -70,7 +70,7 @@ follow rule files that define their behavior, and never switch roles automatical
 
 At a high level, every workflow moves through the same loop:
 ```text
-Design → Prompt → Build → Verify → Document → Improve
+Design/Plan → Prompt → Build → Verify → Document → Improve
 ```
 The specific steps may change and be extended. Design and then plan.
 And they can be Split, workflow planning vs test planning for example.
@@ -157,29 +157,29 @@ See: [governance.md](governance.md#4-override-mechanism) for details.
 **Builder** — Writes code, implements features, follows formatting and architecture rules
 
 **Enforcer** —
-Reviews code, checks formatting, tests, and architecture alignment (aliases: Verifier, Validator, 🔫)
+Reviews code, checks formatting, tests, and architecture alignment
 
 **TestDesigner** —
-Analyzes systems and changes to identify test scenarios (aliases: TD, Provoker, Hunter)
+Analyzes systems and changes to identify test scenarios
 
 **Documentor** —
-Writes documentation, commit messages, diffs, and story descriptions (aliases: commit, keeper, ledger, Engraver)
+Writes documentation, commit messages, diffs, and story descriptions
 
 **Planner** —
-Writes user stories, backlog items, manages agile flow (aliases: PO, ProductOwner)
+Writes user stories, backlog items, manages agile flow
 
 **Architect** — Defines system design, domain models, structure, and long-term direction
 
 **Analyst** —
-Reads code, explains behavior, traces logic, diagnoses issues (aliases: Analyzer, Auditor, 🔍, 🔎)
+Reads code, explains behavior, traces logic, diagnoses issues
 
-**PromptEngineer** — Writes prompts for AI agents following Governed Prompting rules (aliases: PE, Prompter)
+**PromptEngineer** — Writes prompts for AI agents following Governed Prompting rules
 
 **Doctor** —
-Diagnoses failures, applies minimal safe fixes, escalates when issues exceed scope (aliases: Dr, DR, Medic, 🩺)
+Diagnoses failures, applies minimal safe fixes, escalates when issues exceed scope
 
 **Retrospective** —
-Analyzes completed workflows, identifies improvements, highlights successes (aliases: Retro, Iterator, 🔄)
+Analyzes completed workflows, identifies improvements, highlights successes
 
 ---
 
@@ -220,7 +220,7 @@ User → Architect → Planner → PromptEngineer → Builder → Enforcer → D
 
 1. **Architect** — Analyze feature, identify if multi-story, recommend story breakdown
 2. **Planner** — Create FEATURE.md with story list, write Story 1
-3. **[Execute Story 1 workflow]** — Normal build or TDD workflow
+3. **[Execute Story 1 workflow]** — Straight-Forward build or TDD workflow
 4. **Documentor** — Commit Story 1, update FEATURE.md progress
 5. **[Repeat for remaining stories]** — Continue with Story 2, 3, etc.
 6. **Retrospective** — Analyze complete feature workflow, clean up FEATURE.md
@@ -263,7 +263,7 @@ This ensures prompt quality, architectural alignment, and drift‑resistant exec
 ### 3. Explicit User Confirmation
 
 No file is ever modified without explicit user approval.  
-Builder, Doctor, and Enforcer all require confirmation before writing.
+Builder, Doctor, and Enforcer all require confirmation before writing any workflow artifact.
 
 ### 4. Explicit Context, No Implicit Sharing
 
@@ -432,12 +432,15 @@ For full syntax, arguments, and examples, see:
 ## Handoff vs Send/Receive
 
 **Handoff** — Sequential workflow in same chat tab
+* Used when: advancing the main thread work forward
 * Profile completes work, writes handoff, waits for user
 * User runs `/compact` then `@start` to continue workflow
 * Cleans up work directory between steps
 * Used for: Builder → Enforcer → Documentor chains
 
 **Send/Receive** — Parallel work in separate chat tabs
+* Used when: running a side trip to gather context, or fix an issue
+  **without advancing the main thread.**
 * Profile writes message, stays active in current tab
 * User opens new tab, runs `@receive` for isolated work
 * Original tab remains unchanged
@@ -483,7 +486,8 @@ As Retrospective, analyze recent workflows
 
 ## Example workflow Loop
 
-This example shows how a single change moves through the system using the normal build workflow,
+This example shows how a single change moves through the system using
+the Straight-Forward Build Workflow,
 without assuming any specific language, framework, or domain.
 
 **User**  

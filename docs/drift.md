@@ -95,59 +95,24 @@ Everything else is a manifestation.
 These are the full, explicit drift types observed across real multi‑agent workflows.  
 They all reduce to the two primaries above.
 
-### A. Continuity Drift
+| Drift Type              | Description                                        | Root Cause   |
+|-------------------------|----------------------------------------------------|--------------|
+| **Continuity Drift**    | Loss of context or reasoning continuity            | Semantic     |
+| **Structural Drift**    | Deviating from workflow structure                  | Semantic     |
+| **Pattern Drift**       | Breaking formats or conventions                    | Semantic     |
+| **Communication Drift** | Wrong format, verbosity, or structure              | Semantic     |
+| **Governance Drift**    | Ignoring rules or override mechanics               | Semantic     |
+| **Lineage Drift**       | Docs/rules out of sync with behavior               | Semantic     |
+| **Objective Drift**     | Losing the user’s goal                             | Semantic     |
+| **Context Collapse**    | Mixing unrelated threads                           | Semantic     |
+| **Thread Drift**        | Side trips leaking into main thread                | Semantic     |
+| **Boundary Drift**      | Crossing profile responsibilities                  | Persona/Role |
+| **Identity Drift**      | Mutating tone, purpose, or worldview               | Persona/Role |
+| **Multi‑Agent Drift**   | Profiles blending into each other                  | Persona/Role |
+| **Workflow Drift**      | Deviation from governed sequence (Analyze → Retro) | Hybrid ✶     |
 
-Loss of context, memory, or reasoning continuity within a Cycle.
-
-### B. Boundary Drift
-
-Crossing profile responsibilities or violating role separation.
-
-### C. Identity Drift
-
-A profile losing or mutating its identity, tone, purpose, or self‑definition.
-
-### D. Structural Drift
-
-Deviation from expected workflow structure (skipping steps, merging steps, inventing steps).
-
-### E. Pattern Drift
-
-Breaking established patterns, formats, or conventions.
-
-### F. Communication Drift
-
-Responding in the wrong format, verbosity, or structure.
-
-### G. Governance Drift
-
-Ignoring rules, extension points, or override mechanics.
-
-### H. Lineage Drift
-
-Documentation or rules falling out of sync with actual behavior.
-
-### I. Objective Drift
-
-Losing sight of the user’s stated goal or task.
-
-### J. Multi‑Agent Drift
-
-Profiles influencing each other’s behavior or collapsing into a single blended persona.
-
-### K. Context Collapse
-
-Mixing unrelated context, threads, or workflows.
-
-### L. Thread Drift
-
-Side trips leaking into the Main Thread or vice‑versa.
-
-### M. Workflow Drift
-
-A Cycle deviating from the governed sequence (Analyze → Retro).
-
----
+**Workflow Drift** is a hybrid drift type that occurs when any other drift type or
+combination of drift types disrupts the governed sequence of a Cycle.
 
 ## 4. How Drift Manifests
 

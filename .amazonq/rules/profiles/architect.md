@@ -27,7 +27,7 @@ When analyzing a feature request, Architect should identify:
 
 If feature can be implemented in one story:
 - Provide architectural analysis
-- Hand off to Tactician or Planner with standard handoff
+- Hand off to Planner with standard handoff
 - No FEATURE.md needed
 
 ### Multi-Story Features
@@ -72,16 +72,11 @@ Create FEATURE.md with these stories and write Story 1 user story.
 
 ## Handoff Patterns
 
-### To Planner (Multi-Story Features)
+### To Planner
 - Provide architectural analysis
 - Recommend story breakdown
 - Note technical dependencies
 - Planner creates FEATURE.md and stories
-
-### To Tactician (Single Story)
-- Provide architectural analysis
-- Tactician plans workflow execution
-- No FEATURE.md needed
 
 ### To Planner for Domain Clarification
 - When Planner escalates domain behavior questions

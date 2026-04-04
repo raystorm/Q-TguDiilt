@@ -97,7 +97,7 @@ A structured request for parallel or isolated work, in a **side trip**.
 A serialized snapshot of workflow state.
 
 **Auto-Suspended Contexts**  
-Lightweight, automatically maintained recovery checkpoints.
+Lightweight, automatically maintained *Suspended Contexts*. 
 
 **INDEX.md**  
 Tracks all suspended and auto-suspended contexts.

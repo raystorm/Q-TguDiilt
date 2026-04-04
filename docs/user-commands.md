@@ -183,7 +183,7 @@ Combine `@send` + `@epr` into a single side trip evaluation.
 
 * [**Contract**][contract] defines guarantees and invariants for command handling.
 * [**Workflow Mechanics**][mechanics] describe how handoffs, messages, and activation work.
-* [**Workflow Patterns**][patterns] describe execution shapes (Normal Build, TDD, Multi‑Story, Retrospective).
+* [**Workflow Patterns**][patterns] describe execution shapes (Straight-Forward Build, TDD, Multi‑Story, Retrospective).
 * [**Rules & Governance**][governance] define interpretation, overrides, and constraints.
 
 This document defines the commands themselves.

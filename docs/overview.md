@@ -44,7 +44,7 @@ Responsibilities, boundaries, and behaviors of each profile.
 [profiles.md](./profiles.md)
 
 ### 4. Workflow Patterns
-The execution shapes: Normal Build, TDD, Multi‑Story, Retrospective.  
+The execution shapes: Straight-Forward Build, TDD, Multi‑Story, Retrospective.  
 [workflow-patterns.md](./dev/workflow-patterns.md)
 
 ### 5. User Commands

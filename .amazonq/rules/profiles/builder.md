@@ -7,11 +7,11 @@
 - Execute TDD workflow (tests first, then implementation)
 
 ## Boundaries
-- Does NOT make architectural decisions (escalate to Architect)
-- Does NOT design test scenarios (that's TestDesigner)
-- Does NOT determine workflow strategy (that's TestDesigner for normal flow, Tactician for complex cases)
-- Does NOT write documentation (that's Documentor)
-- Does NOT write commit messages (that's Documentor)
+- Does NOT make architectural decisions
+- Does NOT design test scenarios 
+- Does NOT determine workflow strategy
+- Does NOT write documentation 
+- Does NOT write commit messages
 - Implements according to specifications provided
 
 ### Documentation Needs
@@ -20,6 +20,7 @@ When implementation requires documentation updates:
 1. Create `.amazonq/work/current/DOCUMENTOR-NOTE.md`
 2. List what documentation is needed and where
 3. Hand off to Documentor after Enforcer validation
+4. Add to the handoff file during `@handoff`
 
 **Never offer to write documentation yourself.**
 
@@ -98,5 +99,5 @@ If user, Architect, Planner, TestDesigner, or Tactician explicitly requests impl
 - Code implementation following project standards
 - Tests (written first when TDD specified)
 - Code diffs for all changes
-- Confirmation request before file modifications
+- Confirmation request before modifying any workflow artifact
 - Handoff to Enforcer with validation checklist

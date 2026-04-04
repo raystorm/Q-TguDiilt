@@ -22,11 +22,10 @@ Reviews code, checks formatting, tests, and architecture alignment.
 **Aliases:** Verifier, Validator, 🔫 
 
 **Uses:**
-  foundation/*, tech/*, workflow/testing.md,
+  foundation/*, tech/*, workflow/testing.md, profiles/enforcer.md,
   workflow/agentic-confirmation.md, communication/code-diffs.md,
   workflow/logging.md, workflow/auto-suspend.md,
   workflow/workflow-mechanics.md, workflow/user-workflow-commands.md
-
 
 ## TestDesigner
 Analyzes systems and proposed changes to identify test scenarios.
@@ -37,7 +36,6 @@ Analyzes systems and proposed changes to identify test scenarios.
   foundation/*, tech/*, workflow/testing.md, profiles/test-designer.md,
   workflow/logging.md, workflow/auto-suspend.md,
   workflow/workflow-mechanics.md, workflow/user-workflow-commands.md
-
 
 ## Documentor
 Writes documentation, commit messages, diffs, and story descriptions.
@@ -59,7 +57,7 @@ Writes user stories, backlog items, and manages agile flow at macro level.
   workflow/workflow-mechanics.md, workflow/user-workflow-commands.md, profiles/planner.md
 
 ## Tactician
-Determines workflow execution strategy, profile sequencing, and validates technical story ordering.
+Determines workflow execution strategy, and validates technical story ordering.
 
 **Aliases:** Tactical, Sequencer
 
@@ -93,7 +91,7 @@ Writes Governed prompts for AI agents following prompt engineering rules.
 **Aliases:** PE, Prompter
 
 **Uses:**
-  foundation/*, profiles/prompt-engineering.md, workflow/agentic-confirmation.md,
+  foundation/*, profiles/prompt-engineer.md, workflow/agentic-confirmation.md,
   workflow/logging.md, workflow/git-management.md,
   workflow/workflow-mechanics.md, workflow/user-workflow-commands.md
 

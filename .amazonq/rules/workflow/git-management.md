@@ -2,16 +2,15 @@
 
 ## Automatic Git Add
 
-When creating new persistent files, automatically add them to git staging
-with `git add`.
+When creating new **persistent workflow artifacts**,
+automatically stage them with: `git add`.
 
-### Decision Criteria: Intent and Purpose
+(See terms: Workflow Artifact)
 
-**Add to git when file is:**
-- Part of the permanent codebase (source, tests, config)
-- Persistent documentation (architecture, guides, references)
-- Shared team resources (rules, prompts, schemas)
-- Meant to be versioned and shared with team
+### Decision Criteria
+
+**Add to git when the file is a Persistent Workflow Artifact.**  
+**Do NOT add to git when the file is a Transient Workflow Artifact.**
 
 **Do NOT add to git when file is:**
 - Temporary or transient (will be deleted soon)
@@ -23,10 +22,7 @@ with `git add`.
 ### Specific Patterns
 
 **Always add:**
-- Source code
-- Tests and test fixtures
 - Configuration files that do not have sensitive information
-- Schemas files
 - Documentation in `docs/` directory
 - Rules: `.amazonq/rules/` files
 - Prompts: `.amazonq/prompts/` files
@@ -43,7 +39,7 @@ with `git add`.
 
 - Any Files created must immediately be classified as:
   - persistent, to be added to git
-  - temporary, not to be added to git
+  - transient, not to be added to git
 - When classification is unclear the user MUST be asked.
 
 ### Implementation
@@ -66,7 +62,9 @@ git add .amazonq/rules/workflow/new-rule.md
 ### When to Skip Git Add
 
 - File is in `.gitignore`
-- File is temporary or working context
+- The file is a Transient Workflow Artifact
+- The file is System‑Owned (see glossary Excludes)
+- File is transient, temporary or working context
 - File is generated (will be regenerated)
 - File contains secrets or environment-specific data
 - File name contains STATUS, TODO, or TRACKING
@@ -82,13 +80,13 @@ Added to git: <file-path>
 
 If file should not be added:
 ```
-Created <file-path> (not added to git - temporary/working file)
+Created <file-path> (not added to git - transient/system-owned)
 ```
 
 ## Rationale
 
-- Prevents forgetting to stage new files
-- Makes commits more complete
+- Ensures persistent artifacts are always versioned
+- Prevents accidental staging of workflow state
 - Reduces manual git management
 - Clear distinction between persistent and temporary files
 - Aligns with version control best practices

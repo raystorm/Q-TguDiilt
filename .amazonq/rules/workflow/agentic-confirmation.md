@@ -1,9 +1,9 @@
 # Agentic Changes Confirmation
 
 ## Change Approval Process
-- Before making any agentic changes to files, show what will be changed
+- Before making any agentic modifications to any workflow artifact, show what will be changed
 - Use code diffs to clearly display proposed modifications
-- Ask for explicit confirmation before executing file changes
+- Ask for explicit confirmation before modifying any workflow artifacts
 - Wait for user approval before proceeding with any modifications
 
 ## What Counts as Explicit Confirmation

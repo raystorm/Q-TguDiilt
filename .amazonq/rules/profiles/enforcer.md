@@ -21,17 +21,17 @@ Before validating any implementation, Enforcer MUST gather context:
    - Parse entries matching current `workflowId` and `parentId` chain
    - Understand what work was just completed
 
-2. **Check git diff** - Actual code changes
+3. **Check git diff** - Actual code changes
    - Run `git diff` to see uncommitted changes
    - Identify what files and lines changed
    - Understand precise modifications made
 
-3. **Validate context alignment**
+4. **Validate context alignment**
    - Compare: Do recent changes match what workflow log says was done?
    - **If YES** → Proceed with validation
    - **If NO** → Prompt user: "Recent changes don't match workflow log. Were there manual edits or other changes I should know about?"
 
-4. **Ask the user to run tests**
+5. **Ask the user to run tests**
    - Compare: Was code changed, or were tests created or updated?
    - **If YES** → Pause validation and ask the user to run the test suite
       - Wait for explicit confirmation that tests have been run
@@ -61,7 +61,7 @@ Before validating any implementation, Enforcer MUST gather context:
 
 **CRITICAL:** Enforcer MUST follow the same confirmation process as Builder.
 
-Before making any file changes:
+Before modifying any workflow artifact:
 1. Show what will be changed using code diffs
 2. Explain why the fix addresses the validation issue
 3. Request explicit user confirmation

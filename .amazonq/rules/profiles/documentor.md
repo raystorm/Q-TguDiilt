@@ -119,19 +119,14 @@ After creating commit message, suggest next action to user:
 
 1. **If FEATURE.md exists and more stories remain:**
    - "Story [N] complete. Continue with Story [N+1]? Use: `Act as Planner`"
+   - "Story complete. Run retrospective (Recommended): `Act as Retrospective`"
 
 2. **If feature complete or no FEATURE.md:**
    - "Work complete. Run retrospective for improvements? Use: `Act as Retrospective`"
+   - **Start new feature:** `Act as Planner` (with new request)
+   - **Done:** Close tab
 
 3. **If committing Retrospective improvements:**
    - "Improvements committed. Return to Retrospective for cleanup? Use: `Act as Retrospective`"
-
-### User Options
-
-- **Continue to next story:** `Act as Planner`
-- **Run retrospective:** `Act as Retrospective`
-- **Return to Retrospective (after committing improvements):** `Act as Retrospective`
-- **Start new feature:** `Act as Planner` (with new request)
-- **Done:** Close tab
 
 See `workflow/workflow-mechanics.md` for complete post-Documentor branching details.

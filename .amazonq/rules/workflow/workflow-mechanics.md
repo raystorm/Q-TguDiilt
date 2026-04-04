@@ -67,14 +67,13 @@ Profile B continues work
 - Profile completes its responsibility
 - Next profile needs context to continue
 - Linear workflow progression
-- Example: Architect → Tactician → PE → Builder → Enforcer → Documentor
+- Example: Architect → Planner → PE → Builder → Enforcer → Documentor
 
 ### Handoff Confirmation
 
 **CRITICAL - MANDATORY FOR ALL PROFILES:** Profiles must NOT auto-create handoffs. User triggers handoff creation with `@handoff` command.
 
 **This applies to ALL profiles that create handoffs:**
-- Architect, Tactician, PromptEngineer, Builder, TestDesigner, Enforcer, Documentor, Doctor
 
 **Why:**
 - Catches incomplete information
@@ -84,9 +83,12 @@ Profile B continues work
 
 ### **Profile behavior when work is complete:**
 
-1. **"Single Message" Completion Rule**  
-   To minimize unnecessary back-and-forth, and simplify interactions,
+1. **"Single Message" Completion Rule**
+   To clearly and safely finish a profile's execution—
+   while minimizing unnecessary back-and-forth *before* the handoff—
    profiles must provide: completion, summary, and the next-step in a **Single Message**.  
+   This completion summary is **not** the handoff summary. The handoff summary is
+   generated only after the user triggers `@handoff` and HANDOFF.md is created.  
    **Example "Single Message":**
    ```
    [Profile] [Task] complete.
@@ -173,12 +175,13 @@ Make handoffs explicit and reviewable.
 ### Reviewable Handoff Pattern
 
 **Profile creating handoff:**
-1. Create HANDOFF.md
-2. **Show summary of what's being passed:**
+1. user types `@handoff`
+2. Create HANDOFF.md
+3. **Show summary of what's being passed:**
    - "Passing to PE: test scenarios + story requirements (schema, guards, wiring)"
-3. Request user confirmation
-4. **Wait for approval before completing handoff**
-5. **Never complete handoff without explicit user approval**
+4. Request user confirmation
+5. **Wait for approval before completing handoff**
+6. **Never complete handoff without explicit user approval**
 
 **User reviewing handoff:**
 1. Check HANDOFF.md content
@@ -201,12 +204,12 @@ User: "Yes, proceed"
 
 ### What to Check in Handoffs
 
-**From Architect to Tactician:**
+**From Architect to Planner:**
 - [ ] Impact analysis complete
 - [ ] Change classification clear
 - [ ] Phase recommendations included
 
-**From Tactician to PE:**
+**From Planner to PE:**
 - [ ] Execution strategy defined
 - [ ] Profile sequence clear
 - [ ] Validation checkpoints identified
@@ -328,10 +331,7 @@ Profile A continues with results
 
 ### Confirmation Requirements
 
-**Profiles requiring confirmation before file changes:**
-- Builder
-- Doctor
-- Enforcer
+**Profiles require confirmation before modifying any workflow artifact.**
 
 **Pattern:**
 1. Show what will be changed (code diffs)
@@ -526,7 +526,16 @@ See `workflow/user-commands.md` for detailed command documentation.
 
 ---
 
-## File Locations
+## Folder and File Locations
+
+### Workflow Folders
+
+- `.amazonq/` - Base folder for all AI facing context and control files
+- `.amazonq/prompts/` - synced repo local copy of installed prompts
+- `.amazonq/rules/` - AI rules files that, comprise and control the workflow
+- `.amazonq/suspended/` - Saved context capsules 
+- `.amazonq/work/` - technical AI-facing workflow artifacts
+- `.amazonq/work/current/` - current work cycle
 
 ### Workflow Files
 
@@ -596,7 +605,7 @@ Architect: "Analysis complete. Created feature breakdown with 3 stories."
 User: "@handoff"
   ↓
 Architect creates HANDOFF.md:
-  "Handoff to Tactician with:
+  "Handoff to Planner with:
    - Feature breakdown (3 stories)
    - Impact analysis (cross-domain, 50+ files)
    - Phase recommendations
@@ -605,12 +614,12 @@ Architect creates HANDOFF.md:
 User reviews HANDOFF.md
 User: "Yes, proceed"
   ↓
-Architect: "Handoff complete. Next command: Open new tab and type `@start as Tactician`"
+Architect: "Handoff complete. Next command: Open new tab and type `@start as Planner`"
   ↓
-User opens new tab: "@start as Tactician"
+User opens new tab: "@start as Planner"
   ↓
-Tactician reads HANDOFF.md
-Tactician sequences stories
+Planner reads HANDOFF.md
+Planner sequences stories
 ```
 
 ### Example 2: Side Trip

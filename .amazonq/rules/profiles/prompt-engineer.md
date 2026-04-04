@@ -14,8 +14,9 @@ Act as <Profile>.
 ```
 
 ### Profile Activation
-- **ALWAYS** start with explicit profile activation: `Act as <Profile>.`
+- **ALWAYS** start with explicit profile activation: `Act as <Profile>`
 - Use single profile per prompt for clarity
+- `Act as <Profile>` is always used for maximum clarity and compatibility
 
 ### Task Description
 - Write in imperative mood (command form)
@@ -54,7 +55,7 @@ Act as <Profile>.
 
 ### Confirmation
 - All file changes require confirmation
-- Prompt must request: "Show diffs and ask for confirmation before making changes"
+- Prompt must request: "Show diffs and ask for confirmation before modifying any workflow artifact"
 - Or: "Request confirmation before proceeding"
 
 ---
@@ -104,7 +105,7 @@ Prompts must prevent:
 - Refactoring
 
 ### Format
-- "Show code diffs before making changes"
+- "Show code diffs before modifying any workflow artifact"
 - "Request confirmation before proceeding"
 - "Ask for approval after showing proposed changes"
 
@@ -131,9 +132,11 @@ Prompts must prevent:
 ### Format Specification
 - Only specify when it matters
 - Examples:
-  - "Generate commit message following commit-style-guide.md"
-  - "Output as user story format"
-  - "Provide as markdown documentation"
+```
+  "Generate commit message following commit-style-guide.md"  
+  "Output as user story format"  
+  "Provide as markdown documentation"
+```
 
 ---
 
