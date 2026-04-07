@@ -284,9 +284,9 @@ Profiles act only on the current task.
 They do not anticipate future steps, or generate speculative artifacts.  
 Minimal‑change principles always apply.
 
-### 7. [Pattern Earning](../glossary.md#pattern-earning)
+### 7. Pattern Earning
 
-Patterns are earned, not assumed.  
+[Patterns are earned](../glossary.md#pattern-earning), not assumed.  
 A pattern is applied only when the task and artifacts justify it.  
 Partial implementation is acceptable.
 
@@ -338,9 +338,9 @@ Log enables Retrospective profile to analyze:
 * Blocker patterns
 * Decision quality
 
-### [Semantic Lineage](../glossary.md#semantic-lineage) and the Workflow Log
+### Semantic Lineage and the Workflow Log
 
-The workflow log records *events* (“what happened”). Semantic Lineage is a
+The workflow log records *events* (“what happened”). [Semantic Lineage](../glossary.md#semantic-lineage) is a
 profile‑level reconstruction of *why* those events occurred. Lineage is not
 stored directly; it is derived from the event log by profiles such as
 Retrospective.

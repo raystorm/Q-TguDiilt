@@ -28,11 +28,11 @@ this workflow system is built to mimic agile loops with AI.
 
 ---
 
-## Why do you use the term “[Cognitive Engineering](glossary.md#cognitive-engineering)”?
+## Why do you use the term “Cognitive Engineering”?
 
 Because this architecture focuses on **how an AI thinks**, not just how it is prompted.
 
-Cognitive Engineering describes:
+[Cognitive Engineering](glossary.md#cognitive-engineering) describes:
   * structured reasoning
   * [drift‑resistant](glossary.md#driftresistant-reasoning) thinking
   * context continuity
@@ -44,11 +44,11 @@ It is a name for the engineering discipline that governs AI reasoning.
 
 ---
 
-## How is Cognitive Engineering different from [Agentic Engineering](glossary.md#agentic-engineering)?
+## How is Cognitive Engineering different from Agentic Engineering?
 
 They address different layers:
   * **Cognitive Engineering** → how an AI thinks
-  * **Agentic Engineering** → how multiple AIs coordinate
+  * **[Agentic Engineering](glossary.md#agentic-engineering)** → how multiple AIs coordinate
 
 Cognition is internal.  
 Agency is external.  
@@ -56,13 +56,13 @@ They complement each other but are not the same.
 
 ---
 
-## Why separate [Context Engineering](glossary.md#context-engineering), [Context Governance](glossary.md#context-governance), and [Context Control](glossary.md#context-control)?
+## Why separate Context Engineering, Context Governance, and Context Control?
 
 Because context is the backbone of cognition.  
 These three layers mirror real engineering disciplines:
-  * **Context Engineering** → how context is structured
-  * **Context Governance** → what rules context must follow
-  * **Context Control** → how those rules are enforced
+  * **[Context Engineering](glossary.md#context-engineering)** → how context is structured
+  * **[Context Governance](glossary.md#context-governance)** → what rules context must follow
+  * **[Context Control](glossary.md#context-control)** → how those rules are enforced
 
 This separation prevents drift, mutation, and context collapse.
 
@@ -181,7 +181,7 @@ Profile contracts make multi‑agent systems predictable and safe.
 
 ---
 
-## What does “[Governed Cognitive Workflow](glossary.md#governed-cognitive-workflow)” mean?
+## What does “Governed Cognitive Workflow” mean?
 
 It means the system:
   * reasons

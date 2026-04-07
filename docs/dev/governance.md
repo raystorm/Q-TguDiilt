@@ -166,9 +166,9 @@ These invariants define the behavior of the rule system itself.
 
 No implicit behavior changes.
 
-### 5.2 [Lineage](../glossary.md#semantic-lineage) Preservation
+### 5.2 Lineage Preservation
 
-Every rule must have a clear lineage:
+Every rule must have a clear [lineage](../glossary.md#semantic-lineage):
 * Universal rule → Project override (optional)
 * No hidden mutations
 * No silent reinterpretation

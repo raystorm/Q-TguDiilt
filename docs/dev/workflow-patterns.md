@@ -274,9 +274,9 @@ MAIN THREAD resumes (Profile A)
 
 ---
 
-## Recovery Workflow ([Suspend/Resume](../glossary.md#suspendresume-semantics) + Auto‑Suspend)
+## Recovery Workflow (Suspend/Resume + Auto‑Suspend)
 
-Suspend/Resume is the **context preservation pattern**.  
+[Suspend/Resume](../glossary.md#suspendresume-semantics) is the **context preservation pattern**.  
 Auto‑Suspend provides lightweight recovery checkpoints.
 
 ### When to Use

@@ -136,7 +136,7 @@ Left unchecked, these accumulate into systemic drift.
 
 The architecture includes multiple drift‑prevention mechanisms:
 
-### [Profile Contracts](glossary.md#profile-contract)
+### Profile Contracts
 
 Each profile has strict responsibilities and boundaries.
 
@@ -180,16 +180,16 @@ Retro identifies drift by comparing:
 * expected patterns
 * actual behavior
 * rule definitions
-* profile contracts
+* [profile contracts](glossary.md#profile-contract)
 * documentation lineage
 
 Retro then produces **improvement recommendations**.
 
 ---
 
-## How [Side Trips](glossary.md#side-trip) Correct Drift
+## How Side Trips Correct Drift
 
-Side trips run in a separate [thread](glossary.md#thread) using `@send`/`@receive`,
+[Side trips](glossary.md#side-trip) run in a separate [thread](glossary.md#thread) using `@send`/`@receive`,
 following the same drift prevention mechanics as `@handoff`/`@start` in the [main thread](glossary.md#main-thread),
 allowing work to happen in parallel without affecting the main thread’s context or state.
 

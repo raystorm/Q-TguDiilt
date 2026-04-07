@@ -36,7 +36,7 @@ Mechanics and profiles must conform to it.
 The workflow engine operates on four artifact types.  
 Their shapes and semantics are defined in [`workflow-mechanics.md`][mechanics]
 
-### 2.1 [Handoff](../glossary.md#handoff) (`HANDOFF.md`)
+### 2.1 Handoff (`HANDOFF.md`)
 
 A structured, reviewable transfer of responsibility between profiles.
 
@@ -60,7 +60,7 @@ Created **only** when the user triggers `@handoff`.
 Location:
 `.amazonq/work/current/HANDOFF.md`
 
-### 2.2 [Side Trip](../glossary.md#side-trip) Message (`MESSAGE.md`)
+### 2.2 Side Trip Message (`MESSAGE.md`)
 
 A structured request for parallel work by another profile.
 
@@ -195,8 +195,8 @@ These invariants must hold across all workflows, profiles, and mechanics.
 
 ### 3.2 Semantic Invariants
 
-* Handoffs must be complete, reviewable, and meaning‑preserving
-* Side trips must be isolated and return control to original profile
+* [Handoffs](../glossary.md#handoff) must be complete, reviewable, and meaning‑preserving
+* [Side trips](../glossary.md#side-trip) must be isolated and return control to original profile
 * Suspended contexts must be sufficient to resume work
 * Workflow logs must accurately reflect events
 * Profiles must follow confirmation rules defined in mechanics
@@ -248,7 +248,9 @@ Reference: [`workflow/user-commands.md`][commands].
 
 ---
 
-## 5. [Profile Contract](../glossary.md#profile-contract)
+## 5. Profile Contract
+
+[Profile Contract](../glossary.md#profile-contract)
 
 All profiles must:
 * follow workflow mechanics

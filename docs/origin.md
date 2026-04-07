@@ -1,11 +1,11 @@
 # Origin Story
 
-## [Free Prompting](glossary.md#free-prompting)
+## Free Prompting
 
 Before there was structure, before there were profiles or capsules or workflows,  
 there were just prompts.
 
-I was free‑prompting Amazon Q and Microsoft Copilot:
+I was [free prompting](glossary.md#free-prompting) Amazon Q and Microsoft Copilot:
 no roles, no boundaries, no governance—just raw experimentation.
 
 It worked sometimes.
@@ -18,7 +18,7 @@ I didn’t know it yet, but this was the beginning.
 
 ---
 
-## [Meta‑Prompting](glossary.md#metaprompting) (Copilot → Q)
+## Meta‑Prompting (Copilot → Q)
 
 At one point, I tried to scale prompting by having Microsoft Copilot generate prompts for Amazon Q.
 
@@ -30,7 +30,7 @@ They still drifted.
 They still collapsed context.
 They still required endless copy/paste.
 
-Meta‑prompting didn’t solve the problem.
+Meta‑Prompting didn’t solve the problem.
 It just made the problem more obvious.
 
 Prompting about prompting is still prompting.
@@ -41,9 +41,9 @@ I needed **structure**.
 
 ---
 
-## The [BMAD Method](glossary.md#bmad-method)
+## The BMAD Method
 
-BMAD wasn’t just [personas](glossary.md#persona).  
+[BMAD](glossary.md#bmad-method) wasn’t just [personas](glossary.md#persona).  
 It was **[prompt chaining](glossary.md#prompt-chaining)**.
 
 Builder → Tester → Validator.
@@ -63,7 +63,7 @@ They still drifted.
 They still collapsed context.
 They still required endless copy/paste.
 
-Meta‑prompting didn’t solve the problem.
+[Meta‑Prompting](glossary.md#metaprompting) didn’t solve the problem.
 It just automated the chaos.
 
 Eventually I circled back to BMAD, not because I believed in it,
