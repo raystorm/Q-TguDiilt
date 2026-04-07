@@ -54,6 +54,20 @@ Always, unless:
 Architect → Planner → TestDesigner → PromptEngineer → Builder → Enforcer → Documentor → Retrospective
 ```
 
+```mermaid
+flowchart LR
+   A[Architect] --> P[Planner]
+   P --> TD[TestDesigner]
+   TD -->|TDD default| PE[PromptEngineer]
+   TD -.->|SFB optional| PE
+   PE --> B[Builder]
+   B --> E[Enforcer]
+   E --> D[Documentor]
+   D --> R[Retrospective]
+```
+
+*Solid line = TDD (default). Dashed line = Straight‑Forward Build (override).*
+
 ### Key Characteristics
 
 * TestDesigner defines test scenarios (Gherkin‑compatible)
@@ -113,18 +127,15 @@ Used when a feature requires multiple sequential stories.
 
 ### Execution Shape
 
-```text
-Architect → Planner → FEATURE.md
-    ↓
-Story 1 Workflow (TDD by default)
-    ↓
-Documentor updates FEATURE.md
-    ↓
-Story 2 Workflow
-    ↓
-...
-    ↓
-Retrospective cleans up FEATURE.md
+```mermaid
+flowchart TD
+   A[Architect] --> P[Planner]
+   P --> FM["Create FEATURE.md"]
+   FM --> S["Story Workflow (TDD)"]
+   S --> DU["Documentor updates FEATURE.md"]
+   DU --> MORE{More stories?}
+   MORE -- Yes --> S
+   MORE -- No --> RET[Retrospective cleanup]
 ```
 
 ### Key Characteristics
@@ -149,16 +160,14 @@ Retrospective may generate improvement artifacts that require other profiles to 
 
 ### Execution Shape
 
-```text
-Retrospective → Analyze workflow.log → (Optional) Create improvement artifacts
-  ↓
-(Optional) [Side trips](../glossary.md#side-trip) to other profiles for isolated work
-  ↓
-Documentor creates commit message for improvements
-  ↓
-User commits changes
-  ↓
-Retrospective performs cleanup
+```mermaid
+flowchart TD
+   R[Retrospective] --> A["Analyze workflow.log"]
+   A --> I["(Optional) Create improvement artifacts"]
+   I --> ST["(Optional) Side trips for isolated work"]
+   ST --> D["Documentor creates commit message"]
+   D --> UC["User commits changes"]
+   UC --> CL["Retrospective performs cleanup"]
 ```
 
 ### Key Characteristics
@@ -198,12 +207,19 @@ but no additional threads are created, or supported.
 
 ### Profile‑Initiated Side Trip (send/receive)
 
-```text
-MAIN THREAD (Profile A) → @send Profile B
-  ↓
-User opens SIDE TRIP THREAD → @receive → Profile B performs isolated work → User closes SIDE TRIP THREAD
-  ↓
-MAIN THREAD resumes (Profile A)
+```mermaid
+sequenceDiagram
+   participant MT as Main Thread
+   participant U as User
+   participant ST as Side Trip Thread
+   MT->>U: Profile A: @send Profile B
+   U->>MT: Reviews & approves MESSAGE.md
+   U->>ST: Opens new tab, types @receive
+   ST->>ST: Profile B performs isolated work
+   ST->>U: Work complete
+   U-->>ST: Closes tab
+   U->>MT: Returns, informs Profile A
+   MT->>MT: Profile A resumes
 ```
 
 **Characteristics**
@@ -213,24 +229,9 @@ MAIN THREAD resumes (Profile A)
 
 ### User‑Initiated Side Trip (fresh chat)
 
-```text
-User opens SIDE TRIP THREAD
-Act as [Profile]
-Profile performs isolated work
-User closes SIDE TRIP THREAD
-MAIN THREAD resumes
-```
-
-#### Most Common Example: Doctor
-
-```text
-User opens SIDE TRIP THREAD
-@dr
-Doctor diagnoses failing tests or issues
-Doctor may escalate if the fix exceeds safe‑fix criteria
-User closes SIDE TRIP THREAD
-MAIN THREAD resumes
-```
+User opens a new tab, activates a profile directly
+(e.g., `Act as [Profile]` or `@dr`), performs isolated work,
+closes the tab, and returns to the main thread.
 
 **Notes**
 * `@dr` is a convenience command to start the doctor profile,  
@@ -248,16 +249,22 @@ and each `@recieve` replaces the active profile.
 
 #### Execution Shape
 
-```text
-MAIN THREAD (Profile A) → @send Profile B
-  ↓
-User opens SIDE TRIP THREAD → @receive → Profile B performs isolated work
-  ↓
-Profile B needs Profile C → @send Profile C (same SIDE TRIP THREAD) → @receive
-  ↓
-Profile C performs isolated work → Profile C completes work → User closes SIDE TRIP THREAD
-  ↓
-MAIN THREAD resumes (Profile A)
+```mermaid
+sequenceDiagram
+   participant MT as Main Thread
+   participant U as User
+   participant ST as Side Trip Thread
+   MT->>U: Profile A: @send Profile B
+   U->>MT: Reviews & approves MESSAGE.md
+   U->>ST: Opens new tab, types @receive
+   ST->>ST: Profile B performs work
+   ST->>U: Profile B: @send Profile C
+   U->>ST: Reviews & approves, types @receive
+   ST->>ST: Profile C replaces B, performs work
+   ST->>U: Work complete
+   U-->>ST: Closes tab
+   U->>MT: Returns, informs Profile A
+   MT->>MT: Profile A resumes
 ```
 
 #### Key Characteristics
@@ -287,14 +294,11 @@ Auto‑Suspend provides lightweight recovery checkpoints.
 
 ### Execution Shape
 
-```text
-@suspend [name]
-  ↓
-Context saved to .amazonq/suspended/
-  ↓
-@resume [name]
-  ↓
-Workflow continues without loss of meaning
+```mermaid
+flowchart TD
+   S["@suspend [name]"] --> SAVE["Context saved to .amazonq/suspended/"]
+   SAVE --> R["@resume [name]"]
+   R --> CONT["Workflow continues without loss of meaning"]
 ```
 
 ### Key Characteristics

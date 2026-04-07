@@ -45,13 +45,6 @@ Create a [side trip](glossary.md#side-trip) message for parallel work.
 
 Used for: parallel expertise, non‑blocking work, isolated tasks.
 
-**Symmetry:**  
-Both commands create [context capsule](glossary.md#context-capsule), to request work from another profile.  
-Both commands ask for user review and confirmation.  
-The only difference is the file:
-* `@handoff` → HANDOFF.md
-* `@send` → MESSAGE.md
-
 ---
 
 ## 2. Activation Commands
@@ -72,11 +65,20 @@ Activate a profile from a **message**, and performs the requested action.
 * Loads `MESSAGE.md`
 * Continues or begins a side trip workflow
 
-**Symmetry:**  
-Both commands activate a profile and load context.  
-The only difference is the file:
-* `@start` → HANDOFF.md
-* `@receive` → MESSAGE.md
+### Command Symmetry
+
+| Changeover Type | Linear (Handoff) | Parallel (Message) |
+|-----------------|------------------|--------------------|
+| **Change**      | @handoff         | @send              |
+| **Begin**       | @start           | @receive           |
+
+```mermaid
+flowchart LR
+   handoff["@handoff"] -- writes --> HF["HANDOFF.md"]
+   start["@start"] -- reads --> HF
+   send["@send"] -- writes --> MF["MESSAGE.md"]
+   receive["@receive"] -- reads --> MF
+```
 
 ---
 

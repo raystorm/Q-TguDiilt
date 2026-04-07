@@ -262,6 +262,19 @@ Workflow Patterns define the exact sequencing, but common flows include:
 - Doctor → PromptEngineer or TestDesigner
 - Retrospective → PromptEngineer
 
+```mermaid
+flowchart LR
+   Architect --> PE[PromptEngineer]
+   Planner --> PE
+   PE --> Builder
+   Builder --> Enforcer
+   Enforcer --> Documentor
+   Doctor --> PE
+   Doctor --> TD[TestDesigner]
+   TD --> PE
+   Retrospective --> PE
+```
+
 ---
 
 ## 8. Rule Loading Model
@@ -297,6 +310,27 @@ with no profile‑specific rules at all.
 The key idea is that **Uses** determines which rule files shape a profile’s
 behavior. This keeps the system explicit, minimal, and drift‑resistant,
 while allowing each profile to be as simple or as expressive as it needs to be.
+
+```mermaid
+flowchart BT
+   subgraph Shared["Shared Substrate"]
+      F["foundation/*"]
+      W["workflow/*"]
+   end
+   subgraph Optional["Optional Layers"]
+      T["tech/*"]
+      A["architecture/*"]
+      C["communication/*"]
+   end
+   subgraph Profile["Profile\u2011Specific"]
+      P["profiles/*.md"]
+   end
+   Shared --> Optional
+   Optional --> Profile
+```
+
+*Each profile’s `Uses:` declaration in `_PROFILES.md` determines
+which layers it loads.*
 
 ---
 

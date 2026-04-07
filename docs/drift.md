@@ -194,15 +194,25 @@ following the same drift prevention mechanics as `@handoff`/`@start` in the [mai
 allowing work to happen in parallel without affecting the main thread’s context or state.
 
 When a side trip is performed:
-1. A side trip is initiated
-2. The side trip runs in a separate thread with isolated context
-3. The appropriate profile (Architect, Documentor, Enforcer, etc.) performs the requested action
-4. If the side trip is multi-profile a new `@send` is initiated,
-   and reviewed before being picked up by the next profile in line
-   1. The next profile does a `@receive` and performs the requested action 
-5. The user reviews the side trip output and confirms completion 
-6. The user notifies the main thread when complete
-7. The Cycle resumes with side trip complete
+
+```mermaid
+sequenceDiagram
+   participant MT as Main Thread
+   participant U as User
+   participant ST as Side Trip Thread
+   MT->>U: @send initiates side trip
+   U->>ST: Opens tab, types @receive
+   ST->>ST: Profile performs requested action
+   opt Multi‑profile side trip
+      ST->>U: @send next profile
+      U->>ST: Reviews, types @receive
+      ST->>ST: Next profile performs action
+   end
+   ST->>U: Work complete
+   U-->>ST: Reviews output, closes tab
+   U->>MT: Notifies main thread
+   MT->>MT: Cycle resumes
+```
 
 Side trips ensure parallel operation does not contaminate the main thread.
 

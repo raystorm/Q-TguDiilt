@@ -179,6 +179,24 @@ files and fields at runtime.
 * does not impose a fixed schema
 * must not include global rules or system settings
 
+```mermaid
+classDiagram
+   class HANDOFF_md {
+      Context Capsule
+   }
+   class MESSAGE_md {
+      Context Capsule
+   }
+   class Suspended_Context {
+      Context Capsule
+   }
+   class Workflow_Log
+   class Context_Capsule
+   HANDOFF_md *-- Context_Capsule
+   MESSAGE_md *-- Context_Capsule
+   Suspended_Context *-- Context_Capsule
+```
+
 ---
 
 ## 3. Domain Invariants
@@ -284,6 +302,13 @@ The Contract defines:
 
 Mechanics implement the Contract.  
 Profiles obey both.
+
+```mermaid
+flowchart TD
+   C[Contract] -- "defines domain" --> M[Mechanics]
+   M -- "implements" --> P[Profiles]
+   C -- "obeys both" --> P
+```
 
 ---
 

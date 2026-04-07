@@ -128,6 +128,17 @@ For each command, this section lists:
 * **Arguments in the prompt (if any)**  
 * **Usage examples**  
 
+```mermaid
+flowchart LR
+   handoff["@handoff"] -- creates --> HF["HANDOFF.md"]
+   start["@start"] -- reads --> HF
+   send["@send"] -- creates --> MF["MESSAGE.md"]
+   receive["@receive"] -- reads --> MF
+   suspend["@suspend"] -- creates --> SC["suspended context"]
+   resume["@resume"] -- reads --> SC
+   note["@note"] -- appends --> WL["workflow.log"]
+```
+
 ### 4.1 Transfer Commands
 
 #### `@handoff`
@@ -391,6 +402,19 @@ At each step, your job is to:
 * keep the workflow on track
 
 Below is your role at each stage.
+
+```mermaid
+flowchart LR
+   Plan --> Analyze
+   Analyze -.->|optional| DT[Define Tests]
+   Plan --> DT
+   DT --> Prepare
+   Prepare --> Implement
+   Implement --> Review
+   Review --> Commit
+   Commit --> Retro[Retrospective]
+   Retro --> Plan
+```
 
 ### 1. Plan
 

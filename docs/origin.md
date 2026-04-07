@@ -92,7 +92,9 @@ but something in between.
 I called them **profiles**.
 
 Then came the real breakthrough:
-I got tired of copy/paste and built the first **[context capsule](glossary.md#context-capsule) [handoff](glossary.md#handoff)/send**.
+I got tired of copy/paste and built the first
+**[context capsule](glossary.md#context-capsule)
+[handoff](glossary.md#handoff)/send**.
 
 Instead of repeating context,
 I packaged it.
@@ -122,3 +124,15 @@ and started looking like a **workflow**.
 Profiles + capsules + handoffs = a repeatable loop.
 
 That loop is where the workflow system was born.
+
+---
+
+## Evolution
+
+```mermaid
+flowchart LR
+   FP[Free Prompting] --> MP["Meta\u2011Prompting"]
+   MP --> BMAD[BMAD Method]
+   BMAD --> PC[Profiles + Capsules]
+   PC --> WF[First Workflow]
+```

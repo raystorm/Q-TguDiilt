@@ -328,6 +328,22 @@ Does it reinforce boundaries, not blur them?
 
 If the answer to all of these questions is “yes,” the extension is safe.
 
+```mermaid
+flowchart TD
+   Q1{Necessary?} -- Yes --> Q2{Minimal?}
+   Q1 -- No --> STOP[Stop, reconsider]
+   Q2 -- Yes --> Q3{Local?}
+   Q2 -- No --> STOP
+   Q3 -- Yes --> Q4{Teachable?}
+   Q3 -- No --> STOP
+   Q4 -- Yes --> Q5{Preserves lineage?}
+   Q4 -- No --> STOP
+   Q5 -- Yes --> Q6{Avoids drift?}
+   Q5 -- No --> STOP
+   Q6 -- Yes --> SAFE[Extension is safe]
+   Q6 -- No --> STOP
+```
+
 ---
 
 ## 10. Summary

@@ -77,14 +77,14 @@ Reads code, explains behavior, traces logic, and ambiguity resolution.
 **Aliases:** Analyzer, Auditor, 🔍, 🔎,
 
 **Uses:** foundation/*, architecture/*, workflow/logging.md, workflow/auto-suspend.md,
-workflow/workflow-mechanics.md
+workflow/workflow-mechanics.md, workflow/agentic-confirmation.md,
 
 ## Communicator
 Writes release notes, announcements, and public-facing documentation.
 
 **Uses:**
   foundation/*, communication/commit-messages.md, communication/user-stories.md,
-  workflow/workflow-mechanics.md
+  workflow/workflow-mechanics.md, workflow/agentic-confirmation.md,
 
 ## PromptEngineer
 Writes Governed prompts for AI agents following prompt engineering rules.
