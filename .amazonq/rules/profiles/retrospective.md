@@ -108,6 +108,12 @@ Triggers:
 ---
 
 **Improvement Options:**
+
+**CRITICAL: Only display options that have concrete findings queued.**
+Do not display the full menu as a template.
+Each listed option must have an actionable recommendation.
+Always include "Done (proceed to cleanup)" as the final option.
+
 1. Prompt template (send to PE)
 2. Architecture note (send to Architect)
 3. Rule draft (send to PE)
