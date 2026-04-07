@@ -224,7 +224,8 @@ Restore a suspended (or auto-suspended) context.
 * `.amazonq/suspended/[name].md`
 
 **Arguments:**  
-* `name` (optional) — if omitted, shows a list
+* `name` (optional) — if omitted, shows a list 
+  of all available suspended and auto-suspended contexts. 
 
 **Usage:**  
 ```text

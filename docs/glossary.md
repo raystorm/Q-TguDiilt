@@ -47,16 +47,22 @@ Where Context Engineering defines structure and Context Governance defines rules
 Context Control enforces them at runtime.
 
 Workflow Artifact
-: A user‑visible project or workflow file, whose creation or modification materially affects the workflow.
-: **Includes (project artifacts)**  
-  code, tests, configuration, documentation, shared team files
-: **Includes (workflow artifacts)**  
-  `HANDOFF.md`, `MESSAGE.md`, baton files, and context  capsules
-: **Excludes**  
-  System‑owned plumbing (`workflow.log`, auto‑suspend state, internal metadata),
-  temp files, and working files.
+: A user-visible project or workflow file whose creation or modification materially affects the workflow.
+
+: **Includes - Persistent Workflow Artifacts**  
+Files that represent long-term project state and must be versioned.  
+Source code, tests, configuration files, persistent documentation, shared team resources.
+
+: **Includes - Transient Workflow Artifacts**  
+Files that represent workflow state and must NOT be versioned.  
+any file inside `.amazonq/work/`, or subdirectories
+
+: **Excludes - System-Owned (Not Workflow Artifacts)**  
+Internal plumbing and runtime files that are never treated as workflow artifacts.  
+System-owned plumbing (workflow.log, auto-suspend state, internal metadata), temporary files, working files.
+
 : **Invariant**  
-  All creation or modification of workflow artifacts requires explicit user confirmation.
+All creation or modification of workflow artifacts requires explicit user confirmation.
 
 Prompt Engineering (Legacy)
 : The practice of shaping model outputs through carefully crafted prompts.  
@@ -100,6 +106,23 @@ Drift‑Resistant Reasoning
 losing context, hallucinating new rules, violating contracts,  
 mutating identity, or collapsing boundaries.  
 Enforced through contracts, capsules, lineage, and governed workflows.
+
+Changeover
+: A governed workflow operation where one profile prepares control and
+context for another profile. All changeovers follow the same invariant:
+user-triggered, summarized, confirmed, approved, then written.  
+Handoffs (linear) and Side Trips (parallel) are two types of changeovers.
+
+Change
+: A rule-facing categorization that groups the commands which *initiate* a Changeover.  
+The Change category includes `@handoff` (linear) and `@send` (parallel).  
+Rules referring to "Change" apply uniformly to both commands.
+
+Begin
+: A rule-facing categorization that groups the commands which *activate* a Changeover.  
+The Begin category includes `@start` (linear) and `@receive` (parallel).  
+Rules referring to "Begin" apply uniformly to both commands.
+
 
 Handoff
 : The intentional transfer of control, responsibility, and context  

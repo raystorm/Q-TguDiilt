@@ -187,7 +187,7 @@ Analyzes completed workflows, identifies improvements, highlights successes
 
 ### Example workflow for a single story
 
-User → Architect → Planner → PromptEngineer → Builder → Enforcer → Documentor → Retrospective
+User → Planner → TestDesigner → PromptEngineer → Builder → Enforcer → Documentor → Retrospective
 
 ### Straight Forward Build Workflow
 
@@ -337,6 +337,17 @@ Log enables Retrospective profile to analyze:
 * System fix frequency
 * Blocker patterns
 * Decision quality
+
+### Semantic Lineage and the Workflow Log
+
+The workflow log records *events* (“what happened”). Semantic Lineage is a
+profile‑level reconstruction of *why* those events occurred. Lineage is not
+stored directly; it is derived from the event log by profiles such as
+Retrospective.
+
+Profiles must record enough intent, decisions, and reasoning context in their
+log events for lineage to be reconstructed. The log provides the mechanical
+trace; lineage provides the semantic trace.
 
 ---
 

@@ -57,7 +57,7 @@ When [condition] is false:
 **MANDATORY (when using TDD):** Write tests before implementation code.
 
 **Order:**
-1. Write test files with test scenarios
+1. Write test files based on the provided test scenarios
 2. Show tests to user
 3. Get confirmation
 4. Write implementation code
@@ -101,3 +101,8 @@ If user, Architect, Planner, TestDesigner, or Tactician explicitly requests impl
 - Code diffs for all changes
 - Confirmation request before modifying any workflow artifact
 - Handoff to Enforcer with validation checklist
+
+## Change Approval Process
+This profile follows the universal change approval process defined in
+workflow/agentic-confirmation.md. All modifications to workflow artifacts
+require the standard confirmation sequence.

@@ -1,6 +1,6 @@
 Act as Enforcer.
 
-Review the prompt and response in `.amazonq/work/HANDOFF.md`.
+Review the prompt and response in `.amazonq/work/current/HANDOFF.md`.
 
 Verify:
 - Prompt follows prompt engineering rules

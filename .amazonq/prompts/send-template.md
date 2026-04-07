@@ -1,6 +1,6 @@
 # Send Message Template
 
-Write message to `.amazonq/work/MESSAGE.md`.
+Write message to `.amazonq/work/current/MESSAGE.md`.
 
 ## Required Fields
 

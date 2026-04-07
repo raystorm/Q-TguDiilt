@@ -28,7 +28,6 @@ The workflow exists to *make the right thing easy and the wrong thing hard.*
 
 Review the core documents that define how the system works:
 * [**Workflow System one pager - deep dive**](ai-workflow-system.md)
-* [**Architecture**](architecture.md)
 * [**Commit Style Guide**](commit-style-guide.md)
 * [**Mindset**](mindset.md)
 * [**Glossary**](glossary.md)

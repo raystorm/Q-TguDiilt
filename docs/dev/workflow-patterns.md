@@ -23,9 +23,12 @@ Profiles define *who does what*.
 
 This file defines the **canonical workflow shapes supported today**.
 
+Workflows and patterns end implicitly when the user begins a new task.
+There is no explicit ‘end’ command or termination event.
+
 ---
 
-## 1. Default Pattern: Test‑Driven Development (TDD)
+## Default Pattern: Test‑Driven Development (TDD)
 
 TDD is the **default workflow pattern**.  
 Unless explicitly overridden, all stories run in TDD mode.
@@ -62,7 +65,7 @@ Architect → Planner → TestDesigner → PromptEngineer → Builder → Enforc
 
 ---
 
-## 2. Straight‑Forward Build Workflow (Override Mode)
+## Straight‑Forward Build Workflow (Override Mode)
 
 Straight‑Forward Build is the **explicit override**.  
 Planner, or TestDesigner must choose it intentionally.
@@ -92,7 +95,7 @@ Straight‑Forward Build is a **fallback**, not a default.
 
 ---
 
-## 3. Multi‑Story Feature Workflow
+## Multi‑Story Feature Workflow
 
 Used when a feature requires multiple sequential stories.
 
@@ -132,7 +135,7 @@ Retrospective cleans up FEATURE.md
 
 ---
 
-## 4. Retrospective Workflow
+## Retrospective Workflow
 
 Retrospective is the **improvement loop**.  
 It analyzes workflow.log, identifies patterns, and produces Keep/Stop/Start recommendations.  
@@ -169,7 +172,7 @@ Retrospective performs cleanup
 
 ---
 
-## 5. Side Trip Workflow Pattern
+## Side Trip Workflow Pattern
 
 Side trips are **parallel, isolated work** performed by another profile.  
 They allow the current workflow to remain active while another profile performs work in a separate thread.
@@ -193,7 +196,7 @@ All chained side trip work happens in the **same Side Trip Thread**.
 Profiles may replace each other inside this thread,
 but no additional threads are created, or supported.
 
-### A. Profile‑Initiated Side Trip (send/receive)
+### Profile‑Initiated Side Trip (send/receive)
 
 ```text
 MAIN THREAD (Profile A) → @send Profile B
@@ -208,7 +211,7 @@ MAIN THREAD resumes (Profile A)
 * Does not mutate main workflow state
 * Original profile remains active
 
-### B. User‑Initiated Side Trip (fresh chat)
+### User‑Initiated Side Trip (fresh chat)
 
 ```text
 User opens SIDE TRIP THREAD
@@ -234,7 +237,7 @@ MAIN THREAD resumes
   and troubleshoot a failing test. It is optional.
 * This is the correct pattern for exploratory, diagnostic, or inspection work
 
-### C. Multi‑Step Side Trips (Chained Send/Receive)
+### Multi‑Step Side Trips (Chained Send/Receive)
 
 Side trips may involve multiple steps.  
 A profile performing isolated work can initiate additional side trips
@@ -271,7 +274,7 @@ MAIN THREAD resumes (Profile A)
 
 ---
 
-## 6. Recovery Workflow (Suspend/Resume + Auto‑Suspend)
+## Recovery Workflow (Suspend/Resume + Auto‑Suspend)
 
 Suspend/Resume is the **context preservation pattern**.  
 Auto‑Suspend provides lightweight recovery checkpoints.
@@ -302,7 +305,7 @@ Workflow continues without loss of meaning
 
 ---
 
-## 7. Pattern Comparison Table
+## Pattern Comparison Table
 
 | Pattern                    | Default? | Key Profiles                                                                      | Artifacts                                           | Notes                                  |
 |----------------------------|----------|-----------------------------------------------------------------------------------|-----------------------------------------------------|----------------------------------------|

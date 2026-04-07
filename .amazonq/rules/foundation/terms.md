@@ -10,7 +10,7 @@ Source code, tests, configuration files, persistent documentation, shared team r
 
 : **Includes - Transient Workflow Artifacts**  
 Files that represent workflow state and must NOT be versioned.  
-HANDOFF.md, MESSAGE.md, baton files, workflow context capsules.
+any file inside `.amazonq/work/`, or subdirectories
 
 : **Excludes - System-Owned (Not Workflow Artifacts)**  
 Internal plumbing and runtime files that are never treated as workflow artifacts.  
@@ -23,6 +23,22 @@ All creation or modification of workflow artifacts requires explicit user confir
 Context Capsule
 : A structured container for workflow state, including intent, constraints, history, lineage, and profile roles.
 : Enables suspend/resume, multi-step workflows, and continuity across outages.
+
+Changeover
+: A governed workflow operation where one profile prepares control and
+context for another profile. All changeovers follow the same invariant:
+user-triggered, summarized, confirmed, approved, then written.  
+Handoffs (linear) and Side Trips (parallel) are two types of changeovers.
+
+Change
+: A rule-facing categorization that groups the commands which *initiate* a Changeover.  
+The Change category includes `@handoff` (linear) and `@send` (parallel).  
+Rules referring to "Change" apply uniformly to both commands.
+
+Begin
+: A rule-facing categorization that groups the commands which *activate* a Changeover.  
+The Begin category includes `@start` (linear) and `@receive` (parallel).  
+Rules referring to "Begin" apply uniformly to both commands.
 
 Handoff
 : A workflow artifact that transfers control and context from one profile to another.

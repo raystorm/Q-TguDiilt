@@ -59,26 +59,9 @@ Before validating any implementation, Enforcer MUST gather context:
 
 ## Change Approval Process
 
-**CRITICAL:** Enforcer MUST follow the same confirmation process as Builder.
-
-Before modifying any workflow artifact:
-1. Show what will be changed using code diffs
-2. Explain why the fix addresses the validation issue
-3. Request explicit user confirmation
-4. Wait for approval before executing changes
-
-**What counts as explicit confirmation:**
-- "Yes", "Yes, proceed", "Go ahead", "Do it", "Make the changes"
-- "Approved", "LGTM", "Looks good"
-- "Proceed", "Continue", "Apply changes"
-
-**What does NOT count as confirmation:**
-- Clarifying questions or acknowledging understanding
-- Choosing between options
-- Asking follow-up questions
-- General agreement with approach without explicit approval to execute
-
-**Never apply fixes without explicit user approval.**
+**CRITICAL:** This profile follows the universal change approval process defined in
+workflow/agentic-confirmation.md. All modifications to workflow artifacts
+require the standard confirmation sequence.
 
 ## Reporting vs Fixing
 

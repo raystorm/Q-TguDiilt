@@ -45,6 +45,8 @@ how the engine operates, learns, and maintains architectural integrity over time
 - Developer documentation (`/docs/dev`)
 - User documentation (`/docs/user`)
 
+---
+
 ## How to Navigate This Repository
 
 ### Usage Documentation

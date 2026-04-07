@@ -173,7 +173,8 @@ When user chooses "Done":
     - If FEATURE.md exists and all stories complete: Delete FEATURE.md
     - If FEATURE.md doesn't exist: Skip
   - Delete `.amazonq/workflow.log`
-  - Delete all files in `.amazonq/work/current/` except files listed in `HANDOFF.md` (if it exists)
+  - Delete all files in `.amazonq/work/current/`
+    except `HANDOFF.md` and files listed in `HANDOFF.md` (if it exists)
   - Delete all auto-suspend files (auto-*.md) and temp files (auto-*.tmp)
 - Confirm: "Cleanup complete. Workflow session closed."
 
@@ -184,16 +185,16 @@ After Documentor commits Retro's improvements, user chooses next action:
 ### Decision Points
 
 1. **Return to Retro for cleanup:**
-   - User: `Act as Retrospective`
+   - User: `@handoff next=Retrospective`
    - Retro performs cleanup (delete workflow.log, work files)
    - Retro confirms cleanup complete
 
 2. **Continue to next story (if FEATURE.md has more stories):**
-   - User: `Act as Planner`
+   - User: `@handoff next=Planner`
    - Planner reads FEATURE.md, works on next story
 
 3. **Start new feature:**
-   - User: `Act as Planner` (with new request)
+   - User: `@handoff next=Planner` (with new request)
    - Standard workflow begins
 
 4. **Done:**
@@ -213,15 +214,15 @@ When user returns to Retro after commit:
 After cleanup complete, suggest next action to user:
 
 1. **If FEATURE.md exists and more stories remain:**
-   - "Cleanup complete. Continue with Story [N+1]? Use: `Act as Planner`"
+   - "Cleanup complete. Continue with Story [N+1]? Use: `@handoff next=Planner`"
 
 2. **If feature complete or no FEATURE.md:**
    - "Cleanup complete. Workflow session closed."
 
 ### User Options After Cleanup
 
-- **Continue to next story:** `Act as Planner`
-- **Start new feature:** `Act as Planner` (with new request)
+- **Continue to next story:** `@handoff next=Planner`
+- **Start new feature:** `@handoff next=Planner` (with new request)
 - **Done:** Close tab
 
 ### Typical Flow

@@ -1,8 +1,8 @@
 # User Commands
 
-User commands are the only workflow actions a user can issue.  
-They create or load workflow files, activate profiles, transfer work,
-manage state, or log insights.  
+User commands are the primary workflow actions a user can issue.
+Commands may change workflow state, activate profiles, transfer work,
+or perform stateless operations.
 All commands are saved prompts stored in `.amazonq/prompts/`.
 
 > [!IMPORTANT]
@@ -24,9 +24,10 @@ Commands that move work between profiles by generating a workflow file.
 
 Create a linear workflow handoff for the next profile in the main thread
 
-* Produces `HANDOFF.md`
+* Produces `HANDOFF.md` content
 * Current profile summarizes work and requests confirmation
 * User reviews and approves
+* `HANDOFF.md` created (or updated)
 * Next profile is activated via `@start`
 
 Used for: linear progression (Architect → PE → Builder → Enforcer → Documentor)
@@ -179,7 +180,7 @@ Combine `@send` + `@epr` into a single side trip evaluation.
 
 ---
 
-## Relationship to Other Documents
+## 6. Relationship to Other Documents
 
 * [**Contract**][contract] defines guarantees and invariants for command handling.
 * [**Workflow Mechanics**][mechanics] describe how handoffs, messages, and activation work.

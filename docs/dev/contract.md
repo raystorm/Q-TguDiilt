@@ -152,7 +152,7 @@ Location:
 
 ---
 
-## 2.4 Workflow Log (`workflow.log`, JSONL)
+### 2.4 Workflow Log (`workflow.log`, JSONL)
 
 Append‑only event log.
 
@@ -161,6 +161,23 @@ Append‑only event log.
 * must record workflow events, suspends, resumes, notes
 * must never be rewritten or truncated
 * must be appended only with workflow events (profiles) and user notes (`@note`)
+
+### 2.5 Context Capsule (Structural Contract)
+
+A Context Capsule is a structured container for passing workflow state.
+It is included in `HANDOFF.md`, `MESSAGE.md`, and all Suspended Contexts.
+The capsule provides continuity across profiles, tabs, and workflow interruptions.
+
+**Contains:**
+AI-defined files and fields to pass current workflow context to the next profile. 
+The structure is intentionally left undefined to let the AI determine the needed
+files and fields at runtime.
+
+**Invariants:**
+* must preserve continuity across profiles and suspends
+* must be diff‑friendly
+* does not impose a fixed schema
+* must not include global rules or system settings
 
 ---
 
@@ -284,6 +301,6 @@ This file does **not** define:
 * project‑specific conventions
 
 [mechanics]: ../../.amazonq/rules/workflow/workflow-mechanics.md
-[commands]: ../../.amazonq/rules/workflow/user-commands.md
+[commands]: ../user-commands.md
 [logging]: ../../.amazonq/rules/workflow/logging.md
 [auto-suspend]: ../../.amazonq/rules/workflow/auto-suspend.md

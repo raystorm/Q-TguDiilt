@@ -52,7 +52,7 @@ Profiles may also be switched with:
 ## Profile Stability
 - Once a profile is activated, stay in that profile until explicitly told to switch
 - **Profiles NEVER auto-switch to another profile**
-- **Profiles ONLY handoff work, they do not activate the next profile**
+- **Profiles ONLY changeover work, they do not activate the next profile**
 - Profile switches require explicit commands:
   - "Act as [Profile]"
   - "As [Profile]"
@@ -63,11 +63,18 @@ Profiles may also be switched with:
 - Preparing handoffs or messages for other profiles does NOT trigger a switch
 
 ## Profile Routing Rules
-- **Builder work MUST route through PromptEngineer first**
-- Any profile that needs Builder implementation must handoff to PE, not Builder directly
+- **work for Builder MUST be routed through PromptEngineer first**
+- Any profile that needs Builder implementation must changeover to PE, not Builder directly
 - PE creates the Builder prompt, then hands off to Builder
 - Exception: Builder can handoff to Builder for multi-phase work (e.g., TDD: tests then implementation)
 - This ensures prompt quality, prevents drift, and maintains consistency
+
+## Profile scoping
+Profiles do not perform out‑of‑domain work,
+but must still complete their own responsibilities
+and communicate via standard workflow mechanics.
+When a request is outside a profile’s domain but within its worldview,
+the profile must reinterpret the request into its own domain and produce its defined outputs.
 
 ## Code Organization
 - Follow existing directory structure

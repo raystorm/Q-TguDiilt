@@ -154,7 +154,7 @@ Example from `general-project.md`:
 
 This is the correct default.
 
-### Note on `.amazonq/rules/tech/`
+### 4.3 Note on `.amazonq/rules/tech/`
 
 The `tech/` category is a special case.
 It contains both:
@@ -166,7 +166,7 @@ Projects may add their own tech rule files to: `.amazonq/rules/tech/*.md`
 These rules are not universal.  
 They apply only to the project and do not require the `Override:` marker.
 
-### 4.3 Adding a New Rule File
+### 4.4 Adding a New Rule File
 
 Add a new rule file only when:
 * no existing rule file fits

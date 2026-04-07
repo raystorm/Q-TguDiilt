@@ -2,8 +2,9 @@
 
 Profiles are the governed actors of the workflow engine.  
 Each profile represents a **single responsibility**, a **bounded domain**,
-and a **deterministic behavior** defined entirely by rule files.
-Profiles do not improvise, store hidden state, or cross boundaries.
+and a **deterministic behavior** defined entirely by rule files.  
+Profiles do not improvise or work outside their domain.  
+Profiles only store state through explicit workflow processes.  
 They execute work, hand off artifacts, and maintain continuity across multi‑step workflows.
 
 Profiles sit between the **Contract** (what is true)
@@ -43,24 +44,27 @@ Every profile:
 - Loads **project rules** (architecture, tech stack, naming, domain)
 - Loads **profile‑specific rules** (behavior, boundaries, escalation) (if specified)
 - Executes tasks strictly within its domain
+- Reinterprets out of domain but in worldview work,
+  into known responsibilities, and complete with standard mechanics
 - Produces artifacts in the required format
-- Hands off work to the next profile in the workflow
+- uses a changeover to send work to the next profile in the workflow
 
 Profiles form a **governed assembly line**.  
 Each actor performs one job, performs it well, and yields control.
 
 ---
 
-## 3. Responsibilities and Boundaries
+## 3. Profile List
 
 Below is a high‑level summary of each profile’s domain.  
-For full behavioral rules, see:  
-`../.amazonq/rules/profiles/<profileName>.md`
+For full behavioral rules, see: 
+[`../.amazonq/rules/_PROFILES.md`](../.amazonq/rules/_PROFILES.md)
 
 ### Operator
 
 The primary entry point for user questions. **When in doubt, *call Operator*.**
 Routes tasks to the correct profile. Does not perform work.  
+**Aliases:** Router, Conductor, Switchboard  
 → [`operator.md`](../.amazonq/rules/profiles/operator.md)
 
 ### Builder
@@ -71,36 +75,42 @@ Implements features, writes code, follows formatting and architecture rules.
 ### Enforcer
 
 Validates code, formatting, tests, and architectural alignment.  
+**Aliases:** Verifier, Validator, 🔫  
 → [`enforcer.md`](../.amazonq/rules/profiles/enforcer.md)
 
 ### TestDesigner
 
 Identifies test scenarios, edge cases, and validation strategies.  
+**Aliases:** TD, Provoker, Hunter  
 → [`test-designer.md`](../.amazonq/rules/profiles/test-designer.md)
 
 ### Documentor
 
-Writes documentation, commit messages, diffs, and story descriptions.  
+Writes documentation, commit messages, and story descriptions.  
+**Aliases:** commit, keeper, ledger, Engraver  
 → [`documentor.md`](../.amazonq/rules/profiles/documentor.md)
 
 ### Planner
 
 Creates user stories, backlog items, and manages macro‑level flow.  
+**Aliases:** PO, ProductOwner, Strategist  
 → [`planner.md`](../.amazonq/rules/profiles/planner.md)
 
 ### Tactician
 
 Validates execution order, sequencing, and workflow strategy.  
+**Aliases:** Tactical, Sequencer  
 → [`tactician.md`](../.amazonq/rules/profiles/tactician.md)
 
 ### Architect
 
 Defines system design, domain models, and long‑term structure.  
+**Aliases:** Analyzer, Auditor, 🔍, 🔎,  
 → [`architect.md`](../.amazonq/rules/profiles/architect.md)
 
 ### Analyst
 
-Reads code, explains behavior, traces logic, and diagnoses issues.  
+Reads code, explains behavior, traces logic, and ambiguity resolution.  
 <!-- Conceptual, placeholder for if goverened → [`analyst.md`](../.amazonq/rules/profiles/analyst.md) -->
 
 ### Communicator
@@ -111,26 +121,30 @@ Writes release notes, announcements, and public‑facing documentation.
 ### PromptEngineer
 
 Writes prompts and governs AI‑facing instructions.  
+**Aliases:** PE, Prompter  
 → [`prompt-engineer.md`](../.amazonq/rules/profiles/prompt-engineer.md)
 
 ### Doctor
 
 Diagnoses failures, applies minimal safe fixes, and escalates when needed.  
+**Aliases:** Dr, DR, Medic, 🩺  
 → [`doctor.md`](../.amazonq/rules/profiles/doctor.md)
 
 ### Retrospective
 
 Analyzes completed workflows, identifies improvements, and highlights successes.  
+**Aliases:** Retro, Iterator, 🔄  
 → [`retrospective.md`](../.amazonq/rules/profiles/retrospective.md)
 
 ### UserExperience
 
 Defines user flows, interaction patterns, and accessibility requirements.  
+**Aliases:** UX, UI  
 → [`user-experience.md`](../.amazonq/rules/profiles/user-experience.md)
 
 ---
 
-## 4. Boundaries
+## 4. Profile Worldviews
 
 Each profile has an **area of responsibility** —
 a worldview that defines what it cares about, what it notices, and what it considers important.
@@ -140,16 +154,19 @@ Some profiles also have **explicit boundaries**, **invariants**, or **escalation
 but these only exist when the profile has a need for them,
 and will be implemented in a rule file.
 
-### 4.1 Profile Categories
+---
+
+## 5 Profile Categories
 
 Profile categories exist for human understanding only.
-The system itself does not treat “Conceptual” and “Governed” as functional states;
-the only operational distinction is whether a profile has a profile-specific
+The system itself does not treat “Conceptual” and “Governed” as functional states.
+
+Profiles are classified based on if they have a profile-specific
 `.amazonq/rules/profiles/{profileName}.md` rule file.
 
 Profiles fall into two categories:
 
-#### 1. Conceptual Profiles
+### A. Conceptual Profiles
 
 These define identity and responsibility but do not require profile-specific configuration.  
 They consume shared rules files, but they do not have a profile-specific
@@ -158,7 +175,7 @@ and they simply ignore work outside their worldview.
 
 **Mental model:** A role with a perspective.
 
-#### 2. Governed Profiles
+### B. Governed Profiles
 
 These have a profile-specific (.amazonq/rules/profiles/{profileName}.md) rule file
 that defines:
@@ -173,23 +190,24 @@ profiles only gain profile-specific rules when they need it.
 
 **Mental model:** A role with obligations and constraints.
 
-### **4.2 Operational Differences (Single Table)**
+### 5.1 Operational Differences (Single Table)
 
 This table consolidates all behavioral distinctions into one view:
 
-| Behavior                         | Conceptual Profile | Governed Profile           |
-|----------------------------------|--------------------|----------------------------|
-| Has a profile-specific rule file | No                 | Yes                        |
-| Has rule files                   | Yes                | Yes                        |
-| Enforces invariants              | Yes                | Yes                        |
-| Stops on boundary                | Yes                | Yes                        |
-| Escalates                        | No                 | Only if defined            |
-| Produces required outputs        | No                 | Yes                        |
-| Ignores out‑of‑scope work        | Yes                | No (documents + escalates) |
+| Behavior                         | Conceptual Profile                | Governed Profile                      |
+|----------------------------------|-----------------------------------|---------------------------------------|
+| Has a profile-specific rule file | No                                | Yes                                   |
+| Has rule files                   | Yes                               | Yes                                   |
+| Enforces invariants              | Yes                               | Yes                                   |
+| Stops on boundary                | Yes                               | Yes                                   |
+| Changeover                       | Yes                               | Yes                                   |
+| Escalates                        | No                                | Only if defined                       |
+| Produces required outputs        | No profile-speficic outputs       | Yes                                   |
+| Ignores out‑of‑domain work       | Yes (does domain work + responds) | No (documents + escalates if defined) |
 
 “This table gives users a quick, operational understanding of what to expect.”
 
-### 4.3 How Users Know Which One They’re Dealing With
+### 5.2 How Users Know Which One They’re Dealing With
 
 A profile is **conceptual** when:
 - it has no profile-specific rule file
@@ -208,7 +226,7 @@ If it only has a worldview, it’s conceptual.
 
 ---
 
-## 5. Escalation
+## 6. Escalation
 
 Not all profiles have defined escalation paths.  
 Only governed profiles with rule files may support escalation.
@@ -225,10 +243,10 @@ Other profiles simply do not perform work outside their domain or worldview.
 
 ---
 
-## 6. Handoffs
+## 7. Changeovers
 
-Handoffs are explicit and file‑based.  
-**Every profile transition to another profile occurs via *handoff***
+Changeovers are explicit and file‑based.  
+**Every profile transition to another profile occurs via *Changeover***
 They preserve:
 - context
 - intent
@@ -246,7 +264,7 @@ Workflow Patterns define the exact sequencing, but common flows include:
 
 ---
 
-## 7. Rule Loading Model
+## 8. Rule Loading Model
 
 Profiles do not inherently contain logic. A profile begins as a named identity with a
 worldview and an area of responsibility. Explicit governance is added only when needed.
@@ -265,7 +283,7 @@ Each profile’s rule loading is defined in the profile index:
 
 A governed profile might declare:
 
-```text
+```markdown
 **Uses:**
   foundation/*
   workflow/logging.md
@@ -282,7 +300,7 @@ while allowing each profile to be as simple or as expressive as it needs to be.
 
 ---
 
-## 8. Profile Philosophy
+## 9. Profile Philosophy
 
 Profiles are identities. Each profile begins as a named perspective with a
 worldview — a sense of what it cares about, what it notices, and what it

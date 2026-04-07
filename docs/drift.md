@@ -45,7 +45,7 @@ This architecture focuses on preventing drift so hallucinations never occur in t
 
 ---
 
-## 1. What Is Drift?
+## What Is Drift?
 
 **Drift** is any deviation from the system’s expected behavior, patterns, or rules.  
 It can occur:
@@ -60,11 +60,11 @@ Drift is the opposite of governed cognition.
 
 ---
 
-## 2. The Two Primary Drift Categories
+## The Two Primary Drift Categories
 
 All drift ultimately collapses into two root causes:
 
-### 1. Semantic Drift
+### Semantic Drift
 
 Degradation of meaning, intent, or interpretation.  
 Examples:
@@ -76,7 +76,7 @@ Examples:
 * hallucinating context
 * losing context
 
-### 2. Persona / Role Drift
+### Persona / Role Drift
 
 Deviation from a profile’s identity, responsibilities, or boundaries.  
 Examples:
@@ -90,7 +90,7 @@ Everything else is a manifestation.
 
 ---
 
-## 3. Canonical Drift Types
+## Canonical Drift Types
 
 These are the full, explicit drift types observed across real multi‑agent workflows.  
 They all reduce to the two primaries above.
@@ -114,7 +114,7 @@ They all reduce to the two primaries above.
 **Workflow Drift** is a hybrid drift type that occurs when any other drift type or
 combination of drift types disrupts the governed sequence of a Cycle.
 
-## 4. How Drift Manifests
+## How Drift Manifests
 
 Drift rarely appears as a catastrophic failure.  
 It usually shows up as:
@@ -132,41 +132,41 @@ Left unchecked, these accumulate into systemic drift.
 
 ---
 
-## 5. How the Engine Prevents Drift
+## How the Engine Prevents Drift
 
 The architecture includes multiple drift‑prevention mechanisms:
 
-### A. Profile Contracts
+### Profile Contracts
 
 Each profile has strict responsibilities and boundaries.
 
-### B. Governed Communication
+### Governed Communication
 
 `@handoff` and `@start` enforce deterministic transitions.
 
-### C. Context Isolation
+### Context Isolation
 
 Threads prevent cross‑contamination between workflows.
 
-### D. Documentation Anchors
+### Documentation Anchors
 
 AI‑ready files provide curated, stable context.
 
-### E. Rule Enforcement
+### Rule Enforcement
 
 Universal rules prevent mutation, overreach, and identity collapse.
 
-### F. Pattern Anchoring
+### Pattern Anchoring
 
 Commit messages, diffs, and stories follow strict formats.
 
-### G. User Review at Every Handoff
+### User Review at Every Handoff
 
 The user acts as the governance checkpoint.
 
 ---
 
-## 6. How Retro Detects Drift
+## How Retro Detects Drift
 
 Retrospective analyzes:
 * the Cycle’s reasoning
@@ -187,7 +187,7 @@ Retro then produces **improvement recommendations**.
 
 ---
 
-## 7. How Side Trips Correct Drift
+## How Side Trips Correct Drift
 
 Side trips run in a separate thread using `@send`/`@receive`,
 following the same drift prevention mechanics as `@handoff`/`@start` in the main thread,
@@ -208,7 +208,7 @@ Side trips ensure parallel operation does not contaminate the main thread.
 
 ---
 
-## 8. Drift Is Managed, Not Eliminated
+## Drift Is Managed, Not Eliminated
 
 Drift is a natural force in cognitive systems.  
 This architecture governs drift through structure, isolation, detection, correction, and user review.
