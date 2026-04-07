@@ -16,7 +16,7 @@ and the recommended approach to take when evaluating, using, or updating it.*
 This system is clarity by design and intention.  
 Clarity relies on structure, boundaries, and predictable workflows.  
 AI requires explicit grounding to approximate a human’s intuition and experience.  
-Roles, constraints, and handoffs exist to remove ambiguity, not add friction.
+Roles, constraints, and [handoffs](glossary.md#handoff) exist to remove ambiguity, not add friction.
 
 The architecture favors simplicity over specificity.  
 It removes ambiguity, and amplifies the signal of definition, naming, and structure.  
@@ -63,10 +63,10 @@ What this mindset protects at all costs.
     The workflow is flexible. The structure is not.
   * Minimalism  
     Keep only what is necessary for clarity.
-  * Drift Resistance  
+  * [Drift Resistance](glossary.md#driftresistant-reasoning)  
     The system must hold its shape and stability across versions.
   * Continuity  
-    Context, lineage, and meaning must persist across time and agents.
+    Context, [lineage](glossary.md#semantic-lineage), and meaning must persist across time and agents.
 
 ---
 
@@ -81,7 +81,7 @@ How the mindset manifests in practice.
   * Documentation
     Writing makes context explicit so the system is consistent.
   * Handoffs
-    Profiles pass context through predictable, intention‑revealing capsules.
+    Profiles pass context through predictable, intention‑revealing [capsules](glossary.md#context-capsule).
   * Corrections
     Improvements are continuous and grounded in truth.
   * Governance

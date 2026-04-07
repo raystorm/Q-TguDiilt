@@ -56,7 +56,7 @@ It can occur:
 * within documentation (lineage drift)
 * within rules (governance drift)
 
-Drift is the opposite of governed cognition.
+Drift is the opposite of [governed cognition](glossary.md#governed-cognitive-workflow).
 
 ---
 
@@ -136,7 +136,7 @@ Left unchecked, these accumulate into systemic drift.
 
 The architecture includes multiple drift‑prevention mechanisms:
 
-### Profile Contracts
+### [Profile Contracts](glossary.md#profile-contract)
 
 Each profile has strict responsibilities and boundaries.
 
@@ -187,10 +187,10 @@ Retro then produces **improvement recommendations**.
 
 ---
 
-## How Side Trips Correct Drift
+## How [Side Trips](glossary.md#side-trip) Correct Drift
 
-Side trips run in a separate thread using `@send`/`@receive`,
-following the same drift prevention mechanics as `@handoff`/`@start` in the main thread,
+Side trips run in a separate [thread](glossary.md#thread) using `@send`/`@receive`,
+following the same drift prevention mechanics as `@handoff`/`@start` in the [main thread](glossary.md#main-thread),
 allowing work to happen in parallel without affecting the main thread’s context or state.
 
 When a side trip is performed:

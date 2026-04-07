@@ -1,6 +1,6 @@
 # Origin Story
 
-## Free Prompting
+## [Free Prompting](glossary.md#free-prompting)
 
 Before there was structure, before there were profiles or capsules or workflows,  
 there were just prompts.
@@ -18,7 +18,7 @@ I didn’t know it yet, but this was the beginning.
 
 ---
 
-## Meta‑Prompting (Copilot → Q)
+## [Meta‑Prompting](glossary.md#metaprompting) (Copilot → Q)
 
 At one point, I tried to scale prompting by having Microsoft Copilot generate prompts for Amazon Q.
 
@@ -41,10 +41,10 @@ I needed **structure**.
 
 ---
 
-## The BMAD Method
+## The [BMAD Method](glossary.md#bmad-method)
 
-BMAD wasn’t just personas.  
-It was **prompt chaining**.
+BMAD wasn’t just [personas](glossary.md#persona).  
+It was **[prompt chaining](glossary.md#prompt-chaining)**.
 
 Builder → Tester → Validator.
 
@@ -92,7 +92,7 @@ but something in between.
 I called them **profiles**.
 
 Then came the real breakthrough:
-I got tired of copy/paste and built the first **capsule handoff/send**.
+I got tired of copy/paste and built the first **[context capsule](glossary.md#context-capsule) [handoff](glossary.md#handoff)/send**.
 
 Instead of repeating context,
 I packaged it.

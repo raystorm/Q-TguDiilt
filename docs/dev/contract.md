@@ -6,7 +6,7 @@ It is the semantic substrate beneath:
 * [`workflow-mechanics.md`][mechanics]
 * [`user-commands.md`][commands]
 * all profile rules
-* all workflow artifacts
+* all [workflow artifacts](../glossary.md#workflow-artifact)
 
 Mechanics define *how* workflows operate.  
 The Contract defines *what must always be true*.
@@ -36,7 +36,7 @@ Mechanics and profiles must conform to it.
 The workflow engine operates on four artifact types.  
 Their shapes and semantics are defined in [`workflow-mechanics.md`][mechanics]
 
-### 2.1 Handoff (`HANDOFF.md`)
+### 2.1 [Handoff](../glossary.md#handoff) (`HANDOFF.md`)
 
 A structured, reviewable transfer of responsibility between profiles.
 
@@ -47,7 +47,7 @@ Created **only** when the user triggers `@handoff`.
 * Task
 * Summary of Work
 * Requested Next Action
-* Context Capsule
+* [Context Capsule](../glossary.md#context-capsule)
 * Artifacts
 * Expected Outcome
 
@@ -60,7 +60,7 @@ Created **only** when the user triggers `@handoff`.
 Location:
 `.amazonq/work/current/HANDOFF.md`
 
-### 2.2 Side Trip Message (`MESSAGE.md`)
+### 2.2 [Side Trip](../glossary.md#side-trip) Message (`MESSAGE.md`)
 
 A structured request for parallel work by another profile.
 
@@ -248,7 +248,7 @@ Reference: [`workflow/user-commands.md`][commands].
 
 ---
 
-## 5. Profile Contract
+## 5. [Profile Contract](../glossary.md#profile-contract)
 
 All profiles must:
 * follow workflow mechanics

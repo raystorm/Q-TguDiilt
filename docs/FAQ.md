@@ -28,13 +28,13 @@ this workflow system is built to mimic agile loops with AI.
 
 ---
 
-## Why do you use the term “Cognitive Engineering”?
+## Why do you use the term “[Cognitive Engineering](glossary.md#cognitive-engineering)”?
 
 Because this architecture focuses on **how an AI thinks**, not just how it is prompted.
 
 Cognitive Engineering describes:
   * structured reasoning
-  * drift‑resistant thinking
+  * [drift‑resistant](glossary.md#driftresistant-reasoning) thinking
   * context continuity
   * self‑improvement loops
   * semantic clarity
@@ -44,7 +44,7 @@ It is a name for the engineering discipline that governs AI reasoning.
 
 ---
 
-## How is Cognitive Engineering different from Agentic Engineering?
+## How is Cognitive Engineering different from [Agentic Engineering](glossary.md#agentic-engineering)?
 
 They address different layers:
   * **Cognitive Engineering** → how an AI thinks
@@ -56,7 +56,7 @@ They complement each other but are not the same.
 
 ---
 
-## Why separate Context Engineering, Context Governance, and Context Control?
+## Why separate [Context Engineering](glossary.md#context-engineering), [Context Governance](glossary.md#context-governance), and [Context Control](glossary.md#context-control)?
 
 Because context is the backbone of cognition.  
 These three layers mirror real engineering disciplines:
@@ -78,8 +78,8 @@ Prompts are:
   * prone to drift
 
 This architecture replaces ad‑hoc prompting with:
-  * context capsules
-  * profile contracts
+  * [context capsules](glossary.md#context-capsule)
+  * [profile contracts](glossary.md#profile-contract)
   * lineage
   * governance
   * enforcement
@@ -130,7 +130,7 @@ This architecture focuses on:
   * context integrity
   * drift‑resistant reasoning
   * multi‑agent contracts
-  * semantic lineage
+  * [semantic lineage](glossary.md#semantic-lineage)
 
 It is an **architectural discipline**, not a framework.
 
@@ -181,7 +181,7 @@ Profile contracts make multi‑agent systems predictable and safe.
 
 ---
 
-## What does “Governed Cognitive Workflow” mean?
+## What does “[Governed Cognitive Workflow](glossary.md#governed-cognitive-workflow)” mean?
 
 It means the system:
   * reasons
@@ -204,7 +204,7 @@ Because formatting is:
   * a contract
   * a governance mechanism
   * a drift‑resistant structure
-  * a teachable artifact
+  * a [teachable artifact](glossary.md#teachable-artifact)
 
 Formatting is not cosmetic — it is cognitive scaffolding.
 

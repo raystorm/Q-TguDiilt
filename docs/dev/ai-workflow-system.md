@@ -3,7 +3,7 @@
 ## Quick Summary
 
 The AI Workflow System is a rule‑driven, profile‑based workflow engine modeled after an Agile software team.
-Each Profile has a single responsibility, and work moves between them through explicit file‑based handoffs.
+Each Profile has a single responsibility, and work moves between them through explicit file‑based [handoffs](../glossary.md#handoff).
 Every change follows the same deterministic loop  
 `Design/Plan → Prompt → Build → Verify → Document → Improve`  
 ensuring predictable, reviewable, and consistent execution.
@@ -25,7 +25,7 @@ and all work is logged to enable retrospective analysis and continuous improveme
 ## Origins
 
 This workflow was originally based on how a *human agile software development team*
-Would typically be structured and operate. Where each Story/Workflow/Item equates to a sprint.
+Would typically be structured and operate. Where each [Story](../glossary.md#story)/Workflow/Item equates to a sprint.
 Working through that model, it was realized that mapping *PROFILES* to the Agile SDLC loop phases
 makes more sense, and that is the version of profiles documented below.
 
@@ -130,7 +130,7 @@ the system behaves the same way every time — eliminating drift and improvisati
 
 No profile calls Builder directly.  
 PromptEngineer always constructs the Builder prompt, ensuring clarity,
-Minimal Code principles, and consistent adherence to rules.  
+[Minimal Code](../glossary.md#minimal-code) principles, and consistent adherence to rules.  
 Users *can* bypass this, but the system never does.
 
 ### 5. Rule Governance and Project Level Overrides
@@ -173,7 +173,7 @@ Writes user stories, backlog items, manages agile flow
 **Analyst** —
 Reads code, explains behavior, traces logic, diagnoses issues
 
-**PromptEngineer** — Writes prompts for AI agents following Governed Prompting rules
+**PromptEngineer** — Writes prompts for AI agents following [Governed Prompting](../glossary.md#governed-prompting) rules
 
 **Doctor** —
 Diagnoses failures, applies minimal safe fixes, escalates when issues exceed scope
@@ -284,7 +284,7 @@ Profiles act only on the current task.
 They do not anticipate future steps, or generate speculative artifacts.  
 Minimal‑change principles always apply.
 
-### 7. Pattern Earning
+### 7. [Pattern Earning](../glossary.md#pattern-earning)
 
 Patterns are earned, not assumed.  
 A pattern is applied only when the task and artifacts justify it.  
@@ -322,7 +322,7 @@ The system does not replace:
 
 ## Workflow Logging
 
-Each workflow execution is assigned a unique Workflow ID,
+Each workflow execution is assigned a unique [Workflow ID](../glossary.md#workflow-id),
 which ties together all logs, suspends, resumes, and workflow artifacts.
 
 All profiles that reference `workflow/logging.md` must log:
@@ -338,7 +338,7 @@ Log enables Retrospective profile to analyze:
 * Blocker patterns
 * Decision quality
 
-### Semantic Lineage and the Workflow Log
+### [Semantic Lineage](../glossary.md#semantic-lineage) and the Workflow Log
 
 The workflow log records *events* (“what happened”). Semantic Lineage is a
 profile‑level reconstruction of *why* those events occurred. Lineage is not
@@ -450,7 +450,7 @@ For full syntax, arguments, and examples, see:
 * Used for: Builder → Enforcer → Documentor chains
 
 **Send/Receive** — Parallel work in separate chat tabs
-* Used when: running a side trip to gather context, or fix an issue
+* Used when: running a [side trip](../glossary.md#side-trip) to gather context, or fix an issue
   **without advancing the main thread.**
 * Profile writes message, stays active in current tab
 * User opens new tab, runs `@receive` for isolated work

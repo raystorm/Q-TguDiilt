@@ -22,7 +22,7 @@ and the principles that keep the system stable as it grows.
 Extensions must be:
 * **Quiet** — minimal, clear, and free of ceremony
 * **Governed** — aligned with Contract invariants and rule precedence
-* **Teachable** — intention‑revealing, predictable, and easy to audit
+* **[Teachable](glossary.md#teachable-artifact)** — intention‑revealing, predictable, and easy to audit
 * **Local** — changes should not ripple across unrelated rules
 * **Lineage‑preserving** — universal → project override
 
@@ -275,11 +275,11 @@ Extensions must not violate:
 
 ### 8.2 Workflow Mechanics
 
-* handoff semantics
-* side‑trip semantics
+* [handoff](glossary.md#handoff) semantics
+* [side‑trip](glossary.md#side-trip) semantics
 * confirmation rules
 * logging rules
-* suspend/resume behavior
+* [suspend/resume](glossary.md#suspendresume-semantics) behavior
 
 ### 8.3 Profile Stability
 

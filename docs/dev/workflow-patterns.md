@@ -12,7 +12,7 @@ Execution Shapes of the AI Workflow System
 
 Workflow patterns define the **execution shapes** the system can run.  
 They describe *how profiles move through a workflow*, not:
-* mechanics (handoffs, confirmation, logging)
+* mechanics ([handoffs](../glossary.md#handoff), confirmation, logging)
 * contract invariants
 * profile responsibilities
 
@@ -152,7 +152,7 @@ Retrospective may generate improvement artifacts that require other profiles to 
 ```text
 Retrospective → Analyze workflow.log → (Optional) Create improvement artifacts
   ↓
-(Optional) Side trips to other profiles for isolated work
+(Optional) [Side trips](../glossary.md#side-trip) to other profiles for isolated work
   ↓
 Documentor creates commit message for improvements
   ↓
@@ -189,7 +189,7 @@ represented by a single chat instance, with its own workflowId and state.
 ### Thread Labels
 
 Side trips use two threads:
-* **Main Thread** — the tab hosting the active Cycle
+* **[Main Thread](../glossary.md#main-thread)** — the tab hosting the active Cycle
 * **Side Trip Thread** — the tab created after the first `@send`
 
 All chained side trip work happens in the **same Side Trip Thread**.  
@@ -274,7 +274,7 @@ MAIN THREAD resumes (Profile A)
 
 ---
 
-## Recovery Workflow (Suspend/Resume + Auto‑Suspend)
+## Recovery Workflow ([Suspend/Resume](../glossary.md#suspendresume-semantics) + Auto‑Suspend)
 
 Suspend/Resume is the **context preservation pattern**.  
 Auto‑Suspend provides lightweight recovery checkpoints.
