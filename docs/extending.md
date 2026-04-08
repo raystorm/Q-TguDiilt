@@ -206,7 +206,84 @@ Patterns are recipes, not rules.
 
 ---
 
-## 6. Extending Capabilities
+## 6. Meta Loop Invariant
+
+All workflows in the system must implement the same three‑loop [meta loop](glossary.md#meta-loop):
+
+**Plan → Implement → Improve**
+
+This is the stability invariant that makes a [full workflow loop](glossary.md#full-workflow-loop).  
+It ensures every workflow is intention‑revealing, deterministic, and self‑improving.
+
+> **Mnemonic:**
+> The meta loop can also be expressed as **Plan → Productionalize → Perfect**
+> to highlight the parallelism and interconnectedness of the three loops.  
+> This is a teaching shorthand, and memory device.
+> The canonical loop names remain **Plan, Implement,** and **Improve.**
+
+### 6.1 Purpose
+
+The meta loop provides:
+  * a universal execution shape
+  * predictable behavior across domains
+  * a stable place to anchor new workflows
+  * a built‑in correction mechanism
+  * drift‑resistant growth
+
+A workflow that does not implement this meta loop is not considered a full workflow loop.
+
+[Short loops](glossary.md#short-loop) are governed, but they are not full workflow loops.
+
+### 6.2 The Three Loops
+
+**Plan** — define the next step, constraints, and success conditions.  
+This is the entry point for every full workflow.
+
+**Implement** — *productionalize* — perform the step and produce the artifact.  
+This is the *execution* body of the workflow.
+
+**Improve** — *perfect* — evaluate the result, correct course, and feed the next cycle.  
+This is the stability mechanism.  
+Today this phase is embodied by the *Retrospective* profile,  
+but conceptually it is an entire *Improve loop*.
+
+### 6.3 Requirements for New Full Workflows
+
+A full workflow must identify its **Plan**, **Implement**, and **Improve** loops.  
+These loops may reuse existing domain loops (e.g., Dev, Ops, Strategy, Sec)  
+or combine them when appropriate.
+
+A new full workflow must document:
+  * which profile(s) perform **Plan**
+  * which profile(s) perform **Implement** 
+  * which profile(s) perform **Improve**
+
+This mapping must be intention‑revealing, stable, and documented. 
+The loops do not need to be newly created — they only need to be explicit.
+  
+A workflow that cannot express its Plan, Implement, and Improve loops  
+is not stable enough to be added as a full workflow loop.
+
+### 6.4 Boundaries
+
+The meta loop itself — **Plan → Implement → Improve** — is constant.  
+Its phases, order, and purpose must not be redefined.
+
+However, extensions may:
+  * add new Plan loops (e.g., Ops planning, Sec planning)
+  * add new Implement loops (e.g., deployment, operations, security)
+  * add new Improve loops (e.g., operational retrospectives)
+  * compose loops into broader domains (DevOps, DevSecOps, etc.)
+
+Extensions must fit **within** the meta loop,  
+but they may expand or refine any phase as the system grows.
+
+The meta loop is the governing shape of the system.
+Its **content** is extensible. Its **core structure** is not.
+
+---
+
+## 7. Extending Capabilities
 
 Capabilities are system behaviors that are not tied to a single profile:
 * logging
@@ -237,7 +314,7 @@ Capabilities must not:
 
 ---
 
-## 7. Extending Saved Commands
+## 8. Extending Saved Commands
 
 Commands are the only workflow actions a user can issue.  
 They create artifacts, activate profiles, or manage state.
@@ -262,32 +339,32 @@ Commands must not:
 
 ---
 
-## 8. Extension Boundaries
+## 9. Extension Boundaries
 
 Extensions must not violate:
 
-### 8.1 Contract Invariants
+### 9.1 Contract Invariants
 
 * artifact shapes
 * command semantics
 * cross‑profile invariants
 * nullability rules
 
-### 8.2 Workflow Mechanics
+### 9.2 Workflow Mechanics
 
 * [handoff](glossary.md#handoff) semantics
 * [side‑trip](glossary.md#side-trip) semantics
-* confirmation rules
-* logging rules
+* [confirmation rules](../.amazonq/rules/workflow/workflow-mechanics.md#changeover-confirmation)
+* [logging rules](../.amazonq/rules/workflow/logging.md)
 * [suspend/resume](glossary.md#suspendresume-semantics) behavior
 
-### 8.3 Profile Stability
+### 9.3 Profile Stability
 
 * no auto‑switching
 * no blended roles
 * no cross‑profile improvisation or work
 
-### 8.4 Governance Model
+### 9.4 Governance Model
 
 * override marker
 * rule precedence
@@ -297,7 +374,7 @@ These boundaries define the system itself.
 
 ---
 
-## 9. Extension Checklist
+## 10. Extension Checklist
 
 Before adding anything, ask:
 
@@ -346,7 +423,7 @@ flowchart TD
 
 ---
 
-## 10. Summary
+## 11. Summary
 
 Extending the system is not about adding complexity.  
 It is about adding *clarity*.

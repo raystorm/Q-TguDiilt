@@ -196,6 +196,22 @@ Multi‑Agent Orchestration
 Includes task routing, context passing, conflict resolution,  
 lineage merging, and boundary enforcement.
 
+Full Workflow Loop
+: A workflow that implements the complete three‑loop meta structure: **Plan → Implement → Improve**.  
+A full workflow loop may reuse or combine existing domain loops (Dev, Ops, Strategy, Sec).  
+It is intention‑revealing, deterministic, self‑correcting, and stable enough to be added to the system.
+
+Short Loop
+: A minimal, single‑loop workflow that performs only **Implement**.  
+Short loops are still governed and follow all profile and rule invariants,  
+but they do not include planning or improvement.  
+Used for small, atomic actions that do not require the full meta loop.
+
+Meta Loop
+: The universal, immutable structure that all full workflows must follow: **Plan → Implement → Improve**.  
+The meta loop defines the governing execution shape and ensures predictability and drift‑resistance.  
+Its **structure** is immutable; its **content** (the specific loops used for each stage) is extensible.
+
 Free Prompting
 : The earliest phase of working with AI systems,  
 characterized by raw, unstructured prompts with no roles, no profiles,  
