@@ -2,7 +2,7 @@
 
 ## Test Requirements
 - **MANDATORY**: Create tests for all logic changes, presentation changes, and new features
-- **MANDATORY**: Tests must be created with either *BEFORE* the implementation,
+- **MANDATORY**: Tests must be created either *BEFORE* the implementation,
                  or *at the same time* as the implementation.
 - **MANDATORY**: Tests must not be created *after* implementation.
 - **MANDATORY**: Tests and implementation must be created within the same Builder step.

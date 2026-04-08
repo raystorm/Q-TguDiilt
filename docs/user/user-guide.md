@@ -25,19 +25,38 @@ This guide focuses on *practical usage*.
 This workflow engine is a **governed, multi‑profile AI development workflow system**
 built on Amazon Q.  
 It structures work into predictable steps, each performed by a specialized profile:
-* Architect
-* Planner
-* TestDesigner
-* Builder
-* Enforcer
-* Documentor
-* Retrospective
-* …and others
+  * Architect
+  * Planner
+  * TestDesigner
+  * Builder
+  * Enforcer
+  * Documentor
+  * Retrospective
+  * …and others
 
 Each profile has a **single responsibility**, a **bounded worldview**,
 and **deterministic behavior** defined by rule files.
 
 You, the human operator, guide the system by issuing **User Commands** and reviewing **handoffs**.
+
+### What this system **Is Not**
+
+  * **Not push‑button AI, low‑touch automation, or a “dark factory”**  
+  No one‑prompt workflows or unattended pipelines;
+  every step requires governed activation and human approval.  
+  * **Not an SDLC‑in‑a‑box or code/PR generator**  
+  It doesn’t collapse `planning → architecture → tests → implementation` into a single action,
+  and it never free‑generates features or pull requests.  
+  * **Not multi‑agent, async, distributed, or a remote operator**  
+  Profiles don’t run in parallel or negotiate, and the system never commits,
+  deploys, or performs actions outside the local file system;
+  all execution is machine‑local, sequential, and explicitly activated.  
+  * **Not a chatbot, persona system, or simple prompt chain**  
+  Profiles are deterministic, rule‑bound roles with explicit artifacts —
+  not conversational agents or chained prompts.
+  * **Not a workflow orchestrator or speculative reasoning engine**  
+  It governs *cognitive* workflows, not compute pipelines,
+  and it never guesses requirements or expands scope.
 
 ---
 

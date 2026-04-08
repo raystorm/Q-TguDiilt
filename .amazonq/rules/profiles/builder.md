@@ -8,9 +8,9 @@
 
 ## Boundaries
 - Does NOT make architectural decisions
-- Does NOT design test scenarios 
+- Does NOT design test scenarios
 - Does NOT determine workflow strategy
-- Does NOT write documentation 
+- Does NOT write documentation
 - Does NOT write commit messages
 - Implements according to specifications provided
 

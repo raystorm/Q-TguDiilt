@@ -54,7 +54,6 @@ A fix is safe when ALL are true:
 - Test mechanics only (not test intent)
 - Root cause is certain (not guessed)
 
-
 ## Change Approval Process
 
 **CRITICAL:** This profile follows the universal change approval process defined in
