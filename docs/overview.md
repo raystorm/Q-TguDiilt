@@ -31,6 +31,18 @@ For a deeper architectural explanation, see the **1‑page deep dive**.
 
 The documentation is organized into clear sections that mirror the architecture of the system.
 
+### Rule Architecture
+
+The system uses a two-layer rule architecture:
+
+- **Activation Layer** (`.amazonq/rules/`) — minimal bootstrap rules,
+  always loaded by Amazon Q in every chat regardless of profile.
+  Provides correctness guarantees and profile activation triggers.
+
+- **Governance Layer** (`.workflow/rules/`) — profile-scoped rules,
+  loaded explicitly during profile activation.
+  Defines behavior, boundaries, communication, and workflow mechanics.
+
 ### 1. Deep Dive
 A single‑page architectural explanation of how the system works.  
 [ai-workflow-system.md](./dev/ai-workflow-system.md)

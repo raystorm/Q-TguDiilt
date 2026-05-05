@@ -173,7 +173,7 @@ Writes user stories, backlog items, manages agile flow
 **Analyst** —
 Reads code, explains behavior, traces logic, diagnoses issues
 
-**PromptEngineer** — Writes prompts for AI agents following [Governed Prompting](../glossary.md#governed-prompting) rules
+**PromptEngineer** — Writes prompts for AI agents following [Command Prompt](../glossary.md#command-prompt) patterns
 
 **Doctor** —
 Diagnoses failures, applies minimal safe fixes, escalates when issues exceed scope
@@ -192,7 +192,7 @@ User → Planner → TestDesigner → PromptEngineer → Builder → Enforcer �
 ### Straight Forward Build Workflow
 
 1. **Planner** — Determine story sequencing
-2. **PromptEngineer** — Create Builder prompt following Governed Prompting rules
+2. **PromptEngineer** — Create Builder prompt following Command Prompt patterns
 3. **Builder** — Implement feature with tests, show diffs
 4. **Enforcer** — Review code, run tests, verify alignment with rules
 5. **Documentor** — Generate commit message following style guide
@@ -461,15 +461,18 @@ For full syntax, arguments, and examples, see:
 
 ## Getting Started
 
-Activate a profile with explicit goal:
+Activate a profile using `@as` with a goal:
 ```text
-As [Profile], [goal description]
+@as [Profile], [goal description]
 ```
 
 Switch profiles explicitly:
 ```text
-Act as [Profile]
+@as [Profile]
 ```
+
+`@start` and `@receive` also activate profiles,
+but only as continuations from changeover files.
 
 Use context commands:
 * `@workspace` — Analyze project structure

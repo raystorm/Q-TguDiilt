@@ -32,21 +32,31 @@ Artifact shapes and invariants are defined in the Contract.
 
 ## 2. Rule Structure
 
-Rules exist at two levels:
+Rules exist at three levels:
 
-1. **Universal Rules**
+1. **Activation Layer**
+    * Always loaded by Amazon Q's native rule system
+    * Stored in `.amazonq/rules/`
+    * Minimal bootstrap: correctness guarantees,
+      profile activation triggers
+    * Not profile-scoped — applies universally to every chat
+
+2. **Universal Rules (Governance Layer)**
     * Apply to all projects
     * Stored in `.workflow/rules/**`
-    * Define baseline behavior for profiles, workflow mechanics, communication,
-      and architecture
+    * Define baseline behavior for profiles, workflow mechanics,
+      communication, and architecture
+    * Loaded explicitly during profile activation
 
-2. **Project‑Level Rules**
+3. **Project‑Level Rules**
     * Stored in `.workflow/rules/**-project.md`
     * May override or refine universal rules
     * Must use explicit override markers
     * Apply only to the current project
     * Any tech-stack specific rules needed for the project
 
+The Activation Layer is minimal bootstrap.
+The Governance Layer is profile-scoped and explicit.
 Universal rules define the default behavior.  
 Project rules define intentional deviations, or things not already covered.
 
@@ -284,19 +294,27 @@ These define the system itself and **MUST NOT** be changed.
 
 ## 8. Rule File Organization
 
-Rules are organized by category:
+Rules are organized by layer and category:
 
 ```text
-.workflow/rules/
+.amazonq/rules/          ← Activation Layer (always loaded)
+  correctness-over-speed.md
+  profile-activation.md
+
+.workflow/rules/          ← Governance Layer (profile-scoped)
   foundation/
   architecture/
   tech/
   communication/
   workflow/
   profiles/
+  commands/
 ```
 
-Each category may have:
+The Activation Layer contains only system bootstrap rules.
+The Governance Layer contains all profile-scoped behavioral rules.
+
+Each Governance Layer category may have:
 * a universal rule file
 * a project‑level override file (`*-project.md`)
 

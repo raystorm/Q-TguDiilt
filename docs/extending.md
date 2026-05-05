@@ -134,6 +134,19 @@ Universal rules must be:
 * domain‑agnostic
 * aligned with the Contract
 
+### 4.1a Activation Layer (Not an Extension Point)
+
+The Activation Layer (`.amazonq/rules/`) is **not** an extension point.
+
+It contains only system bootstrap rules:
+* correctness guarantees
+* profile activation triggers
+
+These rules are loaded by Amazon Q's native rule system in every chat.
+They are minimal, stable, and must not be extended by projects.
+
+To add new governance, use the Governance Layer (`.workflow/rules/`).
+
 ### 4.2 Project‑Level Overrides
 
 Project overrides live in: `*-project.md`

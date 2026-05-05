@@ -51,6 +51,18 @@ Used for: parallel expertise, non‑blocking work, isolated tasks.
 
 Commands that activate a profile by loading a workflow file.
 
+### `@as`
+
+Activate a profile directly by name.
+The canonical profile activation mechanism.
+
+* Syntax: `@as [Profile] [optional task]`
+* Loads profile rules via explicit rule loading
+* Activates profile and begins task (if provided)
+* Used internally by `@start` and `@receive`
+
+Used for: direct profile activation, ad-hoc tasks, starting new work.
+
 ### `@start`
 
 Activate a profile from a **handoff**, and performs the requested action.
