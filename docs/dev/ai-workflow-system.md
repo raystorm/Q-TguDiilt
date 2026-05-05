@@ -16,7 +16,7 @@ allowing the system to improve over time through explicit, user‑approved chang
 ## Overview
 
 The AI Workflow System uses profiles to handle development tasks.
-Each profile has specific responsibilities and follows defined rules stored in `.amazonq/rules/`.
+Each profile has specific responsibilities and follows defined rules stored in `.workflow/rules/`.
 Profiles collaborate through explicitly called handoffs,
 and all work is logged to enable retrospective analysis and continuous improvement.
 
@@ -55,7 +55,7 @@ Profiles use a file based methodology, so profiles can run completely independen
 **Workflow Logging** — All profile actions are logged to `.amazonq/workflow.log` for retrospective analysis
 
 **Rules** —
-Profiles follow rules in `.amazonq/rules/` covering architecture, tech stack, communication, and workflows
+Profiles follow rules in `.workflow/rules/` covering architecture, tech stack, communication, and workflows
 The Rules files are also how the profiles are encoded.
 
 ---
@@ -228,12 +228,12 @@ User → Planner → TestDesigner → PromptEngineer → Builder → Enforcer �
 ### AI Profile Maintenance
 
 1. **Architect** — Define profile responsibilities, boundaries, and behavior
-2. **PromptEngineer** — Update profile rule files in `.amazonq/rules/profiles/`
+2. **PromptEngineer** — Update profile rule files in `.workflow/rules/profiles/`
 
 ### AI Prompt/Rule Maintenance
 
 1. **Analyst** — Analyze existing rules, identify gaps or conflicts
-2. **PromptEngineer** — Update rule files in `.amazonq/rules/`
+2. **PromptEngineer** — Update rule files in `.workflow/rules/`
 
 ---
 
@@ -391,7 +391,7 @@ The system supports features requiring multiple sequential stories:
 
 ## Rules Location
 
-`.amazonq/rules/` contains:
+`.workflow/rules/` contains:
 * `_PROFILES.md` — Profile definitions and aliases
 * `foundation/` — General code quality, minimal code principles
 * `architecture/` — Domain structure, generated code, Local-Utilities alignment

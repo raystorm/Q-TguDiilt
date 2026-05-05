@@ -83,7 +83,7 @@ To add a profile:
    Add profile‑specific rules only when required.
 5. ***(Optional)* Create a rule file** 
    Rule files are only created when governance or explicit boundaries are needed.
-   Example: `.amazonq/rules/profiles/new-profile.md`
+   Example: `.workflow/rules/profiles/new-profile.md`
 6. **Preserve identity**  
    A profile must not overlap with existing profiles.  
    If it does, refine responsibilities instead of adding a new actor.
@@ -119,7 +119,7 @@ Contract → Universal Rule → Project Override
 
 ### 4.1 Universal Rules
 
-Universal rules live in: `.amazonq/rules/<category>/*.md`
+Universal rules live in: `.workflow/rules/<category>/*.md`
 
 They define baseline behavior for all projects.
 
@@ -154,14 +154,14 @@ Example from `general-project.md`:
 
 This is the correct default.
 
-### 4.3 Note on `.amazonq/rules/tech/`
+### 4.3 Note on `.workflow/rules/tech/`
 
 The `tech/` category is a special case.
 It contains both:
 * universal technical rules (e.g., formatting.md)
 * project‑specific technical rules, added by the project as needed
 
-Projects may add their own tech rule files to: `.amazonq/rules/tech/*.md`
+Projects may add their own tech rule files to: `.workflow/rules/tech/*.md`
 
 These rules are not universal.  
 They apply only to the project and do not require the `Override:` marker.
@@ -354,8 +354,8 @@ Extensions must not violate:
 
 * [handoff](glossary.md#handoff) semantics
 * [side‑trip](glossary.md#side-trip) semantics
-* [confirmation rules](../.amazonq/rules/workflow/workflow-mechanics.md#changeover-confirmation)
-* [logging rules](../.amazonq/rules/workflow/logging.md)
+* [confirmation rules](../.workflow/rules/workflow/workflow-mechanics.md#changeover-confirmation)
+* [logging rules](../.workflow/rules/workflow/logging.md)
 * [suspend/resume](glossary.md#suspendresume-semantics) behavior
 
 ### 9.3 Profile Stability

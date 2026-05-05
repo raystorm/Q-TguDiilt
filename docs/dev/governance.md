@@ -36,12 +36,12 @@ Rules exist at two levels:
 
 1. **Universal Rules**
     * Apply to all projects
-    * Stored in `.amazonq/rules/**`
+    * Stored in `.workflow/rules/**`
     * Define baseline behavior for profiles, workflow mechanics, communication,
       and architecture
 
 2. **Project‑Level Rules**
-    * Stored in `.amazonq/rules/**-project.md`
+    * Stored in `.workflow/rules/**-project.md`
     * May override or refine universal rules
     * Must use explicit override markers
     * Apply only to the current project
@@ -143,11 +143,11 @@ Each override must be declared explicitly wherever it is needed.
 Project‑level overrides must appear in:
 
 ```text
-.amazonq/rules/foundation/general-project.md
-.amazonq/rules/architecture/*-project.md
-.amazonq/rules/communication/*-project.md
-.amazonq/rules/tech/*.md (except for formatting.md and README.md)
-.amazonq/rules/tech/formatting-project.md
+.workflow/rules/foundation/general-project.md
+.workflow/rules/architecture/*-project.md
+.workflow/rules/communication/*-project.md
+.workflow/rules/tech/*.md (except for formatting.md and README.md)
+.workflow/rules/tech/formatting-project.md
 ```
 
 Universal rules remain in their non‑project files.
@@ -287,7 +287,7 @@ These define the system itself and **MUST NOT** be changed.
 Rules are organized by category:
 
 ```text
-.amazonq/rules/
+.workflow/rules/
   foundation/
   architecture/
   tech/

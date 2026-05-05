@@ -14,13 +14,17 @@ A governed, multi‑profile AI workflow engine designed for structured software 
 This repository contains the rule system, workflow mechanics, and documentation that define
 how the engine operates, learns, and maintains architectural integrity over time.
 
+This engine is clarity‑driven, stability‑driven, and **safety‑first**.  
+Workflows are intentionally slow and predictable because boring is stable,
+stability earns trust, and automation is earned, not assumed.
+
 > [!IMPORTANT]
 > This Workflow engine is built with and for Amazon Q.
 > It has not been used, or tested with any other AI systems.
 > 
 > Q provides several capabilities required for this engine to function:
 > 
-> - automatic rule context loading from `.amazonq/rules/`
+> - deterministic rule context loading from `.workflow/rules/`
 > - multiple isolated chat tabs, allowing simultaneous conversations with different profiles
 > - saved prompt support for consistent workflow execution
 > - reliable multi‑file reading and writing with workspace awareness
@@ -37,7 +41,7 @@ how the engine operates, learns, and maintains architectural integrity over time
 ---
 
 ## What This Repository Contains
-- The AI rule system (`.amazonq/rules/`)
+- The AI rule system (`.amazonq/rules/` and `.workflow/rules/`)
 - Workflow mechanics and agent behaviors
 - Profiles and responsibilities
 - Communication standards (commit messages, code diffs, user stories)
@@ -52,7 +56,7 @@ how the engine operates, learns, and maintains architectural integrity over time
 ### Usage Documentation
 For a high‑level map of the system, start with the [Overview](docs/overview.md).
 
-### `.amazonq/rules/`
+### `.workflow/rules/`
 The governed rule system that defines:
 - universal architectural rules
 - project‑specific extension points

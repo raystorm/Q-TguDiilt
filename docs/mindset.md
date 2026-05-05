@@ -59,6 +59,8 @@ What this mindset protects at all costs.
     Everything must be understandable and intention-revealing.
   * Stability  
     Roles, boundaries, and handoffs must remain predictable.
+  * Safety First
+    Boring is stable. Stability earns trust. Trust earns automation.
   * Governance  
     The workflow is flexible. The structure is not.
   * Minimalism  

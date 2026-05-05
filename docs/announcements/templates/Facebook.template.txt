@@ -1,0 +1,23 @@
+Q‑TguDiilt — Milestone Update
+
+Q‑TguDiilt is a self-improving AI workflow engine created to simplify building
+our Sm'algyax learning repository: https://Smalgyax-Files.org/
+
+We’ve reached a new milestone in the development of Q‑TguDiilt.
+This update strengthens the foundations of the system and improves how it
+supports our long‑term goals for language, learning, and community‑focused tools.
+
+What This Milestone Establishes
+ * Clearer conceptual foundations
+ * Improved structural organization
+ * More consistent workflow patterns
+ * A stronger governance layer
+
+What Changed
+A short summary of the meaningful improvements introduced in this milestone.
+
+What This Milestone Enables
+A brief description of the new clarity, stability, or capabilities unlocked by this work.
+
+Full technical details are available here:
+https://github.com/raystorm/Q-TguDiilt/blob/main/docs/announcements/<YYYY-MM-release>.md

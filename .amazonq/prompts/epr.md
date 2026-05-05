@@ -1,6 +1,6 @@
-Act as Enforcer.
+Read `.amazonq/prompts/as.md` and follow its instructions to activate the Enforcer profile.
 
-Review the prompt and response in `.amazonq/work/current/HANDOFF.md`.
+Review the prompt and response pasted below.
 
 Verify:
 - Prompt follows prompt engineering rules
@@ -9,3 +9,7 @@ Verify:
 - Tests are included with implementation changes
 
 Report violations and suggest corrections.
+
+---
+
+<pasted Prompt and Response pair>

@@ -1,0 +1,20 @@
+Q‑TguDiilt — Milestone Update
+
+This milestone captures the current state of Q‑TguDiilt
+and the key conceptual, structural, and governance improvements
+introduced at this stage of its development.
+
+What This Milestone Establishes
+ * Formalized conceptual foundations
+ * Clarified or improved structural organization
+ * Refined or established workflow patterns
+ * Expanded the governance layer
+
+What Changed
+A brief summary of the meaningful architectural or structural changes introduced in this milestone.
+
+What This Milestone Enables
+A short description of the new capabilities, clarity, or affordances unlocked by this milestone.
+
+Full details are available in the GitHub announcement:
+https://github.com/raystorm/Q-TguDiilt/blob/main/docs/announcements/<YYYY-MM-release>.md

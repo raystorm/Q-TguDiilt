@@ -15,7 +15,7 @@ and the **Workflow Patterns** (how work flows).
 - **Workflow Patterns:** how those actors move work through the system
 
 For the canonical list of profiles and their rule sources, see:  
-[`_PROFILES.md`](../.amazonq/rules/_PROFILES.md)
+[`_PROFILES.md`](../.workflow/rules/_PROFILES.md)
 
 ---
 
@@ -58,89 +58,89 @@ Each actor performs one job, performs it well, and yields control.
 
 Below is a high‑level summary of each profile’s domain.  
 For full behavioral rules, see: 
-[`../.amazonq/rules/_PROFILES.md`](../.amazonq/rules/_PROFILES.md)
+[`../.workflow/rules/_PROFILES.md`](../.workflow/rules/_PROFILES.md)
 
 ### Operator
 
 The primary entry point for user questions. **When in doubt, *call Operator*.**
 Routes tasks to the correct profile. Does not perform work.  
 **Aliases:** Router, Conductor, Switchboard  
-→ [`operator.md`](../.amazonq/rules/profiles/operator.md)
+→ [`operator.md`](../.workflow/rules/profiles/operator.md)
 
 ### Builder
 
 Implements features, writes code, follows formatting and architecture rules.  
-→ [`builder.md`](../.amazonq/rules/profiles/builder.md)
+→ [`builder.md`](../.workflow/rules/profiles/builder.md)
 
 ### Enforcer
 
 Validates code, formatting, tests, and architectural alignment.  
 **Aliases:** Verifier, Validator, 🔫  
-→ [`enforcer.md`](../.amazonq/rules/profiles/enforcer.md)
+→ [`enforcer.md`](../.workflow/rules/profiles/enforcer.md)
 
 ### TestDesigner
 
 Identifies test scenarios, edge cases, and validation strategies.  
 **Aliases:** TD, Provoker, Hunter  
-→ [`test-designer.md`](../.amazonq/rules/profiles/test-designer.md)
+→ [`test-designer.md`](../.workflow/rules/profiles/test-designer.md)
 
 ### Documentor
 
 Writes documentation, commit messages, and story descriptions.  
 **Aliases:** commit, keeper, ledger, Engraver  
-→ [`documentor.md`](../.amazonq/rules/profiles/documentor.md)
+→ [`documentor.md`](../.workflow/rules/profiles/documentor.md)
 
 ### Planner
 
 Creates user stories, backlog items, and manages macro‑level flow.  
 **Aliases:** PO, ProductOwner, Strategist  
-→ [`planner.md`](../.amazonq/rules/profiles/planner.md)
+→ [`planner.md`](../.workflow/rules/profiles/planner.md)
 
 ### Tactician
 
 Validates execution order, sequencing, and workflow strategy.  
 **Aliases:** Tactical, Sequencer  
-→ [`tactician.md`](../.amazonq/rules/profiles/tactician.md)
+→ [`tactician.md`](../.workflow/rules/profiles/tactician.md)
 
 ### Architect
 
 Defines system design, domain models, and long‑term structure.  
 **Aliases:** Analyzer, Auditor, 🔍, 🔎,  
-→ [`architect.md`](../.amazonq/rules/profiles/architect.md)
+→ [`architect.md`](../.workflow/rules/profiles/architect.md)
 
 ### Analyst
 
 Reads code, explains behavior, traces logic, and ambiguity resolution.  
-<!-- Conceptual, placeholder for if goverened → [`analyst.md`](../.amazonq/rules/profiles/analyst.md) -->
+<!-- Conceptual, placeholder for if goverened → [`analyst.md`](../.workflow/rules/profiles/analyst.md) -->
 
 ### Communicator
 
 Writes release notes, announcements, and public‑facing documentation.  
-<!-- Conceptual, placeholder for if goverened → [`communicator.md`](../.amazonq/rules/profiles/communicator.md) -->
+<!-- Conceptual, placeholder for if goverened → [`communicator.md`](../.workflow/rules/profiles/communicator.md) -->
 
 ### PromptEngineer
 
 Writes prompts and governs AI‑facing instructions.  
 **Aliases:** PE, Prompter  
-→ [`prompt-engineer.md`](../.amazonq/rules/profiles/prompt-engineer.md)
+→ [`prompt-engineer.md`](../.workflow/rules/profiles/prompt-engineer.md)
 
 ### Doctor
 
 Diagnoses failures, applies minimal safe fixes, and escalates when needed.  
 **Aliases:** Dr, DR, Medic, 🩺  
-→ [`doctor.md`](../.amazonq/rules/profiles/doctor.md)
+→ [`doctor.md`](../.workflow/rules/profiles/doctor.md)
 
 ### Retrospective
 
 Analyzes completed workflows, identifies improvements, and highlights successes.  
 **Aliases:** Retro, Iterator, 🔄  
-→ [`retrospective.md`](../.amazonq/rules/profiles/retrospective.md)
+→ [`retrospective.md`](../.workflow/rules/profiles/retrospective.md)
 
 ### UserExperience
 
 Defines user flows, interaction patterns, and accessibility requirements.  
 **Aliases:** UX, UI  
-→ [`user-experience.md`](../.amazonq/rules/profiles/user-experience.md)
+→ [`user-experience.md`](../.workflow/rules/profiles/user-experience.md)
 
 ---
 
@@ -162,7 +162,7 @@ Profile categories exist for human understanding only.
 The system itself does not treat “Conceptual” and “Governed” as functional states.
 
 Profiles are classified based on if they have a profile-specific
-`.amazonq/rules/profiles/{profileName}.md` rule file.
+`.workflow/rules/profiles/{profileName}.md` rule file.
 
 Profiles fall into two categories:
 
@@ -170,14 +170,14 @@ Profiles fall into two categories:
 
 These define identity and responsibility but do not require profile-specific configuration.  
 They consume shared rules files, but they do not have a profile-specific
-(.amazonq/rules/profiles/{profileName}.md) rule file,
+(.workflow/rules/profiles/{profileName}.md) rule file,
 and they simply ignore work outside their worldview.
 
 **Mental model:** A role with a perspective.
 
 ### B. Governed Profiles
 
-These have a profile-specific (.amazonq/rules/profiles/{profileName}.md) rule file
+These have a profile-specific (.workflow/rules/profiles/{profileName}.md) rule file
 that defines:
 - domain of authority
 - invariants
@@ -292,7 +292,7 @@ operate only with the shared workflow rules. Others, such as Retrospective, have
 rich profile‑specific rule files that define menus, flows, or specialized behaviors.
 
 Each profile’s rule loading is defined in the profile index:
-[`_PROFILES.md`](../.amazonq/rules/_PROFILES.md)
+[`_PROFILES.md`](../.workflow/rules/_PROFILES.md)
 
 A governed profile might declare:
 

@@ -327,7 +327,7 @@ This file does **not** define:
 * implementation details
 * project‑specific conventions
 
-[mechanics]: ../../.amazonq/rules/workflow/workflow-mechanics.md
+[mechanics]: ../../.workflow/rules/workflow/workflow-mechanics.md
 [commands]: ../user-commands.md
-[logging]: ../../.amazonq/rules/workflow/logging.md
-[auto-suspend]: ../../.amazonq/rules/workflow/auto-suspend.md
+[logging]: ../../.workflow/rules/workflow/logging.md
+[auto-suspend]: ../../.workflow/rules/workflow/auto-suspend.md

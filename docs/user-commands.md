@@ -192,6 +192,6 @@ Combine `@send` + `@epr` into a single side trip evaluation.
 This document defines the commands themselves.
 
 [contract]: dev/contract.md
-[mechanics]: ../.amazonq/rules/workflow/workflow-mechanics.md
+[mechanics]: ../.workflow/rules/workflow/workflow-mechanics.md
 [patterns]: dev/workflow-patterns.md
 [governance]: dev/governance.md

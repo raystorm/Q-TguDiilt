@@ -120,7 +120,7 @@ Common purposes:
 - **Architect** - Designs systems
 - **Analyst** - Explains code
 
-See `.amazonq/rules/_PROFILES.md` for full profile definitions.
+See `.workflow/rules/_PROFILES.md` for full profile definitions.
 
 ---
 
