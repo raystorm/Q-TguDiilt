@@ -62,7 +62,6 @@ Profiles may also be switched with:
 see: terms.md for full changeover definition
 
 ## PROFILE Activation
-- When a Profile is activated it MUST process `@hello`
 - When a Profile is activated it MUST display:
   'CANARY: Profile activation block executed.'
 

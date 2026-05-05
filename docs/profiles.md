@@ -98,19 +98,19 @@ Creates user stories, backlog items, and manages macro‑level flow.
 
 ### Tactician
 
-Validates execution order, sequencing, and workflow strategy.  
+Determines workflow execution strategy, and validates technical story ordering.  
 **Aliases:** Tactical, Sequencer  
 → [`tactician.md`](../.workflow/rules/profiles/tactician.md)
 
 ### Architect
 
 Defines system design, domain models, and long‑term structure.  
-**Aliases:** Analyzer, Auditor, 🔍, 🔎,  
 → [`architect.md`](../.workflow/rules/profiles/architect.md)
 
 ### Analyst
 
 Reads code, explains behavior, traces logic, and ambiguity resolution.  
+**Aliases:** Analyzer, Auditor, 🔍, 🔎  
 <!-- Conceptual, placeholder for if goverened → [`analyst.md`](../.workflow/rules/profiles/analyst.md) -->
 
 ### Communicator
