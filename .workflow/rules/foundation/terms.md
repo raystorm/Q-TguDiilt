@@ -76,3 +76,16 @@ Profile Contract
 Override Grammar
 : A formal syntax (`Override:`) used to intentionally break or modify rules.
 : Ensures deviations are explicit, grep-able, and auditable.
+
+Command (Rule Category)
+: An on-demand operational routine in `.workflow/rules/commands/`.
+: Triggered by `process @_commandName` in already-loaded rules.
+: Never loaded at profile activation. Deferred execution only.
+
+Governance Density
+: The ratio of actionable rules to token cost.
+: Used during rule change validation and diagnostic prompts.
+
+Inquiry Mode
+: A workflow safety state that suppresses command processing.
+: Activated by `@inquiry`. Allows questions without state changes.

@@ -64,27 +64,74 @@ System-owned plumbing (workflow.log, auto-suspend state, internal metadata), tem
 : **Invariant**  
 All creation or modification of workflow artifacts requires explicit user confirmation.
 
+Command (Rule Category)
+: An on‑demand operational routine stored in `.workflow/rules/commands/`.  
+Loaded only when triggered by `process @_commandName`  
+in an already‑loaded rule.  
+Never loaded at profile activation.  
+Commands are deferred procedures, not always‑loaded governance.
+
+Governance Density
+: The ratio of actionable rules to token cost.  
+Used to validate rule quality during rule changes and diagnostic prompts.  
+High density means predominantly atomic, constraint‑bearing,  
+directly executable content with minimal narrative content.
+
+Context Gathering
+: A mandatory pre‑work pattern where profiles (Doctor, Enforcer)  
+gather actual system state — FEATURE.md, workflow log, git diff —  
+before performing diagnosis or validation.  
+Prevents profiles from working blind or on stale assumptions.
+
+Safe Undo
+: A governed reversal pattern using manual fsReplace operations  
+instead of git commands.  
+Used when changes were made incorrectly during active workflow  
+where uncommitted work in other files is at risk.  
+Git commands may be used only if no other uncommitted changes  
+exist in the affected file.
+
 Prompt Engineering (Legacy)
 : The practice of shaping model outputs through carefully crafted prompts.  
 Operates at the **surface layer** of model interaction.  
 In this architecture, considered a **legacy technique**  
 superseded by context engineering and agentic engineering.
 
-Governed Prompting
+Governed Prompting (Legacy)
 : The practice of sending prompts to activate profiles  
 and operate within the governed workflow system.  
 Uses explicit profile activation, rule‑bound commands,  
 and standardized handoffs to ensure deterministic behavior,  
-traceability, and alignment with the system’s governance model.
+traceability, and alignment with the system's governance model.  
+In this architecture, considered a **legacy practice**  
+superseded by **Command Prompts**, which provide the same deterministic,  
+governed behavior through explicit command invocation  
+rather than practice description.
 
 Prompt
 : The atomic unit of instruction sent to an AI model.  
-In this system, prompts are rarely ad‑hoc;  
-they are either Governed Prompts (activating profiles)  
-or Saved Prompts (reusable command primitives like `@handoff`).
+In this system, prompts serve three roles:  
+**Command Prompts** (user‑facing entry points that control workflow),  
+**Saved Prompts** (implementation infrastructure  
+that Command Prompts invoke to set up workflow plumbing),  
+and **conversational prompts** (direct user messages  
+for correction, clarification, or guidance).
+
+Command Prompt
+: A user‑facing entry point that controls and activates workflow state.  
+Invoked by the user to drive the system  
+(`@handoff`, `@start`, `@as`, `@send`).  
+Uses Saved Prompts as implementation infrastructure.  
+Command Prompts control workflow; Saved Prompts implement the plumbing.
+
+Activation Rule
+: A rule in `.amazonq/rules/` loaded by Amazon Q's native rule system.  
+Always active in every chat, regardless of profile.  
+Provides bootstrap behavior (correctness, profile activation triggers)  
+before any profile‑specific governance loads.
 
 Profile Contract
-: A formal specification of an agent’s identity, responsibilities, boundaries,  
+: A formal specification of an agent's identity, responsibilities, boundaries,  
 and allowed behaviors.  
 Prevents drift, enforces role clarity,  
 and creates predictable multi‑agent coordination.
@@ -106,6 +153,12 @@ Drift‑Resistant Reasoning
 losing context, hallucinating new rules, violating contracts,  
 mutating identity, or collapsing boundaries.  
 Enforced through contracts, capsules, lineage, and governed workflows.
+
+Profile Flicker
+: A diagnostic signal indicating a profile has lost stability.  
+Manifests as sudden tone shifts, generic disclaimers,  
+builder‑style language, or profile inconsistency.  
+Used in diagnostic prompts to assess context health.
 
 Changeover
 : A governed workflow operation where one profile prepares control and
@@ -141,7 +194,21 @@ Main Thread
 Side Trip
 : A temporary, secondary, isolated workflow that runs outside the Main Thread.  
 Used for clarity, diagnosis, exploration,  
-or small corrective actions without disturbing the primary workflow’s state or momentum.
+or small corrective actions without disturbing the primary workflow's state or momentum.
+
+Escalation
+: A governed routing decision where a profile determines  
+work requires another profile's authority or expertise.  
+Not a separate changeover type — the escalating profile chooses  
+the appropriate mechanism: handoff (needs result back)  
+or side trip (doesn't need result back).
+
+Inquiry Mode
+: A workflow safety state activated by `@inquiry`.  
+Allows questions without triggering workflow commands,  
+state transitions, file creation, or workflow execution.  
+Normal reasoning and analysis are allowed.  
+Exit by starting a new message without `@inquiry`.
 
 Workflow ID
 : A unique, stable identifier assigned to a workflow execution
@@ -158,7 +225,7 @@ and speculative design — favoring clarity, correctness, and maintainability.
 Pattern Earning
 : The discipline of introducing architectural patterns  
 only when justified by real, repeated need.  
-A pattern is “earned” through concrete use cases — not anticipated ones —  
+A pattern is "earned" through concrete use cases — not anticipated ones —  
 ensuring the system grows through evidence, not imagination.
 
 Story
@@ -224,7 +291,7 @@ Meta‑Prompting
 (e.g., Microsoft Copilot generating prompts for Amazon Q).  
 In practice, this produces more complexity, more drift,  
 and more correction work.  
-Meta‑Prompting exposed prompting’s structural limits  
+Meta‑Prompting exposed prompting's structural limits  
 and pushed the system toward architecture.
 
 BMAD Method
@@ -244,7 +311,7 @@ and a way to pass information without repetition.
 
 Persona
 : An informal role used during early prompting experiments  
-(e.g., “planner,” “reviewer,” “critic”).  
+(e.g., "planner," "reviewer," "critic").  
 Personas were conceptual and inconsistent, lacking boundaries, contracts, or governance.  
 They were the precursor to **profiles**,  
 which replaced personas as the system matured.
