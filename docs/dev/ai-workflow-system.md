@@ -232,8 +232,11 @@ User → Planner → TestDesigner → PromptEngineer → Builder → Enforcer �
 
 ### AI Prompt/Rule Maintenance
 
-1. **Analyst** — Analyze existing rules, identify gaps or conflicts
-2. **PromptEngineer** — Update rule files in `.workflow/rules/`
+1. **Planner** — Write user story for rule change
+2. **TestDesigner** *(if needed)* — Determine if validation scenarios are required
+3. **PromptEngineer** — Edit rules files directly (no Builder handoff)
+4. **Enforcer** — Validate rules and documentation changes
+5. **Documentor** — Create commit message
 
 ---
 
@@ -397,8 +400,10 @@ The system supports features requiring multiple sequential stories:
 * `architecture/` — Domain structure, generated code, Local-Utilities alignment
 * `tech/` — TypeScript, React, Redux, MUI, Amplify standards
 * `communication/` — Commit messages, code diffs, user stories
-* `workflow/` — Testing, logging, confirmation, AWS commands
+* `workflow/` — Testing, logging, confirmation, AWS commands, context gathering,
+  rule change workflow, rules content guidelines, safe undo, escalation patterns
 * `profiles/` — Profile-specific guidelines
+* `commands/` — On-demand operational routines (auto-suspend, cleanup, rename)
 
 ---
 

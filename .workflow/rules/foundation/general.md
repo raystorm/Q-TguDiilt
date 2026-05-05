@@ -265,6 +265,11 @@ Before stating, using, or writing any factual information, classify the informat
     documents, rule files, handoff files, message files, suspend contexts
   - Exceptions: code files (follow tech/formatting.md), log files
     (workflow.log JSONL), generated files, JSON/YAML config files
+- **Markdown tables**: Pipes MUST be space-padded and column-aligned
+  - All `|` characters in a table MUST align vertically
+  - Cell content MUST have one space of padding on each side
+  - The separator row (`| --- |`) MUST align with header and body pipes
+  - Apply to: documentation, rule files, handoff files, message files
 
 ## Workflow Step Communication
 

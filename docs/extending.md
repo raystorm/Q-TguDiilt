@@ -327,7 +327,56 @@ Capabilities must not:
 
 ---
 
-## 8. Extending Saved Commands
+## 8. Extending On‑Demand Commands
+
+On‑demand commands are operational routines stored in `.workflow/rules/commands/`.
+They are **never loaded at profile activation** — they are deferred procedures
+triggered only when a profile encounters `process @_commandName`
+in an already‑loaded rule.
+
+### How Commands Differ from Rules and Saved Prompts
+
+| Aspect    | Workflow Rules               | On‑Demand Commands            | Saved Prompts       |
+| --------- | ---------------------------- | ----------------------------- | ------------------- |
+| Loaded at | Profile activation           | `process @_commandName`       | User invocation     |
+| Location  | `.workflow/rules/<category>` | `.workflow/rules/commands/`   | `.amazonq/prompts/` |
+| Purpose   | Govern behavior              | Implement procedures          | Control workflow    |
+| Naming    | descriptive                  | `_camelCase.md` (underscore)  | descriptive         |
+
+### When to Create a Command vs a Rule
+
+**Create a command when:**
+* the logic is procedural (step‑by‑step implementation)
+* it is only needed in specific situations, not always
+* loading it at activation would waste context tokens
+* multiple profiles may invoke the same procedure
+
+**Keep it as a rule when:**
+* it defines governance or constraints (always‑on behavior)
+* it must be active whenever the profile is active
+* it is short enough that deferred loading adds no benefit
+
+### Adding a New Command
+
+1. Create `.workflow/rules/commands/_commandName.md`
+2. Start with: `When command @_commandName is received then process the following...`
+3. Add the trigger reference in the appropriate rule file:
+   `process @_commandName`
+4. Keep the command self‑contained — it should not require additional context loading
+
+### Current Commands
+
+* `_autoSuspend` — auto‑suspend implementation patterns and file format
+* `_cleanupAutoSuspend` — delete auto‑suspend files after workflow completion
+* `_cleanupFeature` — clean up FEATURE.md after feature completion
+* `_cleanupSuspend` — clean up suspended context files
+* `_cleanupWorkflow` — clean up workflow.log and work/current/ artifacts
+* `_rename` — large‑scale rename implementation patterns
+* `_troubleshootFeatureTracking` — diagnose FEATURE.md tracking issues
+
+---
+
+## 9. Extending Saved Commands
 
 Commands are the only workflow actions a user can issue.  
 They create artifacts, activate profiles, or manage state.
@@ -352,7 +401,7 @@ Commands must not:
 
 ---
 
-## 9. Extension Boundaries
+## 10. Extension Boundaries
 
 Extensions must not violate:
 
@@ -387,7 +436,7 @@ These boundaries define the system itself.
 
 ---
 
-## 10. Extension Checklist
+## 11. Extension Checklist
 
 Before adding anything, ask:
 
@@ -436,7 +485,7 @@ flowchart TD
 
 ---
 
-## 11. Summary
+## 12. Summary
 
 Extending the system is not about adding complexity.  
 It is about adding *clarity*.
