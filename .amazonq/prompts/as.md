@@ -158,10 +158,6 @@ Before loading profile-specific rules, load all activation-level rules from `.am
 
 **Architect + architecture task:**
 - Keywords: "domain", "architecture", "structure", "design"
-- Load: `docs/dev/architecture/domains/domains.md`
-- Load: `docs/dev/architecture/domains/frontend-domains.md`
-- Load: `docs/dev/architecture/domains/backend-domains.md`
-- Load: `docs/dev/architecture/domains/lambda-domains.md`
 
 **If no keywords match:**
 - Skip task-specific documentation

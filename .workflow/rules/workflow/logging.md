@@ -233,7 +233,7 @@ Profiles must use `fsWrite` with `append` command to add JSONL entries to `.amaz
 ```typescript
 fsWrite({
   command: "append",
-  path: "/home/tburton/IdeaProjects/hukdzen/.amazonq/workflow.log",
+  path: "[ProjectRoot]/.amazonq/workflow.log",
   fileText: JSON.stringify({
     type: "event",
     workflowId: "wf-123",  // Use current workflow ID
@@ -305,7 +305,7 @@ fsWrite({
 # 2. Read file timestamp using ls
 executeBash({
   command: "ls -la --time-style=full-iso .amazonq/.timestamp-temp",
-  cwd: "/home/tburton/IdeaProjects/hukdzen"
+  cwd: "[ProjectRoot]"
 });
 
 # 3. Parse the output to extract timestamp

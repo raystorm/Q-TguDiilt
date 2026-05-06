@@ -10,36 +10,27 @@ Coordinate work between Q profiles without copy/paste using shared context files
 
 **Purpose:** Transfer work between profiles in sequence with cleanup.
 
-1. **Start work:** `@prompt start`
+1. **Start work:** `@start`
 2. **Work with profile** (normal back-and-forth)
-3. **End work:** `@prompt handoff next=NextProfile`
-4. **Next profile:** `@prompt start`
+3. **End work:** `@handoff next=NextProfile`
+4. **Next profile:** `@start`
 
 ### Example
 
 **Chat 1 - Builder:**
 ```
-You: @prompt start
+You: @start
 Builder: [reads HANDOFF.md, acts as Builder]
 [... work happens ...]
-You: @prompt handoff next=Tester
+You: @handoff next=Enforcer
 Builder: [writes to HANDOFF.md, cleans up old files]
 ```
 
-**Chat 2 - Tester:**
+**Chat 3 - Enforcer:**
 ```
-You: @prompt start
-Tester: [reads HANDOFF.md, acts as Tester]
-[... testing happens ...]
-You: @prompt handoff next=Verifier
-Tester: [writes to HANDOFF.md, cleans up old files]
-```
-
-**Chat 3 - Verifier:**
-```
-You: @prompt start
-Verifier: [reads HANDOFF.md, reviews work]
-Verifier: ✅ All checks pass
+You: @start
+Enforcer: [reads HANDOFF.md, reviews work]
+Enforcer: ✅ All checks pass
 ```
 
 ---
@@ -50,11 +41,11 @@ Verifier: ✅ All checks pass
 
 ### Workflow
 
-1. **Send message:** `@prompt send to=ProfileName purpose="description"` or `@prompt send-epr`
-2. **Open new chat:** `@prompt receive`
+1. **Send message:** `@send to=ProfileName purpose="description"` or `@send-epr`
+2. **Open new chat:** `@receive`
 3. **Get feedback** in new chat
 4. **Return to original chat** and continue work
-5. **When done:** `@prompt handoff next=NextProfile` (cleans up MESSAGE.md)
+5. **When done:** `@handoff next=NextProfile` (cleans up MESSAGE.md)
 
 ### Example
 
@@ -62,13 +53,13 @@ Verifier: ✅ All checks pass
 ```
 You: [working with Builder]
 Builder: [proposes changes]
-You: @prompt send-epr
+You: @send-epr
 Builder: [writes MESSAGE.md, shows it]
 ```
 
 **Chat 2 - Get validation:**
 ```
-You: @prompt receive
+You: @receive
 Enforcer: [reads MESSAGE.md, validates approach]
 Enforcer: ✅ Approach follows all rules
 ```
@@ -79,15 +70,15 @@ You: [based on Enforcer feedback]
 Builder: [makes changes]
 You: Looks good, proceed
 Builder: [implements changes]
-You: @prompt handoff next=Tester
+You: @handoff next=Enforcer
 Builder: [writes HANDOFF.md, cleans up MESSAGE.md and old files]
 ```
 
 ### Send Shortcuts
 
-**`@prompt send-epr`** - Send to Enforcer for rule compliance review
+**`@send-epr`** - Send to Enforcer for rule compliance review
 
-**`@prompt send to=ProfileName purpose="description"`** - Send to any profile
+**`@send to=ProfileName purpose="description"`** - Send to any profile
 
 Common purposes:
 - Validate approach
@@ -109,21 +100,3 @@ Common purposes:
 - `~/.aws/amazonq/prompts/` - Active prompts (user-specific)
 
 ---
-
-## Profiles
-
-- **Builder** - Implements features
-- **Tester** - Writes tests
-- **Verifier** - Reviews code
-- **Enforcer** - Validates compliance
-- **Documentor** - Writes documentation
-- **Architect** - Designs systems
-- **Analyst** - Explains code
-
-See `.workflow/rules/_PROFILES.md` for full profile definitions.
-
----
-
-## Setup
-
-See `.amazonq/prompts/README.md` for prompt installation instructions.

@@ -405,14 +405,14 @@ Commands must not:
 
 Extensions must not violate:
 
-### 9.1 Contract Invariants
+### 10.1 Contract Invariants
 
 * artifact shapes
 * command semantics
 * cross‑profile invariants
 * nullability rules
 
-### 9.2 Workflow Mechanics
+### 10.2 Workflow Mechanics
 
 * [handoff](glossary.md#handoff) semantics
 * [side‑trip](glossary.md#side-trip) semantics
@@ -420,13 +420,13 @@ Extensions must not violate:
 * [logging rules](../.workflow/rules/workflow/logging.md)
 * [suspend/resume](glossary.md#suspendresume-semantics) behavior
 
-### 9.3 Profile Stability
+### 10.3 Profile Stability
 
 * no auto‑switching
 * no blended roles
 * no cross‑profile improvisation or work
 
-### 9.4 Governance Model
+### 10.4 Governance Model
 
 * override marker
 * rule precedence

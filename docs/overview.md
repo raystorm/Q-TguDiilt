@@ -5,7 +5,7 @@ modeled after a high‑performance Agile software team.
 It ensures predictable, reviewable, [drift‑resistant](glossary.md#driftresistant-reasoning) execution
 by running work through a deterministic loop:
 
-**Design → Prompt → Build → Verify → Document → Improve**
+**Design/Plan → Prompt → Build → Verify → Document → Improve**
 
 Profiles operate in isolation, communicate through explicit file‑based [handoffs](glossary.md#handoff),
 and follow governed rule files that define their responsibilities and boundaries.

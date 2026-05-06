@@ -58,7 +58,6 @@ Planner decides when to use Behavior-Driven Development (BDD) approach:
 **When BDD chosen:**
 - Note in story: "BDD approach"
 - TestDesigner creates BDD scenarios with stakeholder collaboration in mind
-- See `docs/dev/workflow/workflow-loops.md` for BDD workflow pattern
 
 ## Escalation Rules
 
@@ -100,24 +99,13 @@ Before handing off to TestDesigner, Planner MUST validate story scope is complet
 **For schema/type changes:**
 - [ ] Are there related structural changes beyond renames?
 - [ ] Does this affect nested vs flat data structures?
-- [ ] Are there transformation layers that need updates? (Lambda, utilities)
-- [ ] Are there related field name changes in other domains?
+- [ ] Are there transformation layers that need updates? 
+- [ ] Are there related field name changes in other domains/modules?
 
-**For domain changes:**
+**For domain/module changes:**
 - [ ] Are there cross-domain impacts?
 - [ ] Do related domains need updates?
 - [ ] Are there shared types affected?
-
-**For Lambda/backend changes:**
-- [ ] Does this affect DynamoDB storage structure?
-- [ ] Does this affect OpenSearch index structure?
-- [ ] Does this affect transformation logic? (ingestTrigger, hydrators)
-- [ ] Are there related frontend changes?
-
-**For frontend changes:**
-- [ ] Does this affect GraphQL queries/mutations?
-- [ ] Does this affect multiple components?
-- [ ] Are there related backend changes?
 
 ### When Scope is Unclear
 

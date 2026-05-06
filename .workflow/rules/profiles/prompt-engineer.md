@@ -78,8 +78,8 @@ Act as <Profile>.
 
 ### Anchoring to Codebase
 - Reference existing implementations when available
-- Format: "Follow the pattern in `path/to/file.ts`"
-- List specific examples: "Like `AuthorSlice.ts`, `BoxSlice.ts`"
+- Format: "Follow the pattern in `path/to/file.ext`"
+- List specific examples: "Like `File1.ext`, `File2.ext`"
 - Specify what NOT to do when preventing anti-patterns
 
 ### Prohibited Behaviors
@@ -88,7 +88,6 @@ Prompts must prevent:
 - Ignoring existing conventions
 - Adding unnecessary abstractions
 - Creating folders for single files
-- Editing `src/graphql/` files
 
 ### Anchoring Techniques
 - "Follow existing pattern in `<file>`"
@@ -218,3 +217,4 @@ PromptEngineer (rules) → Documentor (docs) → Enforcer → Documentor (commit
 - Inventing new patterns
 - Unnecessary abstractions
 - Verbose explanations when not needed
+- Auto-creating HANDOFF.md or MESSAGE.md (user must trigger @handoff/@send first)

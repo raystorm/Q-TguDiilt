@@ -156,26 +156,22 @@ See: [governance.md](governance.md#4-override-mechanism) for details.
 
 **Builder** — Writes code, implements features, follows formatting and architecture rules
 
-**Enforcer** —
-Reviews code, checks formatting, tests, and architecture alignment
+**Enforcer** — Reviews code, checks formatting, tests, and architecture alignment
 
-**TestDesigner** —
-Analyzes systems and changes to identify test scenarios
+**TestDesigner** — Analyzes systems and changes to identify test scenarios
 
-**Documentor** —
-Writes documentation, commit messages, diffs, and story descriptions
+**Documentor** — Writes documentation, commit messages, diffs, and story descriptions
 
-**Planner** —
-Writes user stories, backlog items, manages agile flow
+**Planner** — Writes user stories, backlog items, manages agile flow
 
 **Architect** — Defines system design, domain models, structure, and long-term direction
 
-**Analyst** —
-Reads code, explains behavior, traces logic, diagnoses issues
+**Analyst** — Reads code, explains behavior, traces logic, and ambiguity resolution.
 
-**PromptEngineer** — Writes prompts for AI agents following [Command Prompt](../glossary.md#command-prompt) patterns
+**PromptEngineer** —
+Writes prompts for AI agents following [Command Prompt](../glossary.md#command-prompt) patterns
 
-**Doctor** —
+**Doctor** — 
 Diagnoses failures, applies minimal safe fixes, escalates when issues exceed scope
 
 **Retrospective** —
@@ -189,16 +185,9 @@ Analyzes completed workflows, identifies improvements, highlights successes
 
 User → Planner → TestDesigner → PromptEngineer → Builder → Enforcer → Documentor → Retrospective
 
-### Straight Forward Build Workflow
-
-1. **Planner** — Determine story sequencing
-2. **PromptEngineer** — Create Builder prompt following Command Prompt patterns
-3. **Builder** — Implement feature with tests, show diffs
-4. **Enforcer** — Review code, run tests, verify alignment with rules
-5. **Documentor** — Generate commit message following style guide
-6. **Retrospective** — Analyze workflow, output Keep/Stop/Start recommendations
-
 ### Test-Driven Development (TDD)
+
+*Note:* This is the default workflow pattern.
 
 1. **Planner** — Determine story sequencing
 2. **TestDesigner** — Analyze requirements, design test scenarios (Given/When/Then), Determine TDD
@@ -207,6 +196,15 @@ User → Planner → TestDesigner → PromptEngineer → Builder → Enforcer �
 5. **Enforcer** — Verify tests pass, check code quality
 6. **Documentor** — Generate commit message following style guide
 7. **Retrospective** — Analyze workflow, output Keep/Stop/Start recommendations
+
+### Straight Forward Build Workflow
+
+1. **Planner** — Determine story sequencing
+2. **PromptEngineer** — Create Builder prompt following Command Prompt patterns
+3. **Builder** — Implement feature with tests, show diffs
+4. **Enforcer** — Review code, run tests, verify alignment with rules
+5. **Documentor** — Generate commit message following style guide
+6. **Retrospective** — Analyze workflow, output Keep/Stop/Start recommendations
 
 ### Retrospective Workflow
 
@@ -397,8 +395,8 @@ The system supports features requiring multiple sequential stories:
 `.workflow/rules/` contains:
 * `_PROFILES.md` — Profile definitions and aliases
 * `foundation/` — General code quality, minimal code principles
-* `architecture/` — Domain structure, generated code, Local-Utilities alignment
-* `tech/` — TypeScript, React, Redux, MUI, Amplify standards
+* `architecture/` — Domain structure, generated code
+* `tech/` — formatting, and tech stack specifics
 * `communication/` — Commit messages, code diffs, user stories
 * `workflow/` — Testing, logging, confirmation, AWS commands, context gathering,
   rule change workflow, rules content guidelines, safe undo, escalation patterns
@@ -450,7 +448,7 @@ For full syntax, arguments, and examples, see:
 **Handoff** — Sequential workflow in same chat tab
 * Used when: advancing the main thread work forward
 * Profile completes work, writes handoff, waits for user
-* User runs `/compact` then `@start` to continue workflow
+* User runs `@start` to continue workflow (optionally in a new tab for fresh context)
 * Cleans up work directory between steps
 * Used for: Builder → Enforcer → Documentor chains
 
@@ -498,7 +496,7 @@ Use saved prompts:
 
 Trigger retrospective analysis:
 ```text
-As Retrospective, analyze recent workflows
+@as Retrospective, analyze recent workflows
 ```
 
 ---

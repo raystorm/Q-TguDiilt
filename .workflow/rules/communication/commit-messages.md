@@ -5,7 +5,7 @@
 Projects adopting Q‑TguDiilt should place stack-specific examples in:
 
 ```
-.workflow/rules/communication/code-diffs-project.md
+.workflow/rules/communication/commit-messages-project.md
 ```
 
 Examples may include:

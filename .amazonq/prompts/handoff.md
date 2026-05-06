@@ -1,4 +1,4 @@
-Write handoff for {{next}} to `.amazonq/work/current/HANDOFF.md`.
+Generate handoff content for {{next}} (do NOT write to disk yet).
 
 Include:
 - To: {{next}}
@@ -9,9 +9,7 @@ Include:
 - Context: [what was done]
 - Action: [what next profile should do]
 
-Any additional files needed should be created in `.amazonq/work/current/` directory only.
-
-After writing handoff, display the contents of HANDOFF.md and any supporting files created in `.amazonq/work/current/` for user review.
+Display the proposed HANDOFF.md content for user review.
 
 Ask: "Should I proceed with this handoff?"
 
@@ -27,16 +25,19 @@ Do NOT run @start.
 Do NOT infer any next action.
 
 Your only job is to:
-  1. Write the handoff file.
-  2. Display it.
-  3. STOP and WAIT.
+  1. Generate the handoff content in memory.
+  2. Display it for review.
+  3. STOP and WAIT for confirmation.
 
 
 On approval:
+- Write HANDOFF.md to `.amazonq/work/current/HANDOFF.md`
+- Write any additional supporting files to `.amazonq/work/current/` directory only
 - Remove all old files from `.amazonq/work/current/` except HANDOFF.md and files listed in current handoff
 - Display: "---\n**Next**: Run `/compact` then `@start` as [Profile Name from To field]"
 
 On rejection:
 - Revise handoff based on user feedback
+- Do NOT write any files
 
 Do not auto-activate next profile. Stay as current profile. User will run @start.
