@@ -194,7 +194,45 @@ Combine `@send` + `@epr` into a single side trip evaluation.
 
 ---
 
-## 6. Relationship to Other Documents
+## 6. Debug/Diagnostic Commands
+
+Diagnostic tools for inspecting workflow health, context stability,
+and rule loading. These commands do not modify workflow state.
+
+### `@debugCurrent`
+
+Debug the current context state without loading any files or activating
+any profile. Analyzes only what is already present in the context window.
+
+**Usage:**
+`@debugCurrent`
+
+### `@debugFull`
+
+Load and scan the entire rule system across all directories.
+No profile filtering — shows the complete governance system.
+
+**Usage:**
+`@debugFull`
+
+### `@debugProfile`
+
+Load a specific profile's rules and generate a profile‑scoped debug report.
+Shows what rules would be loaded for that profile.
+
+**Arguments:**
+* `[Profile]` (required) — the profile name to debug
+
+**Usage:**
+```text
+@debugProfile Planner
+@debugProfile PE
+@debugProfile Builder
+```
+
+---
+
+## 7. Relationship to Other Documents
 
 * [**Contract**][contract] defines guarantees and invariants for command handling.
 * [**Workflow Mechanics**][mechanics] describe how handoffs, messages, and activation work.

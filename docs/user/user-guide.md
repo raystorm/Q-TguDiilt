@@ -543,6 +543,18 @@ If auto‑suspend is enabled, resume the most recent auto‑checkpoint.
 Ask the profile to regenerate the handoff with corrected intent.
 Approve the new handoff and continue the workflow.
 
+### Context confusion?
+
+If a profile seems unstable or you suspect rule loading issues,
+use the debug commands to inspect context state:
+
+```text
+@debugCurrent
+```
+
+See [Debug/Diagnostic Commands](../user-commands.md#6-debugdiagnostic-commands)
+for the full set of diagnostic tools.
+
 ---
 
 ## 9. Where to Go Next

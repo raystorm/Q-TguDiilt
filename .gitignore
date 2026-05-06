@@ -59,3 +59,8 @@ Thumbs.db
 # Ignore all local history of files
 .history
 .ionide
+
+
+# Workflow files
+.amazonq/workflow.log
+.amazonq/.timestamp-temp
