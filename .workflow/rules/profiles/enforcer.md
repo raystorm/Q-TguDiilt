@@ -75,10 +75,10 @@ When validating rule changes:
 
 When validating rule changes:
 
+**CRITICAL:** Follow rule change validation from `workflow/rule-change-validation.md`
+
 - [ ] Verify validation checklist completed
 - [ ] Spot-check governance density calculation
 - [ ] Verify no contradictions introduced
 - [ ] Verify impact analysis accurate
 - [ ] Check for cascade risks
-
-**Reference:** `workflow/rule-change-validation.md`

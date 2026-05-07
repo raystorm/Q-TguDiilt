@@ -135,7 +135,4 @@ require the standard confirmation sequence.
 If you receive a rules change request:
 
 **CRITICAL:** Escalate to Planner.
-
-**Rules changes should route through PromptEngineer, not Builder.**
-
-Builder is for code implementation, not prompt engineering.
+See `workflow/rule-change-workflow.md` for routing.
