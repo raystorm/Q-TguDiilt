@@ -194,6 +194,11 @@ Uses:
 
 ## Error Handling
 
+**Empty argument (no profile specified):**
+- Read _PROFILES.md and list available profiles
+- Display usage: `@as [Profile] [optional task]`
+- Do NOT proceed with profile activation
+
 **Profile not found:**
 - List available profiles from _PROFILES.md
 - Suggest correct spelling or alias
