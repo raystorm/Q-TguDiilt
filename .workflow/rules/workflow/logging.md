@@ -9,6 +9,8 @@
 - Follow JSONL format
 - Generate timestamps **ONLY** using the **Timestamp Generation Method**.
 
+**CRITICAL: Every fsReplace or fsWrite to a persistent workflow artifact
+MUST be immediately followed by a file_modified or file_created log entry.**
 
 **This is REQUIRED. Logging enables retrospective analysis and workflow improvement.**
 
