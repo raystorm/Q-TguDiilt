@@ -99,17 +99,6 @@ Uses:
 - Skip if already in loaded list
 - This prevents duplicate loading and circular reference loops
 
-**Step 5.1: Load Activation-Level Rules (FIRST)**
-
-Before loading profile-specific rules, load all activation-level rules from `.amazonq/rules/`:
-
-1. List all `.md` files in `.amazonq/rules/`
-2. Load each file (e.g., `correctness-over-speed.md`, `profile-activation.md`)
-3. Add to loaded files tracking
-4. These rules apply to the profile activation process itself
-
-**Step 5.2: Load Profile-Specific Rules**
-
 **For each file in load list:**
 1. Check if file already loaded → skip if yes
 2. Read file content
