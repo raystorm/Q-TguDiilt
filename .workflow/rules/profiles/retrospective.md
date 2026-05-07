@@ -9,6 +9,7 @@
 
 ## Analysis Process
 - Parse JSONL workflow log (see `workflow/logging.md` for format)
+- If `.amazonq/workflow.log` does not exist, report error to user and halt — no analysis is possible without the log
 - Group events by workflowId
 - Reconstruct workflow trees (parentId links)
 - Calculate durations from timestamps

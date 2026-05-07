@@ -13,6 +13,7 @@ Before diagnosis or validation, profiles MUST gather context to validate against
 
 2. **Read workflow log** - Recent events for current workflow chain
    - Read `.amazonq/workflow.log`
+   - If file does not exist, skip to next step
    - Parse entries matching current `workflowId` and `parentId` chain
    - Understand what work was just completed or attempted
 
