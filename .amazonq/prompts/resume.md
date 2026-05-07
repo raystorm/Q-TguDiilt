@@ -1,4 +1,10 @@
-Load suspended workflow context from `.amazonq/suspended/[name].md`.
+Load suspended workflow context.
+
+## Missing File Fallback
+If any `.amazonq/suspended/` file needed below does not exist:
+- INDEX.md missing → display: "No suspended contexts found. (INDEX.md does not exist)"
+- [name].md missing → display: "Context '[name]' not found. Use `@list` to see available contexts."
+- Do not continue. Do not log or change workflow state.
 
 If no name provided:
 - Read `.amazonq/suspended/INDEX.md`
