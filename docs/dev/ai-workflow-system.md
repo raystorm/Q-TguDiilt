@@ -440,6 +440,17 @@ For full syntax, arguments, and examples, see:
 
 **Convenience Commands**  — UX shortcuts that wrap common patterns.  
 * **`@dr`** — start Doctor and troubleshoot a test result.
+* **`@epr`** — activate Enforcer to review a pasted prompt/response pair
+  for rule compliance.
+* **`@send-epr`** — send a side trip message to Enforcer requesting rule
+  compliance review of current work.
+
+**Diagnostic Commands** — Inspect context, rules, and profile loading.  
+* **`@debugCurrent`** — generate a debug report of the current context window
+  (no file loading, analyzes only what is already present).
+* **`@debugFull`** — load all rule files and generate a full system debug report.
+* **`@debugProfile [Profile]`** — load a specific profile's rules and generate
+  a profile‑scoped debug report.
 
 ---
 
