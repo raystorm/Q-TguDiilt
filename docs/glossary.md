@@ -316,6 +316,23 @@ Personas were conceptual and inconsistent, lacking boundaries, contracts, or gov
 They were the precursor to **profiles**,  
 which replaced personas as the system matured.
 
+Cycle
+: A single governed pass through the workflow profile sequence  
+(e.g., Planner → TestDesigner → PE → Builder → Enforcer → Documentor → Retrospective).  
+A Cycle begins when a story enters the workflow and ends  
+when Retrospective completes or the user closes the loop.
+
+Activation Layer
+: The minimal bootstrap rule layer stored in `.amazonq/rules/`.  
+Always loaded by Amazon Q's native rule system in every chat,  
+regardless of profile.  
+Provides correctness guarantees and profile activation triggers.
+
+Governance Layer
+: The profile‑scoped rule layer stored in `.workflow/rules/`.  
+Loaded explicitly during profile activation based on each profile's Uses list.  
+Defines behavior, boundaries, communication standards, and workflow mechanics.
+
 ---
 
 ### Glossary Formatting Notes
