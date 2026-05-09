@@ -12,6 +12,10 @@ rm .amazonq/workflow.log
 
 ### 2. Delete work/current/ Files
 
+**Note:** Per-handoff cleanup of `work/current/` is governed by
+`handoff.md`. This section cleans up the same location as part of
+a full workflow reset.
+
 ```bash
 # Delete all files in work/current/
 rm .amazonq/work/current/*
