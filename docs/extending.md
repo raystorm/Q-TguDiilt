@@ -22,7 +22,7 @@ and the principles that keep the system stable as it grows.
 Extensions must be:
 * **Quiet** — minimal, clear, and free of ceremony
 * **Governed** — aligned with Contract invariants and rule precedence
-* **[Teachable](glossary.md#teachable-artifact)** — intention‑revealing, predictable, and easy to audit
+* **[Teachable](dev/glossary.md#teachable-artifact)** — intention‑revealing, predictable, and easy to audit
 * **Local** — changes should not ripple across unrelated rules
 * **Lineage‑preserving** — universal → project override
 
@@ -221,11 +221,11 @@ Patterns are recipes, not rules.
 
 ## 6. Meta Loop Invariant
 
-All workflows in the system must implement the same three‑loop [meta loop](glossary.md#meta-loop):
+All workflows in the system must implement the same three‑loop [meta loop](dev/glossary.md#meta-loop):
 
 **Plan → Implement → Improve**
 
-This is the stability invariant that makes a [full workflow loop](glossary.md#full-workflow-loop).  
+This is the stability invariant that makes a [full workflow loop](dev/glossary.md#full-workflow-loop).  
 It ensures every workflow is intention‑revealing, deterministic, and self‑improving.
 
 > **Mnemonic:**
@@ -245,7 +245,7 @@ The meta loop provides:
 
 A workflow that does not implement this meta loop is not considered a full workflow loop.
 
-[Short loops](glossary.md#short-loop) are governed, but they are not full workflow loops.
+[Short loops](dev/glossary.md#short-loop) are governed, but they are not full workflow loops.
 
 ### 6.2 The Three Loops
 
@@ -414,11 +414,11 @@ Extensions must not violate:
 
 ### 10.2 Workflow Mechanics
 
-* [handoff](glossary.md#handoff) semantics
-* [side‑trip](glossary.md#side-trip) semantics
+* [handoff](dev/glossary.md#handoff) semantics
+* [side‑trip](dev/glossary.md#side-trip) semantics
 * [confirmation rules](../.workflow/rules/workflow/workflow-mechanics.md#changeover-confirmation)
 * [logging rules](../.workflow/rules/workflow/logging.md)
-* [suspend/resume](glossary.md#suspendresume-semantics) behavior
+* [suspend/resume](dev/glossary.md#suspendresume-semantics) behavior
 
 ### 10.3 Profile Stability
 

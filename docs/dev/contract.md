@@ -6,7 +6,7 @@ It is the semantic substrate beneath:
 * [`workflow-mechanics.md`][mechanics]
 * [`user-commands.md`][commands]
 * all profile rules
-* all [workflow artifacts](../glossary.md#workflow-artifact)
+* all [workflow artifacts](glossary.md#workflow-artifact)
 
 Mechanics define *how* workflows operate.  
 The Contract defines *what must always be true*.
@@ -42,17 +42,11 @@ A structured, reviewable transfer of responsibility between profiles.
 
 Created **only** when the user triggers `@handoff`.
 
-**Contains:**  
-* From
-* Task
-* Summary of Work
-* Requested Next Action
-* [Context Capsule](../glossary.md#context-capsule)
-* Artifacts
-* Expected Outcome
+**Shape:** Defined in
+[`workflow/changeover-format.md`](../../.workflow/rules/workflow/changeover-format.md)
 
 **Invariants:**
-* must include all fields listed under **Contains**
+* must follow the canonical changeover shape
 * must be complete and reviewable
 * must not be auto‑created
 * must require explicit user approval
@@ -213,8 +207,8 @@ These invariants must hold across all workflows, profiles, and mechanics.
 
 ### 3.2 Semantic Invariants
 
-* [Handoffs](../glossary.md#handoff) must be complete, reviewable, and meaning‑preserving
-* [Side trips](../glossary.md#side-trip) must be isolated and return control to original profile
+* [Handoffs](glossary.md#handoff) must be complete, reviewable, and meaning‑preserving
+* [Side trips](glossary.md#side-trip) must be isolated and return control to original profile
 * Suspended contexts must be sufficient to resume work
 * Workflow logs must accurately reflect events
 * Profiles must follow confirmation rules defined in mechanics
@@ -268,7 +262,7 @@ Reference: [`workflow/user-commands.md`][commands].
 
 ## 5. Profile Contract
 
-[Profile Contract](../glossary.md#profile-contract)
+[Profile Contract](glossary.md#profile-contract)
 
 All profiles must:
 * follow workflow mechanics

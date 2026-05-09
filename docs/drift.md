@@ -56,7 +56,7 @@ It can occur:
 * within documentation (lineage drift)
 * within rules (governance drift)
 
-Drift is the opposite of [governed cognition](glossary.md#governed-cognitive-workflow).
+Drift is the opposite of [governed cognition](dev/glossary.md#governed-cognitive-workflow).
 
 ---
 
@@ -180,7 +180,7 @@ Retro identifies drift by comparing:
 * expected patterns
 * actual behavior
 * rule definitions
-* [profile contracts](glossary.md#profile-contract)
+* [profile contracts](dev/glossary.md#profile-contract)
 * documentation lineage
 
 Retro then produces **improvement recommendations**.
@@ -189,8 +189,8 @@ Retro then produces **improvement recommendations**.
 
 ## How Side Trips Correct Drift
 
-[Side trips](glossary.md#side-trip) run in a separate [thread](glossary.md#thread) using `@send`/`@receive`,
-following the same drift prevention mechanics as `@handoff`/`@start` in the [main thread](glossary.md#main-thread),
+[Side trips](dev/glossary.md#side-trip) run in a separate [thread](dev/glossary.md#thread) using `@send`/`@receive`,
+following the same drift prevention mechanics as `@handoff`/`@start` in the [main thread](dev/glossary.md#main-thread),
 allowing work to happen in parallel without affecting the main thread’s context or state.
 
 When a side trip is performed:

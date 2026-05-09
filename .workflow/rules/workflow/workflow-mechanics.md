@@ -196,24 +196,8 @@ Profile B continues work
 
 ### HANDOFF.md Format
 
-```markdown
-# Handoff to [Profile]
-
-## From
-[Source Profile]
-
-## Task
-[What needs to be done]
-
-## Context
-[Background and decisions made]
-
-## Artifacts
-[Files created or modified]
-
-## Expected Outcome
-[What the receiving profile should produce]
-```
+See `workflow/changeover-format.md` for the canonical changeover
+file shape. HANDOFF.md and MESSAGE.md use the same format.
 
 ### When to Use Handoffs
 
@@ -528,18 +512,6 @@ and isolation across workflow steps.
 
 ---
 
-## Workflow Logging
-
-All profiles that reference `workflow/logging.md` MUST log:
-- Workflow start on activation
-- Key events (file changes, handoffs, validations)
-- Use fsWrite append to `.amazonq/workflow.log`
-- Follow JSONL format
-
-See `workflow/logging.md` for detailed logging specification.
-
----
-
 ## Inquiry Mode
 
 ### What is Inquiry Mode?
@@ -590,9 +562,7 @@ Start a new message without `@inquiry`.
 
 ### Profile Activation
 
-- `Act as [Profile]` - Explicit profile activation
-- `As [Profile]` - Shorthand activation
-- `@[Profile]` - Mention (does NOT activate)
+- `@as [Profile]` - Explicit profile activation command
 
 ---
 

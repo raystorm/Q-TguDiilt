@@ -2,12 +2,12 @@
 
 The AI Workflow System is a **rule‑driven, profile‑based workflow engine**
 modeled after a high‑performance Agile software team.  
-It ensures predictable, reviewable, [drift‑resistant](glossary.md#driftresistant-reasoning) execution
+It ensures predictable, reviewable, [drift‑resistant](dev/glossary.md#driftresistant-reasoning) execution
 by running work through a deterministic loop:
 
 **Design/Plan → Prompt → Build → Verify → Document → Improve**
 
-Profiles operate in isolation, communicate through explicit file‑based [handoffs](glossary.md#handoff),
+Profiles operate in isolation, communicate through explicit file‑based [handoffs](dev/glossary.md#handoff),
 and follow governed rule files that define their responsibilities and boundaries.
 
 This overview introduces the system at a high level and links to the deeper documentation set.
@@ -23,7 +23,8 @@ This overview introduces the system at a high level and links to the deeper docu
 - **Retrospective‑driven self‑improvement**
 - **Parallelism without context leakage**
 
-For a deeper architectural explanation, see the **1‑page deep dive**.
+For a deeper architectural explanation,
+see the [**1‑page deep dive**](./dev/ai-workflow-system.md).
 
 ---
 
@@ -85,7 +86,7 @@ How to think about the system, its philosophy, and its evaluation lens.
 ---
 
 ## Supporting Docs
-- [Glossary](./glossary.md)
+- [Glossary](dev/glossary.md)
 - [FAQ](FAQ.md)
 - [Origin Story](./origin.md)
 

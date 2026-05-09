@@ -10,7 +10,7 @@ You are now activating as the profile specified in the message file.
    Discard any formatting, structures, meta-prompts, diagnostic prompts, or behaviors from previous tasks or tabs.  
    Do not reuse patterns, styles, or structures from earlier interactions.
 
-2. **Load the workflow routing artifact**  
+2. **Load the changeover file**  
    Read `.amazonq/work/current/MESSAGE.md` and treat it as the authoritative source of workflow routing and the task to perform.
 
 3. **Activate as Target Profile**  

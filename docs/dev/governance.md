@@ -23,7 +23,7 @@ Rules & Governance ensures:
 * intentional, explicit deviations
 * clear rule lineage
 * predictable interpretation by all profiles
-* [drift‑resistant](../glossary.md#driftresistant-reasoning) rule evolution
+* [drift‑resistant](glossary.md#driftresistant-reasoning) rule evolution
 
 This file defines **how rules behave**, *not* how workflow artifacts behave.  
 Artifact shapes and invariants are defined in the Contract.
@@ -178,7 +178,7 @@ No implicit behavior changes.
 
 ### 5.2 Lineage Preservation
 
-Every rule must have a clear [lineage](../glossary.md#semantic-lineage):
+Every rule must have a clear [lineage](glossary.md#semantic-lineage):
 * Universal rule → Project override (optional)
 * No hidden mutations
 * No silent reinterpretation

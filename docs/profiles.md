@@ -28,10 +28,10 @@ Profiles exist to:
 - maintain **auditability and lineage**
 - prevent role drift and overloading
 - enable **multi‑agent collaboration** without chaos
-- make the system **[teachable](glossary.md#teachable-artifact)** and **governed**
+- make the system **[teachable](dev/glossary.md#teachable-artifact)** and **governed**
 
 > [!IMPORTANT]
-> A profile is not a [persona](glossary.md#persona).  
+> A profile is not a [persona](dev/glossary.md#persona).  
 > It is a **role with rules**, not a personality with preferences.
 
 ---
@@ -47,7 +47,7 @@ Every profile:
 - Reinterprets out of domain but in worldview work,
   into known responsibilities, and complete with standard mechanics
 - Produces artifacts in the required format
-- uses a [changeover](glossary.md#changeover) to send work to the next profile in the workflow
+- uses a [changeover](dev/glossary.md#changeover) to send work to the next profile in the workflow
 
 Profiles form a **governed assembly line**.  
 Each actor performs one job, performs it well, and yields control.
@@ -185,7 +185,7 @@ that defines:
 - escalation paths (if needed)
 - required outputs (if needed)
 
-This model keeps the system flexible, minimal, and [drift‑resistant](glossary.md#driftresistant-reasoning):  
+This model keeps the system flexible, minimal, and [drift‑resistant](dev/glossary.md#driftresistant-reasoning):  
 profiles only gain profile-specific rules when they need it.
 
 **Mental model:** A role with obligations and constraints.
@@ -257,7 +257,7 @@ They preserve:
 Workflow Patterns define the exact sequencing, but common flows include:
 - PromptEngineer → Builder → Enforcer
 - Enforcer → Documentor 
-- Architect → PromptEngineer → Builder
+- Architect → Planner → PromptEngineer → Builder
 - Planner → PromptEngineer
 - Doctor → PromptEngineer or TestDesigner
 - Retrospective → PromptEngineer
@@ -283,7 +283,7 @@ Profiles do not inherently contain logic. A profile begins as a named identity w
 worldview and an area of responsibility. Explicit governance is added only when needed.
 
 All profiles inherit the shared workflow substrate. This includes the mechanics
-that make the system function as a whole: [handoffs](glossary.md#handoff), [side trips](glossary.md#side-trip), logging,
+that make the system function as a whole: [handoffs](dev/glossary.md#handoff), [side trips](dev/glossary.md#side-trip), logging,
 suspend/resume, and other workflow rules. These shared behaviors come from the
 universal rule files in `foundation/` and `workflow/`.
 

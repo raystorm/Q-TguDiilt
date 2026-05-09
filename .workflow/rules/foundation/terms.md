@@ -16,8 +16,8 @@ Persistent artifact categories:
 - **Configuration** — versioned configuration required for build, test, or runtime
 - **Infrastructure Source** — declarative or code‑defined infrastructure that must be preserved
 - **Documentation** — versioned documentation that describes or governs the system
-- **Rules** — workflow engine rules files
-- **Prompts** — workflow engine prompt files
+- **Rules Files** — workflow engine rules files
+- **Prompt Files** — workflow engine prompt files
 - **Shared Team Resources** — versioned assets required for team workflows
 
 : **Includes - Transient Workflow Artifacts**  
@@ -31,9 +31,20 @@ System-owned plumbing (workflow.log, auto-suspend state, internal metadata), tem
 : **Invariant**  
 All creation or modification of workflow artifacts requires explicit user confirmation.
 
+Rules Files
+: Files that control how the System behaves. `.amazonq/rules/` and `.workflow/rules/`
+
+Prompt Files
+: Saved Prompts that encode complex commands `.amazonq/prompts/`
+
 Context Capsule
-: A structured container for workflow state, including intent, constraints, history, lineage, and profile roles.
+: A structured emergent container for workflow state,
+including intent, constraints, history, lineage, and profile roles.
 : Enables suspend/resume, multi-step workflows, and continuity across outages.
+
+Governed File
+: A file whose contents directly affect workflow execution, workflow correctness, or workflow invariants.
+: includes Rules Files, and Prompt Files
 
 Changeover
 : A governed workflow operation where one profile prepares control and

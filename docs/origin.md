@@ -5,7 +5,7 @@
 Before there was structure, before there were profiles or capsules or workflows,  
 there were just prompts.
 
-I was [free prompting](glossary.md#free-prompting) Amazon Q and Microsoft Copilot:
+I was [free prompting](dev/glossary.md#free-prompting) Amazon Q and Microsoft Copilot:
 no roles, no boundaries, no governance—just raw experimentation.
 
 It worked sometimes.
@@ -43,8 +43,8 @@ I needed **structure**.
 
 ## The BMAD Method
 
-[BMAD](glossary.md#bmad-method) wasn’t just [personas](glossary.md#persona).  
-It was **[prompt chaining](glossary.md#prompt-chaining)**.
+[BMAD](dev/glossary.md#bmad-method) wasn’t just [personas](dev/glossary.md#persona).  
+It was **[prompt chaining](dev/glossary.md#prompt-chaining)**.
 
 Builder → Tester → Validator.
 
@@ -63,7 +63,7 @@ They still drifted.
 They still collapsed context.
 They still required endless copy/paste.
 
-[Meta‑Prompting](glossary.md#metaprompting) didn’t solve the problem.
+[Meta‑Prompting](dev/glossary.md#metaprompting) didn’t solve the problem.
 It just automated the chaos.
 
 Eventually I circled back to BMAD, not because I believed in it,
@@ -93,8 +93,8 @@ I called them **profiles**.
 
 Then came the real breakthrough:
 I got tired of copy/paste and built the first
-**[context capsule](glossary.md#context-capsule)
-[handoff](glossary.md#handoff)/send**.
+**[context capsule](dev/glossary.md#context-capsule)
+[handoff](dev/glossary.md#handoff)/send**.
 
 Instead of repeating context,
 I packaged it.

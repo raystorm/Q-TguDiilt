@@ -5,7 +5,7 @@
 
 This guide explains how to **use** the workflow engine day‑to‑day.  
 It is written for the human operator — the person issuing commands,
-reviewing [handoffs](../glossary.md#handoff), and steering multi‑profile workflows.
+reviewing [handoffs](../dev/glossary.md#handoff), and steering multi‑profile workflows.
 
 If you want to understand the philosophy, architecture, or rules behind the system,  
 see:
@@ -110,7 +110,7 @@ Profiles never create workflow artifacts on their own.
 A structured, reviewable transfer of responsibility between profiles, in the **main thread**.
 
 **MESSAGE.md**  
-A structured request for parallel or isolated work, in a **[side trip](../glossary.md#side-trip)**.
+A structured request for parallel or isolated work, in a **[side trip](../dev/glossary.md#side-trip)**.
 
 **Suspended Contexts**  
 A serialized snapshot of workflow state.
@@ -387,7 +387,7 @@ They:
 * never improvise
 * never cross domains
 
-**Profiles are not simple [personas](../glossary.md#persona).  
+**Profiles are not simple [personas](../dev/glossary.md#persona).  
 They execute deterministic behavior defined by rules.**
 
 ### Who you gonna call?

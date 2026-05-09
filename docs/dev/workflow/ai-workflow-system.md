@@ -11,16 +11,13 @@ Profiles run in isolated chat tabs, do not share context, and follow rule files 
 All actions are logged for retrospective analysis,
 allowing the system to improve over time through explicit, user‑approved changes.
 
----
 
 ## Overview
 
 The AI Workflow System uses profiles to handle development tasks.
 Each profile has specific responsibilities and follows defined rules stored in `.workflow/rules/`.
-Profiles collaborate through explicitly called handoffs,
+Profiles collaborate through explicit changeovers,
 and all work is logged to enable retrospective analysis and continuous improvement.
-
----
 
 ## Origins
 
@@ -28,8 +25,6 @@ This workflow was originally based on how a *human agile software development te
 Would typically be structured and operate. Where each [Story](../glossary.md#story)/Workflow/Item equates to a sprint.
 Working through that model, it was realized that mapping *PROFILES* to the Agile SDLC loop phases
 makes more sense, and that is the version of profiles documented below.
-
----
 
 ## Purpose
 
@@ -43,7 +38,6 @@ Each change is run through the full Agile lifecycle of a story — from design, 
 to verification, to documentation, to retrospective —
 ensuring that AI‑generated work is predictable, reviewable, and aligned with project standards.
 
----
 
 ## Core Concepts
 
@@ -57,8 +51,6 @@ Profiles use a file based methodology, so profiles can run completely independen
 **Rules** —
 Profiles follow rules in `.workflow/rules/` covering architecture, tech stack, communication, and workflows
 The Rules files are also how the profiles are encoded.
-
----
 
 ## Conceptual Patterns
 
@@ -156,28 +148,31 @@ See: [governance.md](governance.md#4-override-mechanism) for details.
 
 **Builder** — Writes code, implements features, follows formatting and architecture rules
 
-**Enforcer** — Reviews code, checks formatting, tests, and architecture alignment
+**Enforcer** —
+Reviews code, checks formatting, tests, and architecture alignment (aliases: Verifier, Validator, 🔫)
 
-**TestDesigner** — Analyzes systems and changes to identify test scenarios
+**TestDesigner** —
+Analyzes systems and changes to identify test scenarios (aliases: TD, Provoker, Hunter)
 
-**Documentor** — Writes documentation, commit messages, diffs, and story descriptions
+**Documentor** —
+Writes documentation, commit messages, diffs, and story descriptions (aliases: commit, keeper, ledger, Engraver)
 
-**Planner** — Writes user stories, backlog items, manages agile flow
+**Planner** —
+Writes user stories, backlog items, manages agile flow (aliases: PO, ProductOwner)
 
 **Architect** — Defines system design, domain models, structure, and long-term direction
 
-**Analyst** — Reads code, explains behavior, traces logic, and ambiguity resolution.
+**Analyst** —
+Reads code, explains behavior, traces logic, and ambiguity resolution. (aliases: Analyzer, Auditor, 🔍, 🔎)
 
 **PromptEngineer** —
-Writes prompts for AI agents following [Command Prompt](../glossary.md#command-prompt) patterns
+Writes prompts for AI agents following [Command Prompt](../glossary.md#command-prompt) patterns (aliases: PE, Prompter)
 
-**Doctor** — 
-Diagnoses failures, applies minimal safe fixes, escalates when issues exceed scope
+**Doctor** —
+Diagnoses failures, applies minimal safe fixes, escalates when issues exceed scope (aliases: Dr, DR, Medic, 🩺)
 
 **Retrospective** —
-Analyzes completed workflows, identifies improvements, highlights successes
-
----
+Analyzes completed workflows, identifies improvements, highlights successes (aliases: Retro, Iterator, 🔄)
 
 ## Workflow Patterns
 
@@ -236,8 +231,6 @@ User → Planner → TestDesigner → PromptEngineer → Builder → Enforcer �
 4. **Enforcer** — Validate rules and documentation changes
 5. **Documentor** — Create commit message
 
----
-
 ## System Invariants & Principles
 
 The AI Workflow System is structured, disciplined, and governed.  
@@ -245,68 +238,71 @@ These invariants define what the system *always* does, what it *never* does,
 and how profiles behave.
 
 ### 1. Profile Stability
-
-**Profiles never auto‑switch.**  
-A profile remains active until explicitly switched or a saved command is invoked.  
-Profiles do not infer intent or guess which persona should run next.
+**Profiles never auto‑switch.**
+A profile remains active until the user explicitly switches or triggers a saved command.  
+The system never infers or guesses which profile should run next.
 
 #### 1.1 Single‑Responsibility Profiles
 
 Each profile performs only its own responsibilities.  
 When work falls outside its domain, it escalates, or stops, rather than improvises.
 
-### 2. Builder Routing
+### 2. Profiles Do Not Perform Each Other’s Jobs
+Builder does not design.  
+Architect does not write code.  
+Enforcer does not generate prompts.  
+Each profile has one responsibility and stays within it.  
+When a profile encounters work outside its scope, it escalates to the appropriate profile.
 
-All Builder work routes through PromptEngineer.  
-No profile calls Builder directly.  
-This ensures prompt quality, architectural alignment, and drift‑resistant execution.
+### 3. Users Can Bypass the Workflow (But the System Never Does)
+The system enforces discipline internally:
+- no profile calls Builder directly (all Builder work routes through PromptEngineer)
+- no profile skips PromptEngineer
+- no profile modifies files without explicit user confirmation
+- Planner escalates domain behavior questions to Architect
+- Doctor escalates architectural issues to Architect
 
-### 3. Explicit User Confirmation
+Users *can* break the loop, but the system itself never will.
+
+### 4. Explicit User Confirmation
 
 No file is ever modified without explicit user approval.  
 Builder, Doctor, and Enforcer all require confirmation before writing any workflow artifact.
 
-### 4. Explicit Context, No Implicit Sharing
+### 5. Explicit Context, No Implicit Sharing
 
 Profiles do not share chat history or memory.  
-All coordination happens through explicit file‑based handoffs.  
+All communication happens through explicit file‑based changeovers.  
 This prevents drift, hidden dependencies, and accidental coupling.
 
-### 5. No Autonomous Rule Changes
+### 6. No Autonomous Rule Changes
 
 Retrospective may recommend improvements, but:
 * rules are never modified automatically
 * user approval is always required
 * changes are explicit, reviewable, and logged
 
-### 6. Minimal, Task‑Bound Work
-
-Profiles act only on the current task.  
-They do not anticipate future steps, or generate speculative artifacts.  
+### 7. Minimal, Task‑Bound Work
+Profiles only act on the current task.  
+They do not anticipate future steps, generate extra files, or apply patterns prematurely.  
 Minimal‑change principles always apply.
 
-### 7. Pattern Earning
+### 8. Pattern Earning
 
 [Patterns are earned](../glossary.md#pattern-earning), not assumed.  
 A pattern is applied only when the task and artifacts justify it.  
 Partial implementation is acceptable.
 
-### 8. Context‑Aware Changes
+### 9. Context‑Aware Changes
 
 The system gathers and checks relevant context before acting.
 Profiles do not rely on chat history or assumptions.
 They ground their behavior in explicit artifacts.
 
-### 9. Workflow Logging
+### 10. Workflow Logging
 
 Profiles log *workflow_start* and key events.  
 This enables retrospective analysis, debugging, and the **self-improving loop**.
-
-### 10. Self‑Improving Through Retrospective
-
-Retrospective analyzes workflow logs and proposes improvements.  
-The user approves or rejects the suggested changes.  
-This creates a governed, user‑directed feedback loop.
 
 ### 11. Human Judgment Remains Central
 
@@ -319,25 +315,23 @@ The system does not replace:
 
 ***The system amplifies human judgment; it does not eliminate it.***
 
----
-
 ## Workflow Logging
 
 Each workflow execution is assigned a unique [Workflow ID](../glossary.md#workflow-id),
 which ties together all logs, suspends, resumes, and workflow artifacts.
 
 All profiles that reference `workflow/logging.md` must log:
-* `workflow_start` on activation
-* Key events (file changes, handoffs, test results, user interactions)
-* JSONL format appended to `.amazonq/workflow.log`
+- `workflow_start` on activation
+- Key events (file changes, handoffs, test results, user interactions)
+- JSONL format appended to `.amazonq/workflow.log`
 
 Log enables Retrospective profile to analyze:
-* Workflow nesting depth
-* Handoff frequency
-* User clarification frequency
-* System fix frequency
-* Blocker patterns
-* Decision quality
+- Workflow nesting depth
+- Handoff frequency
+- User clarification frequency
+- System fix frequency
+- Blocker patterns
+- Decision quality
 
 ### Semantic Lineage and the Workflow Log
 
@@ -350,27 +344,24 @@ Profiles must record enough intent, decisions, and reasoning context in their
 log events for lineage to be reconstructed. The log provides the mechanical
 trace; lineage provides the semantic trace.
 
----
 
 ## Workflow Tracking
 
 The system tracks workflow context at two levels:
 
 **Feature-Level Tracking** — `.amazonq/work/FEATURE.md`
-* Created by Planner for multi-story features
-* Lists all stories in feature
-* Tracks progress across story chain
-* Updated by Documentor between stories
-* Cleaned up by Retrospective when feature complete
+- Created by Planner for multi-story features
+- Lists all stories in feature
+- Tracks progress across story chain
+- Updated by Documentor between stories
+- Cleaned up by Retrospective when feature complete
 
 **Context Preservation** — `.amazonq/suspended/`
-* Saves workflow context for later resumption
-* Enables pausing work to handle unrelated tasks
-* Supports multi-phase stories and complex workflows
-* Indexed in `.amazonq/suspended/INDEX.md`
-* Resumed with `@resume [name]`
-
----
+- Saves workflow context for later resumption
+- Enables pausing work to handle unrelated tasks
+- Supports multi-phase stories and complex workflows
+- Indexed in `.amazonq/suspended/INDEX.md`
+- Resumed with `@resume [name]`
 
 ## Multi-Story Feature Support
 
@@ -380,15 +371,13 @@ The system supports features requiring multiple sequential stories:
 
 **Feature Planning** — Planner creates FEATURE.md with story list and writes first story
 
-**Story Execution** — Each story follows straight forward workflow (Planner → PE → Builder → Enforcer → Documentor)
+**Story Execution** — Each story follows TDD workflow (Planner → TestDesigner → PE → Builder → Enforcer → Documentor)
 
 **Progress Tracking** — Documentor updates FEATURE.md between stories, marking completed and starting next
 
 **Context Preservation** — FEATURE.md persists across stories, providing context for entire feature chain
 
 **Completion** — Retrospective analyzes complete feature workflow and cleans up FEATURE.md
-
----
 
 ## Rules Location
 
@@ -421,38 +410,36 @@ For full syntax, arguments, and examples, see:
 [`docs/user/user-guide.md`](../user/user-guide.md#4-how-to-use-commands)
 (Section 4: User Commands).
 
-**Transfer Commands** — Hand off work between profiles.  
+**Transfer Commands** — Hand off work between profiles.
 * **`@handoff`** — create `HANDOFF.md` and prepare work for the next profile.
 * **`@send`** — send a message or artifact to another profile via `MESSAGE.md`.
 
-**Activation Commands** — Switch profiles or start workflows.  
+**Activation Commands** — Switch profiles or start workflows.
 * **`@start`** — activate the profile named in `HANDOFF.md`.
 * **`@receive`** — activate the profile named in `MESSAGE.md`.
 
-**Suspend / Resume Commands** — Save and restore workflow state.  
+**Suspend / Resume Commands** — Save and restore workflow state.
 * **`@suspend`** — save the current context as a suspended workflow.
 * **`@resume`** — restore a previously suspended workflow.
 * **`@list`** — show all suspended workflows.
 
-**Stateless Commands** — Operate across the entire workflow, regardless of state.  
+**Stateless Commands** — Operate across the entire workflow, regardless of state.
 * **`@note`** — append a log entry to `workflow.log`.
 * **`@inquiry`** — enter question‑only mode (no state changes allowed).
 
-**Convenience Commands**  — UX shortcuts that wrap common patterns.  
+**Convenience Commands**  — UX shortcuts that wrap common patterns.
 * **`@dr`** — start Doctor and troubleshoot a test result.
 * **`@epr`** — activate Enforcer to review a pasted prompt/response pair
   for rule compliance.
 * **`@send-epr`** — send a side trip message to Enforcer requesting rule
   compliance review of current work.
 
-**Diagnostic Commands** — Inspect context, rules, and profile loading.  
+**Diagnostic Commands** — Inspect context, rules, and profile loading.
 * **`@debugCurrent`** — generate a debug report of the current context window
   (no file loading, analyzes only what is already present).
 * **`@debugFull`** — load all rule files and generate a full system debug report.
 * **`@debugProfile [Profile]`** — load a specific profile's rules and generate
   a profile‑scoped debug report.
-
----
 
 ## Handoff vs Send/Receive
 
@@ -510,8 +497,6 @@ Trigger retrospective analysis:
 @as Retrospective, analyze recent workflows
 ```
 
----
-
 ## Example workflow Loop
 
 This example shows how a single change moves through the system using
@@ -521,13 +506,13 @@ without assuming any specific language, framework, or domain.
 **User**  
 Requests a change: “Add a small enhancement to the system.”
 
-**Architect**  
-Analyzes the request and defines the approach.  
-Clarifies scope, identifies affected components, and outlines the minimal change needed.  
+**Planner**  
+Analyzes the request and Builds a User Story.  
+In a Straight-Forward Build, would decide to Skip TDD.
 **Writes a handoff file for PromptEngineer.**
 
 **PromptEngineer**  
-Reads the Architect’s design and constructs a Builder prompt that:
+Reads the Planners story and constructs a Builder prompt that:
 * scopes the work
 * enforces minimal‑change principles
 * includes confirmation requirements
@@ -565,8 +550,6 @@ Analyzes the workflow log entries for this story:
   Outputs Keep/Stop/Start recommendations and optional improvements to rules or prompts.
 * cleans up workflow files
 
----
-
 ## Evaluation Lens
 
 These criteria describe the qualities the AI Workflow System was intentionally designed to express.  
@@ -597,3 +580,4 @@ Does the system generate insights that can meaningfully improve future workflows
 ### 6. Isolation and Parallelism
 
 Can profiles operate independently without interference or context leakage?
+

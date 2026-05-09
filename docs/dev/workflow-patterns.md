@@ -12,7 +12,7 @@ Execution Shapes of the AI Workflow System
 
 Workflow patterns define the **execution shapes** the system can run.  
 They describe *how profiles move through a workflow*, not:
-* mechanics ([handoffs](../glossary.md#handoff), confirmation, logging)
+* mechanics ([handoffs](glossary.md#handoff), confirmation, logging)
 * contract invariants
 * profile responsibilities
 
@@ -51,13 +51,12 @@ Always, unless:
 ### Profile Sequence
 
 ```text
-Architect → Planner → TestDesigner → PromptEngineer → Builder → Enforcer → Documentor → Retrospective
+Planner → TestDesigner → PromptEngineer → Builder → Enforcer → Documentor → Retrospective
 ```
 
 ```mermaid
 flowchart LR
-   A[Architect] --> P[Planner]
-   P --> TD[TestDesigner]
+   P[Planner] --> TD[TestDesigner]
    TD -->|TDD default| PE[PromptEngineer]
    TD -.->|SFB optional| PE
    PE --> B[Builder]
@@ -94,7 +93,7 @@ This pattern is used when:
 ### Profile Sequence
 
 ```text
-Architect → Planner → TestDesigner(optional) → PromptEngineer → Builder → Enforcer → Documentor → Retrospective
+Planner → TestDesigner(optional) → PromptEngineer → Builder → Enforcer → Documentor → Retrospective
 ```
 
 ### Key Differences from TDD
@@ -129,8 +128,7 @@ Used when a feature requires multiple sequential stories.
 
 ```mermaid
 flowchart TD
-   A[Architect] --> P[Planner]
-   P --> FM["Create FEATURE.md"]
+   P[Planner] --> FM["Create FEATURE.md"]
    FM --> S["Story Workflow (TDD)"]
    S --> DU["Documentor updates FEATURE.md"]
    DU --> MORE{More stories?}
@@ -198,7 +196,7 @@ represented by a single chat instance, with its own workflowId and state.
 ### Thread Labels
 
 Side trips use two threads:
-* **[Main Thread](../glossary.md#main-thread)** — the tab hosting the active Cycle
+* **[Main Thread](glossary.md#main-thread)** — the tab hosting the active Cycle
 * **Side Trip Thread** — the tab created after the first `@send`
 
 All chained side trip work happens in the **same Side Trip Thread**.  
@@ -245,7 +243,7 @@ A profile performing isolated work can initiate additional side trips
 before returning to the main workflow.  
 Only the **first** step opens a new tab.  
 Subsequent steps occur in the **same Side Trip Thread**,
-and each `@recieve` replaces the active profile.
+and each `@receive` replaces the active profile.
 
 #### Execution Shape
 
@@ -283,7 +281,7 @@ sequenceDiagram
 
 ## Recovery Workflow (Suspend/Resume + Auto‑Suspend)
 
-[Suspend/Resume](../glossary.md#suspendresume-semantics) is the **context preservation pattern**.  
+[Suspend/Resume](glossary.md#suspendresume-semantics) is the **context preservation pattern**.  
 Auto‑Suspend provides lightweight recovery checkpoints.
 
 ### When to Use
@@ -311,14 +309,14 @@ flowchart TD
 
 ## Pattern Comparison Table
 
-| Pattern                    | Default? | Key Profiles                                                                      | Artifacts                                           | Notes                                  |
-|----------------------------|----------|-----------------------------------------------------------------------------------|-----------------------------------------------------|----------------------------------------|
-| **TDD Workflow**           | Yes      | Architect → Planner → TestDesigner → PE → Builder → Enforcer → Documentor → Retro | Test scenarios, Builder prompt, diffs, workflow.log | Safest, most stable pattern            |
-| **Straight‑Forward Build** | No       | Architect → Planner → PE → Builder → Enforcer → Documentor → Retro                | Builder prompt, diffs, workflow.log                 | Used for exploratory or ambiguous work |
-| **Multi‑Story Feature**    | N/A      | Planner, Documentor, Retro                                                        | FEATURE.md                                          | Tracks sequential stories              |
-| **Retrospective**          | N/A      | Retrospective (+ optional side trips)                                             | workflow.log, improvement artifacts                 | Improvement loop                       |
-| **Side Trip**              | N/A      | Any → Any                                                                         | MESSAGE.md (profile‑initiated)                      | Parallel isolated work                 |
-| **Suspend/Resume**         | N/A      | Any                                                                               | Suspended context files                             | Context preservation                   |
+| Pattern                    | Default? | Key Profiles                                                          | Artifacts                                           | Notes                                  |
+|----------------------------|----------|-----------------------------------------------------------------------|-----------------------------------------------------|----------------------------------------|
+| **TDD Workflow**           | Yes      | Planner → TestDesigner → PE → Builder → Enforcer → Documentor → Retro | Test scenarios, Builder prompt, diffs, workflow.log | Safest, most stable pattern            |
+| **Straight‑Forward Build** | No       | Planner → PE → Builder → Enforcer → Documentor → Retro                | Builder prompt, diffs, workflow.log                 | Used for exploratory or ambiguous work |
+| **Multi‑Story Feature**    | N/A      | Planner, Documentor, Retro                                            | FEATURE.md                                          | Tracks sequential stories              |
+| **Retrospective**          | N/A      | Retrospective (+ optional side trips)                                 | workflow.log, improvement artifacts                 | Improvement loop                       |
+| **Side Trip**              | N/A      | Any → Any                                                             | MESSAGE.md (profile‑initiated)                      | Parallel isolated work                 |
+| **Suspend/Resume**         | N/A      | Any                                                                   | Suspended context files                             | Context preservation                   |
 
 ---
 

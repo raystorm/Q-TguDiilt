@@ -22,7 +22,7 @@ Commands that move work between profiles by generating a workflow file.
 
 ### `@handoff`
 
-Create a linear workflow [handoff](glossary.md#handoff) for the next profile in the [main thread](glossary.md#main-thread)
+Create a linear workflow [handoff](dev/glossary.md#handoff) for the next profile in the [main thread](dev/glossary.md#main-thread)
 
 * Produces `HANDOFF.md` content
 * Current profile summarizes work and requests confirmation
@@ -34,7 +34,7 @@ Used for: linear progression (Architect → PE → Builder → Enforcer → Docu
 
 ### `@send`
 
-Create a [side trip](glossary.md#side-trip) message for parallel work.
+Create a [side trip](dev/glossary.md#side-trip) message for parallel work.
 
 * Produces `MESSAGE.md`
 * Current profile summarizes work and requests confirmation

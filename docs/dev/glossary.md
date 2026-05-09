@@ -91,7 +91,7 @@ where uncommitted work in other files is at risk.
 Git commands may be used only if no other uncommitted changes  
 exist in the affected file.
 
-Prompt Engineering (Legacy)
+Manual Prompt Engineering (Legacy)
 : The practice of shaping model outputs through carefully crafted prompts.  
 Operates at the **surface layer** of model interaction.  
 In this architecture, considered a **legacy technique**  
@@ -137,7 +137,7 @@ Prevents drift, enforces role clarity,
 and creates predictable multi‑agent coordination.
 
 Context Capsule
-: A structured container for cognitive state.  
+: A structured emergent container for cognitive state.  
 Preserves task intent, constraints, history, lineage, agent roles,  
 and environmental assumptions.  
 Enables suspend/resume, multi‑story workflows,  
@@ -338,5 +338,14 @@ Defines behavior, boundaries, communication standards, and workflow mechanics.
 ### Glossary Formatting Notes
 
 This glossary uses GitHub definition‑list syntax.  
-Definitions should be concise, intention‑revealing, and grouped conceptually.  
-Line wrapping is natural; headings are not used for terms.
+```markdown
+Term
+: Definition text...
+```
+
+Definitions are be concise, intention‑revealing, and grouped conceptually.  
+The glossary maintains a consistent ordering of terms.
+
+Glossary terms do not have headings, or additional formatting. The term itself is the anchor.  
+Line wrapping is natural between 80 - 100 characters.
+The glossary maintains a consistent cadence and tone across entries.

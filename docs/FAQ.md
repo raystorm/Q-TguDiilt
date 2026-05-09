@@ -32,9 +32,9 @@ this workflow system is built to mimic agile loops with AI.
 
 Because this architecture focuses on **how an AI thinks**, not just how it is prompted.
 
-[Cognitive Engineering](glossary.md#cognitive-engineering) describes:
+[Cognitive Engineering](dev/glossary.md#cognitive-engineering) describes:
   * structured reasoning
-  * [drift‑resistant](glossary.md#driftresistant-reasoning) thinking
+  * [drift‑resistant](dev/glossary.md#driftresistant-reasoning) thinking
   * context continuity
   * self‑improvement loops
   * semantic clarity
@@ -48,7 +48,7 @@ It is a name for the engineering discipline that governs AI reasoning.
 
 They address different layers:
   * **Cognitive Engineering** → how an AI thinks
-  * **[Agentic Engineering](glossary.md#agentic-engineering)** → how multiple AIs coordinate
+  * **[Agentic Engineering](dev/glossary.md#agentic-engineering)** → how multiple AIs coordinate
 
 Cognition is internal.  
 Agency is external.  
@@ -60,9 +60,9 @@ They complement each other but are not the same.
 
 Because context is the backbone of cognition.  
 These three layers mirror real engineering disciplines:
-  * **[Context Engineering](glossary.md#context-engineering)** → how context is structured
-  * **[Context Governance](glossary.md#context-governance)** → what rules context must follow
-  * **[Context Control](glossary.md#context-control)** → how those rules are enforced
+  * **[Context Engineering](dev/glossary.md#context-engineering)** → how context is structured
+  * **[Context Governance](dev/glossary.md#context-governance)** → what rules context must follow
+  * **[Context Control](dev/glossary.md#context-control)** → how those rules are enforced
 
 This separation prevents drift, mutation, and context collapse.
 
@@ -78,8 +78,8 @@ Prompts are:
   * prone to drift
 
 This architecture replaces ad‑hoc prompting with:
-  * [context capsules](glossary.md#context-capsule)
-  * [profile contracts](glossary.md#profile-contract)
+  * [context capsules](dev/glossary.md#context-capsule)
+  * [profile contracts](dev/glossary.md#profile-contract)
   * lineage
   * governance
   * enforcement
@@ -130,7 +130,7 @@ This architecture focuses on:
   * context integrity
   * drift‑resistant reasoning
   * multi‑agent contracts
-  * [semantic lineage](glossary.md#semantic-lineage)
+  * [semantic lineage](dev/glossary.md#semantic-lineage)
 
 It is an **architectural discipline**, not a framework.
 
@@ -204,7 +204,7 @@ Because formatting is:
   * a contract
   * a governance mechanism
   * a drift‑resistant structure
-  * a [teachable artifact](glossary.md#teachable-artifact)
+  * a [teachable artifact](dev/glossary.md#teachable-artifact)
 
 Formatting is not cosmetic — it is cognitive scaffolding.
 
@@ -230,5 +230,5 @@ Because the industry lacks precise language for:
   * drift‑resistant reasoning
   * cognitive workflows
 
-The [glossary](glossary.md) and FAQ establish the vocabulary needed
+The [glossary](dev/glossary.md) and FAQ establish the vocabulary needed
 to describe the architecture accurately.
