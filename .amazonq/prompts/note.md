@@ -17,6 +17,9 @@ Append to `.amazonq/workflow.log` in JSONL format:
 }
 ```
 
-Use accurate current timestamp in ISO 8601 format.
+Generate the timestamp using the Timestamp Generation Method
+defined in `.workflow/rules/workflow/logging.md`.
+
+Use the generated timestamp in the log entry.
 
 Respond: "Note logged"

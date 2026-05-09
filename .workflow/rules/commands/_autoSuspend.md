@@ -46,7 +46,7 @@ try {
       fileText: JSON.stringify({
         type: "event",
         workflowId: "[workflowId]",
-        timestamp: new Date().toISOString(),
+        timestamp: "[timestamp]", // generated with Timestamp Generation Method
         source: "system",
         actor: "[ProfileName]",
         eventType: "auto_suspend_failed",
@@ -64,7 +64,7 @@ try {
     fileText: JSON.stringify({
       type: "event",
       workflowId: "[workflowId]",
-      timestamp: new Date().toISOString(),
+      timestamp: "[timestamp]", // generated with Timestamp Generation Method
       source: "system",
       actor: "[ProfileName]",
       eventType: "auto_suspend_failed",
