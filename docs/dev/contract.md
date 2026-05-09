@@ -60,17 +60,11 @@ A structured request for parallel work by another profile.
 
 Created **only** when the user triggers `@send [Profile]`.
 
-**Contains:**  
-* From
-* Task
-* Summary of Work
-* Requested Action
-* Context Capsule
-* Artifact
-* Expected Outcome
+**Shape:** Defined in
+[`workflow/changeover-format.md`](../../.workflow/rules/workflow/changeover-format.md)
 
 **Invariants:**
-* must include all fields listed under **Contains**
+* must follow the canonical changeover shape
 * must be isolated from main workflow
 * must require explicit user approval
 * must return control to original profile

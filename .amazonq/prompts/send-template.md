@@ -1,26 +1,18 @@
 # Send Message Template
 
-Write message to `.amazonq/work/current/MESSAGE.md`.
+## Format
 
-## Required Fields
+Follow the canonical changeover shape defined in
+`.workflow/rules/workflow/changeover-format.md`.
 
-- **To:** [target profile]
-- **From:** [your current profile]
-- **Next:** [profile that should run after recipient, or "None" if workflow complete]
-- **Purpose:** [why you're sending this]
-- **Context:** [current work context]
-- **Question:** [what you need from them]
+Use heading: `# Message to [Profile]`
 
-## Common Purposes
+## Procedure
 
-- Validate approach
-- Review changes
-- Check compliance
-- Verify tests
-- Explain behavior
-
-## After Writing
-
-Display MESSAGE.md for review.
+1. Generate MESSAGE.md content in memory
+2. Display for user review
+3. Request confirmation
+4. Wait for explicit approval
+5. Write to `.amazonq/work/current/MESSAGE.md`
 
 Do not change your current profile. Do not clean up work directory.

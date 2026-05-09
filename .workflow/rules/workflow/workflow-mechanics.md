@@ -158,6 +158,11 @@ Context: [percentage]%
 Both types follow the **Profile Completion**, **Change**, and **Begin**
 invariants defined above.
 
+### Changeover File Format
+
+Both HANDOFF.md and MESSAGE.md use the same canonical shape.
+See `workflow/changeover-format.md` for the authoritative definition.
+
 ---
 
 ## Standard Handoffs (Linear Changeover)
@@ -193,11 +198,6 @@ Profile B continues work
 ### HANDOFF.md Location
 
 `.amazonq/work/current/HANDOFF.md`
-
-### HANDOFF.md Format
-
-See `workflow/changeover-format.md` for the canonical changeover
-file shape. HANDOFF.md and MESSAGE.md use the same format.
 
 ### When to Use Handoffs
 
@@ -327,27 +327,6 @@ Profile A continues with results
 ### MESSAGE.md Location
 
 `.amazonq/work/current/MESSAGE.md`
-
-### MESSAGE.md Format
-
-```markdown
-# Message to [Profile]
-
-## From
-[Source Profile]
-
-## Task
-[What needs to be done]
-
-## Context
-[Background]
-
-## Artifact Location
-[Files to review]
-
-## Expected Outcome
-[What should be produced]
-```
 
 ### When to Use Side Trips
 

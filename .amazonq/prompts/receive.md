@@ -40,6 +40,6 @@ Do not modify work files. Do not change handoff state.
 
 ## Message Completion
 
-If MESSAGE.md contains a "Next:" field, display:
+When your work is complete, display:
 
-**Next**: Run `@send` to [Profile Name]
+**Next**: Run `@handoff` to [next profile in the workflow]
