@@ -244,6 +244,9 @@ while others **only reveal information** or **enter conversational mode**.
 * `@list` — displays suspended contexts
 * `@inquiry` — enters question‑only mode, and prevents state transitions
 
+### Profile Activation
+* `@as [Profile]` — explicit profile activation command
+
 **Invariants:**
 * Profiles must not simulate or bypass commands
 * Commands must follow semantics defined in [`workflow-mechanics.md`][mechanics]
