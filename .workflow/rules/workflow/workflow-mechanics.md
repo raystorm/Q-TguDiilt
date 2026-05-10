@@ -480,9 +480,9 @@ User decides:
 
 Every workflow execution receives a unique **Workflow ID** when it begins.
 
-**Format:** `wf-[UUID]`
-- Example: `wf-1738190400000`
-- Random UUID
+**Format:** `wf-[human-readable-kebab-case]`
+- Derived from goal or feature name
+- Lowercase, hyphen-separated, 2–5 words
 
 This ID is generated automatically by the system and remains stable for the lifetime of the workflow.
 It ties together all workflow artifacts—handoffs, messages, suspends, auto‑suspends,
