@@ -107,8 +107,6 @@ Profile: Builder
 WorkflowId: wf-1738190400000
 Rules Loaded: 12 files
 Context: 42%
-Logging: ENABLED
-Confirmation: ENABLED
 ======================
 
 Reading HANDOFF.md...
@@ -143,8 +141,6 @@ Profile: PromptEngineer
 WorkflowId: wf-1738190500000
 Rules Loaded: 10 files
 Context: 38%
-Logging: ENABLED
-Confirmation: ENABLED
 ======================
 
 Reading MESSAGE.md...
