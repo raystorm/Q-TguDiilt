@@ -138,7 +138,7 @@ Override:
 ```
 
 This makes overrides explicit, and easy to find.
-See: [governance.md](governance.md#4-override-mechanism) for details.
+See: [governance.md](../governance.md#4-override-mechanism) for details.
 
 ---
 
@@ -481,9 +481,9 @@ Use context commands:
 * `@file` — Scope to specific file
 
 Use saved prompts:
-* `@handoff {{next}}` — Handoff to next profile
+* `@handoff` — Handoff to next profile (optional: `next=Profile`)
 * `@start` — Read handoff and activate
-* `@send {{to}} {{purpose}}` — Send message to profile
+* `@send` — Send message to profile (optional: `to=Profile`)
 * `@receive` — Read message and activate
 * `@suspend [name]` — Save workflow context
 * `@resume [name]` — Load workflow context
@@ -497,7 +497,7 @@ Trigger retrospective analysis:
 @as Retrospective, analyze recent workflows
 ```
 
-## Example workflow Loop
+## Example Workflow Loop
 
 This example shows how a single change moves through the system using
 the Straight-Forward Build Workflow,

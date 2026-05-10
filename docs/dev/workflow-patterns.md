@@ -108,6 +108,40 @@ Straight‑Forward Build is a **fallback**, not a default.
 
 ---
 
+## Behavior‑Driven Development (BDD)
+
+BDD is an **escalation** of TDD that adds stakeholder‑readable
+scenarios and living documentation on top of the standard TDD workflow.
+
+TDD → BDD → HDD (Hypothesis‑Driven Development) represents
+a progression of rigor. BDD is supported today. HDD requires
+additional profiles and integrated project planning
+(roadmap/backlog tooling).
+
+### When to Use
+
+* Story requires stakeholder collaboration on acceptance criteria
+* Living documentation is valuable for the feature
+* Executable specifications would benefit the team
+* User explicitly requests BDD approach
+
+### Profile Sequence
+
+Same as TDD:
+```text
+Planner → TestDesigner → PromptEngineer → Builder → Enforcer → Documentor → Retrospective
+```
+
+### Key Differences from Standard TDD
+
+* Planner notes “BDD approach” in story
+* TestDesigner writes scenarios with stakeholder collaboration
+  in mind (Given/When/Then with domain language)
+* Scenarios serve as living documentation beyond test validation
+* No mechanical difference in workflow execution
+
+---
+
 ## Multi‑Story Feature Workflow
 
 Used when a feature requires multiple sequential stories.

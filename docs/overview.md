@@ -24,7 +24,7 @@ This overview introduces the system at a high level and links to the deeper docu
 - **Parallelism without context leakage**
 
 For a deeper architectural explanation,
-see the [**1‑page deep dive**](./dev/ai-workflow-system.md).
+see the [**1‑page deep dive**](./dev/workflow/ai-workflow-system.md).
 
 ---
 
@@ -46,7 +46,7 @@ The system uses a two-layer rule architecture:
 
 ### 1. Deep Dive
 A single‑page architectural explanation of how the system works.  
-[ai-workflow-system.md](./dev/ai-workflow-system.md)
+[ai-workflow-system.md](./dev/workflow/ai-workflow-system.md)
 
 ### 2. Contract
 The domain definition and invariants the system operates on.  
