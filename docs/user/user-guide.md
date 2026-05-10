@@ -24,6 +24,14 @@ This guide focuses on *practical usage*.
 
 This workflow engine is a **governed, multi‑profile AI development workflow system**
 built on Amazon Q.  
+
+It is a **governed cognitive workflow architecture** that synthesizes principles from
+**Harness Engineering** (*runtime boundaries and invariants*),
+**Spec Driven Development - SDD** (*structured intent and explicit artifacts*),
+and **Agile** (*operational control and continuous improvement*).
+The system does not imitate these disciplines —
+it encapsulates them into a deterministic, profile‑driven execution model.
+
 It structures work into predictable steps, each performed by a specialized profile:
   * Architect
   * Planner
@@ -37,7 +45,34 @@ It structures work into predictable steps, each performed by a specialized profi
 Each profile has a **single responsibility**, a **bounded worldview**,
 and **deterministic behavior** defined by rule files.
 
-You, the human operator, guide the system by issuing **User Commands** and reviewing **handoffs**.
+You, the human operator, guide the system by issuing **User Commands**
+and reviewing **handoffs**.
+
+### How this engine relates to existing Methodologies
+
+```mermaid
+flowchart TB
+
+    W["Waterfall\n(rigid phases, frozen specs)"]
+
+    A["Agile\n(tiny cycles, feedback)"]
+    S["SDD\n(structured, spec-first)"]
+
+    Y["Your Workflow Engine\n(governed micro-waterfalls,\nhigh feedback × high structure)"]
+
+    H["Harness Engineering\n(runtime discipline,\nboundaries, invariants, orchestration)"]
+
+    %% Divergence from Waterfall
+    W --> A
+    W --> S
+
+    %% Convergence into your engine
+    A --> Y
+    S --> Y
+
+    %% Runtime governance (correct direction)
+    H --> Y
+```
 
 ### What this system **Is Not**
 
@@ -57,6 +92,9 @@ You, the human operator, guide the system by issuing **User Commands** and revie
   * **Not a workflow orchestrator or speculative reasoning engine**  
   It governs *cognitive* workflows, not compute pipelines,
   and it never guesses requirements or expands scope.
+  * **Not a harness‑engineering library or SDD framework**  
+  It incorporates the principles of both, but it is not a toolkit or methodology;
+  it is a **unified governed engine** that operationalizes them.
 
 ---
 
