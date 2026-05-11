@@ -391,16 +391,9 @@ and auto-suspend checkpoints for the lifetime of the workflow.
 
 ### Confirmation Requirements
 
-**Profiles require confirmation before modifying any workflow artifact.**
-
-**Pattern:**
-1. Show what will be changed (code diffs)
-2. Explain why
-3. Request explicit confirmation
-4. Wait for approval
-5. Execute changes
-
-See `workflow/agentic-confirmation.md` for detailed confirmation rules.
+**CRITICAL:** Profiles follow the confirmation sequence defined in
+`workflow/agentic-confirmation.md`. All modifications to persistent workflow
+artifacts require the standard confirmation sequence.
 
 ### Validation Checkpoints
 
