@@ -541,7 +541,9 @@ Start a new message without `@inquiry`.
 
 ### Profile Activation
 
-- `@as [Profile]` - Explicit profile activation command
+- `@as [Profile]` - Explicit profile rule loading and activation
+  command. Not a Changeover command — does not read or create
+  changeover files. Activates from user intent alone.
 
 ---
 
