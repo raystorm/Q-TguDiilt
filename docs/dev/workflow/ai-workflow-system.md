@@ -195,11 +195,12 @@ User → Planner → TestDesigner → PromptEngineer → Builder → Enforcer �
 ### Straight Forward Build Workflow
 
 1. **Planner** — Determine story sequencing
-2. **PromptEngineer** — Create Builder prompt following Command Prompt patterns
-3. **Builder** — Implement feature with tests, show diffs
-4. **Enforcer** — Review code, run tests, verify alignment with rules
-5. **Documentor** — Generate commit message following style guide
-6. **Retrospective** — Analyze workflow, output Keep/Stop/Start recommendations
+2. **TestDesigner** — Evaluate testability, decide straight-forward build (no TDD)
+3. **PromptEngineer** — Create Builder prompt following Command Prompt patterns
+4. **Builder** — Implement feature with tests, show diffs
+5. **Enforcer** — Review code, run tests, verify alignment with rules
+6. **Documentor** — Generate commit message following style guide
+7. **Retrospective** — Analyze workflow, output Keep/Stop/Start recommendations
 
 ### Retrospective Workflow
 
@@ -507,8 +508,12 @@ without assuming any specific language, framework, or domain.
 Requests a change: “Add a small enhancement to the system.”
 
 **Planner**  
-Analyzes the request and Builds a User Story.  
-In a Straight-Forward Build, would decide to Skip TDD.
+Analyzes the request and writes a User Story.  
+**Writes a handoff file for TestDesigner.**
+
+**TestDesigner**  
+Evaluates the story's testability and decides the build approach.
+In this case, determines a Straight-Forward Build (no TDD phase).
 **Writes a handoff file for PromptEngineer.**
 
 **PromptEngineer**  
