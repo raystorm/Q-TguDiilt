@@ -47,7 +47,6 @@ Examples may include:
 ## Semicolons & Quotes
 - Always use semicolons to end statements
 - Use single quotes for strings (existing pattern)
-- Use double quotes only for JSX attributes
 
 ## Function Formatting
 - Arrow functions: `const func = () => {}`

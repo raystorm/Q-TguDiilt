@@ -42,4 +42,5 @@ Do not modify work files. Do not change handoff state.
 
 When your work is complete, display:
 
-**Next**: Run `@handoff` to [next profile in the workflow]
+**Next**: Run `@send` to [next profile in the workflow],
+or if the side-trip is complete, close this tab and return to [source profile] tab.

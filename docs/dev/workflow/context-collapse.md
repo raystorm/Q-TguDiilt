@@ -31,10 +31,9 @@ When you activate a profile with @start or @receive, you should immediately see:
 ```
 === Context Status ===
 Profile: Builder
-WorkflowId: wf-1738190400000
+WorkflowId: wf-some-task-title
 Rules Loaded: 12 files
-Logging: ENABLED
-Confirmation: ENABLED
+Context: 42%
 ======================
 ```
 
@@ -84,10 +83,9 @@ User: @start
 
 === Context Status ===
 Profile: Builder
-WorkflowId: wf-1738190400000
+WorkflowId: wf-some-task-title
 Rules Loaded: 12 files
-Logging: ENABLED
-Confirmation: ENABLED
+Context: 42%
 ======================
 
 [Profile proceeds normally]

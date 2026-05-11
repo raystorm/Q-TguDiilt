@@ -54,7 +54,7 @@ Profiles may also be switched with:
   - "Act as [Profile]"
   - "As [Profile]"
   - "Switch to [Profile]"
-  - "@begin" (reads changeover file)
+  - "@Begin" (reads changeover file)
 - Mentioning another profile in conversation does NOT trigger a switch
 - Discussing work for another profile does NOT trigger a switch
 - Preparing handoffs or messages for other profiles does NOT trigger a switch
@@ -243,15 +243,11 @@ Before stating, using, or writing any factual information, classify the informat
   - `.amazonq/prompts/` - Project prompts (for version control and team sharing)
 
 ## Error Handling
-- Use proper error boundaries for React components
-- Handle async errors in sagas
 - Provide meaningful error messages
 - Log errors appropriately for debugging
 
 ## Performance
-- Use React.memo for expensive components
 - Implement proper loading states
-- Optimize re-renders with useCallback/useMemo
 - Follow existing patterns for data fetching
 
 ## Documentation

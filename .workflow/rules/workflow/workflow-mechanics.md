@@ -39,7 +39,7 @@ Only the user may trigger `@handoff`, `@send`, or close the tab.
 ```
 [Profile] [Task] complete.
 [Summary of results]
-Ready to continue? Use: `@handoff` (or `@send [Profile]`)
+**Next**: Run `@handoff` to [next profile in the workflow] (or `@send [next profile in the workflow]`)
 ```
 
 **When no Changeover (side trip completion):**

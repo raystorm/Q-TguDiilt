@@ -46,7 +46,7 @@ The Context Status block appears immediately after profile activation from a cha
 ```
 === Context Status ===
 Profile: Builder
-WorkflowId: wf-1738190400000
+WorkflowId: wf-some-task-title
 Rules Loaded: 12 files
 Context: 42%
 ======================

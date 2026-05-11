@@ -23,10 +23,10 @@ Load this prompt when:
 The prompt provides:
 - Initial reference search command (grep pattern)
 - What to search (type names, field names, variations, function names)
-- Where to search (src/, amplify/data/, amplify/functions/)
-- What to exclude (node_modules/, generated code)
+- Where to search (source code, tests)
+- What to exclude (libraries, generated code)
 - Scope identification steps
-- Implementation order (schema → codegen → guards → Lambda → frontend → tests)
+- Implementation order (source → tests)
 - Verification command (grep to check for remaining references)
 
 ## What It Does NOT Contain
@@ -53,6 +53,8 @@ Reference search identifies full scope before implementation:
 
 **Where to search:**
 - source code
+- tests
+- mock data
 
 **Exclude:**
 - Dependencies and Libraries
@@ -61,4 +63,4 @@ Reference search identifies full scope before implementation:
 ## Related Files
 
 - **Rule:** `.workflow/rules/profiles/builder.md` - References this prompt for large-scale renames
-- **Prompt:** `.amazonq/prompts/_rename.md` - Implementation patterns (load on-demand)
+- **Prompt:** `.workflow/rules/commands/_rename.md` - Implementation patterns (load on-demand)

@@ -4,7 +4,7 @@ Generate message content for {{to}} (do NOT write to disk yet).
 
 Use these values:
 - To: {{to}}
-- Purpose: {{purpose}}
+- Task: {{purpose}}
 
 Display the proposed MESSAGE.md content for user review.
 

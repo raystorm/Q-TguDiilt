@@ -1,6 +1,7 @@
 Extract the observation text from the user's message.
 
-Read `.amazonq/workflow.log` to find the most recent workflowId. If the log doesn't exist or is empty, generate a new workflowId using format: `wf-` + current timestamp.
+Read `.amazonq/workflow.log` to find the most recent workflowId.
+If the log doesn't exist or is empty, generate a new workflowId using format: `wf-` + current timestamp.
 
 Append to `.amazonq/workflow.log` in JSONL format:
 

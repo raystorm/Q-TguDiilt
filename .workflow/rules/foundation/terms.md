@@ -62,6 +62,10 @@ Begin
 The Begin category includes `@start` (linear) and `@receive` (parallel).  
 Rules referring to "Begin" apply uniformly to both commands.
 
+@Begin
+: Alias of the rule-facing category **Begin**.
+Formatted like a command for readability.
+
 Handoff
 : A workflow artifact that transfers control and context from one profile to another.
 : Marks a state transition in the Main Thread.

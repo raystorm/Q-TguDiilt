@@ -104,7 +104,7 @@ User: "@start"
 
 === Context Status ===
 Profile: Builder
-WorkflowId: wf-1738190400000
+WorkflowId: wf-some-task-title
 Rules Loaded: 12 files
 Context: 42%
 ======================
@@ -138,7 +138,7 @@ User: "@receive"
 
 === Context Status ===
 Profile: PromptEngineer
-WorkflowId: wf-1738190500000
+WorkflowId: wf-some-story-title
 Rules Loaded: 10 files
 Context: 38%
 ======================
@@ -304,13 +304,13 @@ Profile: [Continues normal workflow]
 
 ## Profile Activation
 
-### Act as [Profile]
-Explicit profile activation.
+### @as [Profile]
+Explicit profile activation command.
 
 **Usage:**
 ```
-Act as Builder
-Act as Architect
+@as Builder
+@as Architect
 ```
 
 **Behavior:**
@@ -321,30 +321,8 @@ Act as Architect
 
 **Example:**
 ```
-User: "Act as Architect. Analyze the Document domain migration."
+User: "@as Architect. Analyze the Document domain migration."
 Architect: [Begins analysis]
-```
-
----
-
-### As [Profile]
-Shorthand profile activation.
-
-**Usage:**
-```
-As Builder, implement the schema changes
-As Enforcer, validate the implementation
-```
-
-**Behavior:**
-- Same as "Act as [Profile]"
-- More concise syntax
-- Activates profile with goal
-
-**Example:**
-```
-User: "As TestDesigner, create test scenarios for the new guards."
-TestDesigner: [Creates test scenarios]
 ```
 
 ---
@@ -544,6 +522,9 @@ Profile A: "@handoff"
 User opens new tab
 User: "@start" [in new tab]
 ```
+
+**Note:** this isn't needed for *every* start, but highly recommended after
+any profile with lots of corrections, or when expecting corrections (Builder).
 
 ---
 

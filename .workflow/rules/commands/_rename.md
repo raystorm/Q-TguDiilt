@@ -5,56 +5,44 @@ When command `@_rename` is received then process the following large-scale renam
 ## Initial Reference Search
 
 ```bash
-grep -r "OldName\|oldFieldName\|relatedOldName" src amplify --include="*.ts" --include="*.tsx" --include="*.js" --include="*.mjs" --include="*.graphql" --exclude-dir=node_modules --exclude-dir=graphql
+grep -r "OldName\|oldFieldName\|relatedOldName" [source] [tests] [list of --include for *.ext] [exclude libs] [exclude generated]
 ```
 
 **What to search:**
-- Type names (e.g., "Xbiis")
-- Field names (e.g., "xbiisOwnerId", "boxXbiisId")
-- Related variations (e.g., "createdBoxXbiisId")
-- Function names (e.g., "createXbiis", "getXbiis")
+- Type names (e.g., "MyBox")
+- Field names (e.g., "MyBoxOwnerId", "boxBoxId")
+- Related variations (e.g., "createdBoxId")
+- Function names (e.g., "createBox", "getBox")
 
 **Where to search:**
-- `src/` - Frontend code
-- `amplify/data/` - Backend schema and guards
-- `amplify/functions/` - Lambda functions
-- File types: `.ts`, `.tsx`, `.js`, `.mjs`, `.graphql`
+- source code 
+- tests
+- documentation
+- rules
 
 **Exclude:**
-- `node_modules/` - Dependencies
-- `src/graphql/` or `amplify/functions/shared/graphql/` - Generated code
+- generated files
+- libraries
 
 ## Scope Identification
 
 Identify affected areas:
-- Backend schema files
-- Backend guard files
-- Frontend domain files
-- Lambda functions
-- Test files
-- Mock data files
+- source code
+- Tests
+- Mock data
 
 Report scope to user:
 ```
 Found X references across:
-- Backend: Y files
-- Frontend: Z files
-- Lambda functions: N files
+- Source: Y files
+- Tests: Z files
+- any other categories: N files
 ```
-
-## Implementation Order
-
-1. Backend schema (triggers codegen)
-2. User runs codegen
-3. Backend guards and resolvers
-4. Lambda functions
-5. Frontend domains
-6. Test files and mock data
 
 ## Verification
 
 ```bash
-grep -r "OldName\|oldFieldName" src amplify --include="*.ts" --include="*.tsx" --include="*.js" --include="*.mjs" --include="*.graphql" --exclude-dir=node_modules --exclude-dir=graphql | wc -l
+grep -r "OldName\|oldFieldName" [source] [tests] [list of --include for *.ext] [exclude libs] [exclude generated] | wc -l
 ```
 
 Expected result: 0

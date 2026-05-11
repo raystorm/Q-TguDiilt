@@ -158,7 +158,7 @@ Analyzes systems and changes to identify test scenarios (aliases: TD, Provoker, 
 Writes documentation, commit messages, diffs, and story descriptions (aliases: commit, keeper, ledger, Engraver)
 
 **Planner** —
-Writes user stories, backlog items, manages agile flow (aliases: PO, ProductOwner)
+Writes user stories, backlog items, manages agile flow (aliases: PO, ProductOwner, Strategist)
 
 **Architect** — Defines system design, domain models, structure, and long-term direction
 

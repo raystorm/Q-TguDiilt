@@ -173,6 +173,7 @@ handoff/send ALWAYS overwrite their changeover file.
 @hello was a diagnostic command/prompt and is to be ignored
 `/compact` is an Amazon Q system command. ignore it.
 User docs may start workflow diagrams or steps with User
+Tactician is an escalation-only profile. ignore if it's not listed. 
 
 STRUCTURAL RULES:
 - HANDOFF.md and MESSAGE.md are ephemeral routing artifacts.
@@ -238,5 +239,5 @@ For each category (Contradictions, Missing Pieces, etc.):
 Do not propose fixes.
 Do not rewrite anything.
 Do not generate new content.
-Do not output “excluded”, “verified”, or “no issue” lines
+Do not output “excluded”, “verified”, “no issue”, or "known exception" items.
 Only surface issues with precision and completeness.

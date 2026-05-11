@@ -219,11 +219,11 @@ Split when change is:
 - Classifies change type
 - Flags high-risk changes
 - Recommends phase splitting
-- Hands off to Tactician with analysis
+- Hands off to Planner with analysis
 
 ### Tactician
 
-- Receives impact analysis from Architect
+- Receives feature/story from Planner
 - Defines phase sequence
 - Plans validation checkpoints
 - Creates execution strategy
