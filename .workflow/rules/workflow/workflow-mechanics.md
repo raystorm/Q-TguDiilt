@@ -418,12 +418,13 @@ See `workflow/agentic-confirmation.md` for detailed confirmation rules.
 1. Profile completes work
 2. Profile informs user work is complete
 3. User triggers `@handoff` (if continuing workflow)
-4. Profile creates HANDOFF.md
-5. Profile shows what's being passed
-6. Profile requests user confirmation
+4. Profile generates proposed HANDOFF.md content
+5. Profile shows summary of what's being passed
+6. Profile requests explicit user confirmation
 7. **Profile waits for approval**
 8. User approves
-9. Next profile activates with `@start`
+9. Profile writes HANDOFF.md (only after confirmation)
+10. Next profile activates with `@start`
 
 ---
 
