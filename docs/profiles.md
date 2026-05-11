@@ -264,8 +264,8 @@ Workflow Patterns define the exact sequencing, but common flows include:
 
 ```mermaid
 flowchart LR
-   Architect --> PE[PromptEngineer]
-   Planner --> PE
+   Architect --> Planner 
+   Planner --> PE[PromptEngineer]
    PE --> Builder
    Builder --> Enforcer
    Enforcer --> Documentor

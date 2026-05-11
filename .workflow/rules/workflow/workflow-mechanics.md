@@ -489,6 +489,9 @@ It ties together all workflow artifacts—handoffs, messages, suspends, auto‑s
 and logs, allowing the system to maintain continuity, traceability,
 and isolation across workflow steps.
 
+The workflowId is carried in changeover files as a top-level field.
+See `workflow/changeover-format.md` for the canonical shape.
+
 ---
 
 ## Inquiry Mode

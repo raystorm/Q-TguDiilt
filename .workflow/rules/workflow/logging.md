@@ -34,7 +34,7 @@ Check for changeover file:
 if (handoffExists)
 {
   const handoffContent = fsRead('.amazonq/work/current/HANDOFF.md');
-  workflowId = extractWorkflowId(handoffContent);
+  workflowId = extractField(handoffContent, "WorkflowId");  // ## WorkflowId section
   parentId = extractParentId(handoffContent);
   logWorkflowStart = true;
 }
@@ -43,7 +43,7 @@ if (handoffExists)
 else if (messageExists)
 {
   const messageContent = fsRead('.amazonq/work/current/MESSAGE.md');
-  workflowId = extractWorkflowId(messageContent);  // REUSE parent's workflowId
+  workflowId = extractField(messageContent, "WorkflowId");  // ## WorkflowId section
   parentId = extractParentId(messageContent);
   logWorkflowStart = false;  // Side trips don't create new workflow
 }

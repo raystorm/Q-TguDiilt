@@ -17,6 +17,9 @@ thread semantics:
 ## From
 [Source Profile]
 
+## WorkflowId
+[wf-kebab-case-id]
+
 ## Task
 [What needs to be done]
 
@@ -37,6 +40,7 @@ for the receiving profile]
 | ---------------- | -------- | -------------------------------------------------- |
 | To               | Yes      | Target profile (machine-parseable routing)         |
 | From             | Yes      | Source profile that created the changeover         |
+| WorkflowId       | Yes      | Workflow identity (format: wf-[kebab-case])         |
 | Task             | Yes      | What the receiving profile needs to do             |
 | Context Capsule  | Yes      | Continuity container: background, decisions, state |
 | Artifacts        | Yes      | Files created, modified, or relevant to the task   |
