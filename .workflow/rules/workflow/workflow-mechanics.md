@@ -88,7 +88,10 @@ When the user triggers a Change command, profiles must:
 4. **Wait for approval before completing Changeover**  
 5. **Never complete Changeover without explicit user approval**  
 6. After approval, Write the Changeover file  
-7. After approval, Display the next user command
+7. After approval, Remove stale files from `.amazonq/work/current/`
+   (all files except the newly written changeover file and its
+   listed artifacts)
+8. After approval, Display the next user command
 
 **What counts as explicit confirmation:**
 - "Yes", "Yes, proceed", "Go ahead", "Approved"

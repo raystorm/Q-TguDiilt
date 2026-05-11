@@ -26,7 +26,7 @@ Your only job is to:
 On approval:
 - Write HANDOFF.md to `.amazonq/work/current/HANDOFF.md`
 - Write any additional supporting files to `.amazonq/work/current/` directory only
-- Remove all old files from `.amazonq/work/current/` except HANDOFF.md and files listed in current handoff
+- Clean `.amazonq/work/current/` per Change invariant (remove stale files, keep HANDOFF.md and listed artifacts)
 - Display: "---\n**Next**: Run `/compact` then `@start` as [Profile Name from the To field]"
 
 On rejection:
