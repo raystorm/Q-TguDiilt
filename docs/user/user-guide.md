@@ -196,6 +196,21 @@ flowchart LR
    note["@note"] -- appends --> WL["workflow.log"]
 ```
 
+### How Command Arguments Work
+
+Some commands accept `key=value` arguments on the same line:
+
+```text
+@handoff next=Planner
+@send to=Architect purpose="validate the test plan"
+```
+
+Each argument maps to a `{{key}}` template variable inside the
+corresponding prompt file. When an argument is omitted, the
+profile infers the value from workflow context (e.g., the next
+profile in the governed sequence). Quote values that contain
+spaces.
+
 ### 4.1 Transfer Commands
 
 #### `@handoff`

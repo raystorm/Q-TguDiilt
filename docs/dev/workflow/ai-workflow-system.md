@@ -442,6 +442,11 @@ For full syntax, arguments, and examples, see:
 * **`@debugProfile [Profile]`** — load a specific profile's rules and generate
   a profile‑scoped debug report.
 
+Commands accept `key=value` arguments that resolve to `{{key}}`
+template variables in prompt files. See the
+[User Guide Section 4](../user/user-guide.md#4-how-to-use-commands)
+for full syntax and examples.
+
 ## Handoff vs Send/Receive
 
 **Handoff** — Sequential workflow in same chat tab
