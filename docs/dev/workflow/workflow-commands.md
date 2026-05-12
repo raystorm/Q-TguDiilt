@@ -259,7 +259,7 @@ User: "@note Builder implementation looks good but missing edge case handling"
 Logged to workflow.log:
 {
   "type": "event",
-  "workflowId": "wf-1738190400000",
+  "workflowId": "wf-some-task-title",
   "timestamp": "2025-01-28T23:45:00.000Z",
   "source": "user",
   "actor": "user",
@@ -314,39 +314,15 @@ Explicit profile activation command.
 ```
 
 **Behavior:**
-- Activates specified profile
+- Activates the specified profile
 - Profile follows its rules and boundaries
-- Requires explicit goal or task
+- Explicit goal or task is optional
 - Does not read HANDOFF.md or MESSAGE.md
 
 **Example:**
 ```
 User: "@as Architect. Analyze the Document domain migration."
 Architect: [Begins analysis]
-```
-
----
-
-### @[Profile]
-Mention (does NOT activate).
-
-**Usage:**
-```
-@Builder should implement this
-@Architect needs to review
-```
-
-**Behavior:**
-- Mentions profile in conversation
-- Does NOT activate the profile
-- Does NOT switch profiles
-- Used for discussion only
-
-**Example:**
-```
-User: "I think @Architect should review this before we proceed."
-CurrentProfile: "Agreed. Would you like to handoff to Architect?"
-User: "@handoff next=Architect"
 ```
 
 ---
@@ -506,27 +482,6 @@ CurrentProfile: "Would you like to handoff to Builder?"
 User: "Act as Builder"
 [Builder activates]
 ```
-
----
-
-### Mistake 3: Using @start in same tab
-**Wrong:**
-```
-Profile A: "@handoff"
-User: "@start" [in same tab]
-```
-
-**Correct:**
-```
-Profile A: "@handoff"
-User opens new tab
-User: "@start" [in new tab]
-```
-
-**Note:** this isn't needed for *every* start, but highly recommended after
-any profile with lots of corrections, or when expecting corrections (Builder).
-
----
 
 ## Reference
 

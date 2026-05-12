@@ -80,6 +80,11 @@ Side Trip
 : A temporary, isolated workflow branch used for exploration or corrective action
 without altering the Main Thread.
 
+Cycle
+: A single governed pass through the workflow profile sequence  
+A Cycle begins when a story enters the workflow and ends  
+when Retrospective completes or the user closes the loop.
+
 Workflow ID
 : A unique identifier assigned at workflow start.
 : Used to correlate artifacts, logs, suspends, resumes, and checkpoints.

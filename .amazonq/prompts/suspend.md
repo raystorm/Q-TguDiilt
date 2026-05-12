@@ -45,6 +45,9 @@ Update `.amazonq/suspended/INDEX.md` Active Contexts section with:
 - **[name]** - [description] - [date]
 ```
 
+Read and follow `.workflow/rules/workflow/timestamp-method.md`
+to generate the timestamp.
+
 Append to `.amazonq/workflow.log`:
 ```json
 {"type":"event","workflowId":"[current-id]","timestamp":"[ISO-8601]","source":"user","actor":"user","eventType":"context_suspended","what":"[name]","why":"Workflow checkpoint"}

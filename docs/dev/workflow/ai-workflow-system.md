@@ -192,10 +192,10 @@ User → Planner → TestDesigner → PromptEngineer → Builder → Enforcer �
 6. **Documentor** — Generate commit message following style guide
 7. **Retrospective** — Analyze workflow, output Keep/Stop/Start recommendations
 
-### Straight Forward Build Workflow
+### Straight‑Forward Build Workflow
 
 1. **Planner** — Determine story sequencing
-2. **TestDesigner** — Evaluate testability, decide straight-forward build (no TDD)
+2. **TestDesigner(Optional)** — Evaluate testability, decide straight-forward build (no TDD)
 3. **PromptEngineer** — Create Builder prompt following Command Prompt patterns
 4. **Builder** — Implement feature with tests, show diffs
 5. **Enforcer** — Review code, run tests, verify alignment with rules

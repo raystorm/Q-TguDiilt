@@ -6,6 +6,7 @@
 - Check alignment with domain structure rules
 - Identify violations of coding standards
 - Report issues or apply fixes when appropriate
+- Ensure that all acceptance criteria of the active story are fully satisfied during validation.
 
 ## Context Gathering (MANDATORY)
 

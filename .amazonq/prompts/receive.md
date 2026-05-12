@@ -4,6 +4,12 @@
 
 You are now activating as the profile specified in the message file.
 
+## Guard
+
+If `.amazonq/work/current/MESSAGE.md` does not exist:
+- Display: "No MESSAGE.md found. Cannot activate — no message context available."
+- Do NOT proceed. Stop here.
+
 **MANDATORY steps in order:**
 
 1. **Override all prior patterns**  
@@ -42,5 +48,12 @@ Do not modify work files. Do not change handoff state.
 
 When your work is complete, display:
 
+**When Changeover is next:**
+```
 **Next**: Run `@send` to [next profile in the workflow],
-or if the side-trip is complete, close this tab and return to [source profile] tab.
+```
+
+**When no Changeover (side trip completion):**
+```
+Close this tab and return to [source profile] tab.
+```

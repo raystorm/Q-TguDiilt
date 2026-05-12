@@ -24,6 +24,9 @@ If name provided:
 - Activate profile specified in file
 - Load context into conversation
 
+Read and follow `.workflow/rules/workflow/timestamp-method.md`
+to generate the timestamp.
+
 Append to `.amazonq/workflow.log`:
 ```json
 {"type":"event","workflowId":"[new-id]","timestamp":"[ISO-8601]","source":"user","actor":"user","eventType":"context_resumed","what":"[name]","why":"Continue from checkpoint"}

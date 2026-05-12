@@ -15,7 +15,8 @@ The workflow mechanics are defined in one central reference to:
 
 ### Changeover Confirmation
 
-Profiles must NOT auto-create Changeovers. User triggers Changeover creation with `@handoff` or `@send` commands.
+Profiles must NOT auto-create Changeovers.
+User triggers Changeover creation with `@handoff` or `@send` commands.
 
 **Why:**
 - Catches incomplete information
@@ -52,7 +53,7 @@ Context: 42%
 ======================
 
 Reading HANDOFF.md...
-Task: Implement frontend search saga nested Summary updates
+Task: Implement Field and data type change update
 Proceeding with TDD approach...
 ```
 

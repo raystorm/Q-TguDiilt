@@ -5,7 +5,7 @@ Recommends which profile to use for a given task. Does not perform work itself.
 
 **Aliases:** Router, Conductor, Switchboard
 
-**Uses:** foundation/*, profiles/operator.md
+**Uses:** foundation/*, profiles/operator.md, workflow/workflow-mechanics.md
 
 ## Builder
 Writes code, implements features, follows formatting and architecture rules.

@@ -4,6 +4,12 @@
 
 You are now activating as the profile specified in the handoff file.
 
+## Guard
+
+If `.amazonq/work/current/HANDOFF.md` does not exist:
+- Display: "No HANDOFF.md found. Cannot activate — no handoff context available."
+- Do NOT proceed. Stop here.
+
 **MANDATORY steps in order:**
 
 1. **Override all prior patterns**  

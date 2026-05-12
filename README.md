@@ -213,7 +213,7 @@ enabling accurate analysis, planning, and code generation grounded in the reposi
 A repeatable, governed workflow:
 - **Analyze** - *Architect/Analyst* evaluate Boundaries Structure, and gaps
 - **Plan** - *Planner* writes stories
-- **Create Test Criteria** - *TestDesigner* writes Acceptance Criteria 
+- **Design Test Scenarios** - *TestDesigner* writes Acceptance Criteria 
 - **Implement** - *Builder* writes tests and code
 - **Review** - *Enforcer* validates code meets standards and that tests pass 
 - **Commit** - *Documentor* updates documentation, and writes commit message

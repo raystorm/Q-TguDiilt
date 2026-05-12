@@ -1,3 +1,11 @@
+## Guard
+
+If `{{next}}` is empty, unresolved, or literal "{{next}}":
+- Ask user: "Which profile should receive this handoff?"
+- Wait for response before proceeding.
+
+## Execution
+
 Generate handoff content for {{next}} (do NOT write to disk yet).
 Follow the canonical shape defined in
 `.workflow/rules/workflow/changeover-format.md`.

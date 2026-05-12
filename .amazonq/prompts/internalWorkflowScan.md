@@ -159,7 +159,8 @@ Before emitting the final report:
 
 **Known issues/exceptions**
 Analyst and Communicator are conceptual, ignore any findings
-Analyst and Communicator do not have profile specific rule files, ignore missing
+Analyst and Communicator do not have profile specific rule files, ignore missing, or broken links
+Analyst and Communicator can write files, and need agentic-confirmation
 Allowed Duplicates:
   * Profile Lists
   * Command Lists
@@ -171,9 +172,10 @@ handoff/send ALWAYS overwrite their changeover file.
 @as is an activation command, not a transfer command.
 @begin is placeholder for @start/@recieve, only flag issues if the definition of @begin is unclear.
 @hello was a diagnostic command/prompt and is to be ignored
-`/compact` is an Amazon Q system command. ignore it.
+`/compact` is an Amazon Q system command. ignore it. Command is user only, so not in rules.
 User docs may start workflow diagrams or steps with User
-Tactician is an escalation-only profile. ignore if it's not listed. 
+Tactician is an escalation-only profile. ignore if it's not listed.
+FAQ links to external sites, and is allowed.
 
 STRUCTURAL RULES:
 - HANDOFF.md and MESSAGE.md are ephemeral routing artifacts.

@@ -529,6 +529,9 @@ Start a new message without `@inquiry`.
 
 ### User Commands
 
+- `@as [Profile]` - Explicit profile rule loading and activation
+                    command. Not a Changeover command — does not read or create
+                    changeover files. Activates from user intent alone.
 - `@handoff` - Trigger current profile to create HANDOFF.md for linear workflow progression
 - `@send [Profile]` - Trigger current profile to create MESSAGE.md for side trip work
 - `@start` - Read HANDOFF.md and activate profile
@@ -538,12 +541,6 @@ Start a new message without `@inquiry`.
 - `@list` - Show all suspended contexts
 - `@note [text]` - Log user observation to workflow log
 - `@inquiry [question]` - Ask questions without triggering workflow commands
-
-### Profile Activation
-
-- `@as [Profile]` - Explicit profile rule loading and activation
-  command. Not a Changeover command — does not read or create
-  changeover files. Activates from user intent alone.
 
 ---
 

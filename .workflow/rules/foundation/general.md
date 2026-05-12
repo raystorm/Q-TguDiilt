@@ -93,6 +93,7 @@ This prevents auto-switching to other profile behaviors.
 - **Exception: Builder can handoff to Builder for multi-phase work when splitting development and testing**
   - Example: TDD workflow (Phase 1: tests, Phase 2: implementation)
   - Both phases are implementation work, no new prompt needed
+- **Exception: profiles can handoff to builder when builder escalated to them.**
 - This ensures prompt quality, prevents drift, and maintains consistency
 
 ## Profile scoping

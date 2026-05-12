@@ -80,7 +80,7 @@ TestDesigner creates HANDOFF.md:
    Should I proceed?"
   ↓
 User reviews HANDOFF.md
-User: "Wait, this is missing story requirements. PE needs schema, guards, AND wiring requirements, not just test scenarios."
+User: "Wait, this is missing story requirements. PE needs build requirements, not just test scenarios."
   ↓
 TestDesigner updates HANDOFF.md with full requirements
   ↓

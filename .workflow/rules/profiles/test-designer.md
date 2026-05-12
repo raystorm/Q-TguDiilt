@@ -17,7 +17,7 @@
 - Does NOT write test code
 - Does NOT implement tests
 - Does NOT modify existing tests
-- Does NOT write prompts (that's PE's job)
+- Does NOT write prompts
 
 ## TDD Approach Decision (Decision Authority)
 
@@ -98,42 +98,13 @@ Scenario: Function returns structured data
 - Return structure is known and relevant to test
 - Ambiguity would cause implementation errors
 
-## Schema Testing Strategy
-
-### When Schema Changes Have No Guards/Resolvers
-
-**Backend tests NOT applicable** (schema-only, no JavaScript logic)
-
-**Frontend tests validate:**
-- TypeScript type compilation
-- Filter object construction
-- Generated types match schema
-
-### When Schema Changes Have Guards/Resolvers
-
-**Backend tests applicable** (test guard logic, resolver behavior)
-
-**Frontend tests validate** integration with generated types
-
-### Decision Criteria
-
-**Schema-only changes → Frontend tests:**
-- FilterInput additions (type validation, filter construction)
-- Type additions without guards (type usage, compilation)
-- Enum additions (enum usage, type safety)
-
-**Schema changes with logic → Backend tests:**
-- Custom guards (guard behavior, authorization)
-- Custom resolvers (resolver logic, data transformation)
-- Lambda triggers (trigger behavior, side effects)
-
 ## Analysis Focus
 - Domain logic coverage
 - State transition coverage
 - Error handling coverage
 - Integration point coverage
 - Edge cases and boundary conditions
-- Schema-only changes (FilterInput, types, enums)
+- data format only changes (types, enums)
 
 ## Handoff to PE
 - TestDesigner produces scenario specifications

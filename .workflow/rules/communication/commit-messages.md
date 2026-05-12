@@ -100,17 +100,42 @@ Examples may include:
 - Ignore implementation details that don't belong in commit history (like specific helper function names)
 - Focus on what changed and why, not how it was implemented
 
-## Example Format
-```
-Add searchRunner Lambda with OpenSearch integration
+## Example Formats
 
-  + new `searchRunner` Lambda queries OpenSearch with permission filtering
-    * admin users search all boxes, non-admin filtered to accessible boxes
-    * updated field selection: keywords default, 'all' option, specific field
-    + added pagination with limit/from/nextToken
-    * uses relevance ranking by default, optional custom sort
-  + added GSIs: byUser, byOwner, byBox, byEmail, byCollection
-  + added `SearchResults` and `SearchResultItem` types in schema
-  + added comprehensive tests with nested describe blocks
-  * `ingest-trigger` -> `ingestTrigger` for camelCase consistency
+### Single‑Line Example
+```
+Add Placeholder to `update-me.md`
+```
+
+### Multi-Line Example
+```
+Commit message with multiple changes
+
++ add `new-file.md` with placeholder content
+- removed  placeholder for demonstration
+* formatting
+```
+
+### Complex Nested Example
+```
+WIP - Example Commit to demonstrate complex formatting (NOT A REAL COMMIT)
+
+  + add `example-file.md` — used in this commit example to show objects
+    Natural line break for a second line of info
+    * `example-file2.md` was affected by this update
+    * `example-file3.md` Section Name -> Other Name for clarity
+      - removed Remove Me section, because it was no longer needed
+    * supporting detail
+  + add `new-file.md` with some exciting features
+  + WIP - This change is still in progress
+  + add sample bullet to this commit
+    * supporting sub Bullet 1
+    * supporting sub Bullet 2
+    + add sub bullet 3
+  * formatting
+    - removed some uneccessary `---` seperators
+  - removed specific thing, and why
+    * supporting info
+    - something else that was removed with it.
+    + something that had to be added because of the removal
 ```

@@ -1,7 +1,8 @@
 Extract the observation text from the user's message.
 
 Read `.amazonq/workflow.log` to find the most recent workflowId.
-If the log doesn't exist or is empty, generate a new workflowId using format: `wf-` + current timestamp.
+If the log doesn't exist or is empty,
+generate a new workflowId using format: `wf-` + [kebab-case-current-task].
 
 Append to `.amazonq/workflow.log` in JSONL format:
 
@@ -18,8 +19,8 @@ Append to `.amazonq/workflow.log` in JSONL format:
 }
 ```
 
-Generate the timestamp using the Timestamp Generation Method
-defined in `.workflow/rules/workflow/logging.md`.
+Read and follow `.workflow/rules/workflow/timestamp-method.md`
+to generate the timestamp.
 
 Use the generated timestamp in the log entry.
 
