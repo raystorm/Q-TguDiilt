@@ -436,9 +436,14 @@ After Documentor creates commit message and user commits, user chooses next acti
 
 **1. Continue to Next Story (Multi-Story Feature)**
 - If FEATURE.md exists and more stories remain
-- User activates Planner: `@handoff next=Planner`
-- Planner reads FEATURE.md, sees current story complete
-- Planner writes next story or escalates to Architect if needed
+- If next story is fully specified (acceptance criteria, routing,
+  and dependencies defined in FEATURE.md):
+  - User may hand off directly to the first profile in the
+    story's routing (skipping Planner)
+- If next story needs refinement, routing is unspecified,
+  or dependencies have changed:
+  - User activates Planner: `@handoff next=Planner`
+  - Planner reads FEATURE.md, refines story, and hands off
 
 **2. Run Retrospective (Workflow Improvement)**
 - After completing story or feature
@@ -461,7 +466,12 @@ After creating commit message, Documentor should:
 
 1. Check if FEATURE.md exists
 2. **If FEATURE.md exists and stories remain:**
-   - "Story [N] complete. Continue with Story [N+1]? Use: `@handoff next=Planner`"
+   - If next story is fully specified with routing:
+     "Story [N] complete. Next story routes to [first profile].
+      Use: `@handoff next=[first profile]` or `@handoff next=Planner`
+      if refinement needed."
+   - If next story needs refinement:
+     "Story [N] complete. Continue with Story [N+1]? Use: `@handoff next=Planner`"
 3. **If feature complete or no FEATURE.md:**
    - "Work complete. Run retrospective for improvements? Use: `@handoff next=Retrospective`"
 4. Wait for user decision
