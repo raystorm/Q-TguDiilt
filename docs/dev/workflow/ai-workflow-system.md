@@ -22,7 +22,7 @@ and all work is logged to enable retrospective analysis and continuous improveme
 ## Origins
 
 This workflow was originally based on how a *human agile software development team*
-Would typically be structured and operate. Where each [Story](../glossary.md#story)/Workflow/Item equates to a sprint.
+Would typically be structured and operate. Where each [Story](../glossary.md#story)/Workflow/Item/Cycle/Loop equates to a sprint.
 Working through that model, it was realized that mapping *PROFILES* to the Agile SDLC loop phases
 makes more sense, and that is the version of profiles documented below.
 
@@ -179,6 +179,9 @@ Analyzes completed workflows, identifies improvements, highlights successes (ali
 ### Example workflow for a single story
 
 User → Planner → TestDesigner → PromptEngineer → Builder → Enforcer → Documentor → Retrospective
+
+*Architect is not a standard step — it enters the workflow only via explicit
+user request or profile escalation.*
 
 ### Test-Driven Development (TDD)
 
@@ -397,7 +400,9 @@ The system supports features requiring multiple sequential stories:
 
 ## Saved Prompts
 
-Saved prompts stored in `~/.aws/amazonq/prompts/` enable workflow coordination:
+Saved prompts are stored in two locations and enable workflow coordination:
+- `~/.aws/amazonq/prompts/` — active user prompts (loaded by Amazon Q)
+- `.amazonq/prompts/` — project prompts (version-controlled, team-shared)
 
 Saved Prompts can be roughly divided into categories:
   * Workflow Commands,

@@ -176,6 +176,7 @@ handoff/send ALWAYS overwrite their changeover file.
 User docs may start workflow diagrams or steps with User
 Tactician is an escalation-only profile. ignore if it's not listed.
 FAQ links to external sites, and is allowed.
+Project References matching the workflow engine are allowed in examples.
 
 STRUCTURAL RULES:
 - HANDOFF.md and MESSAGE.md are ephemeral routing artifacts.

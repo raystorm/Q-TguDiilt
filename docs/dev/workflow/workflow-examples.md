@@ -137,63 +137,8 @@ User: (closes tab, done)
 
 ## Post-Documentor Branching Flows
 
-### Decision Points After Commit
-
-After Documentor creates commit message and user commits:
-
-**1. Continue to Next Story (Multi-Story Feature)**
-```
-Documentor commits Story 1
-    ↓
-User: "@handoff next=Planner"
-    ↓
-Planner reads FEATURE.md
-Planner writes Story 2
-    ↓
-[Execute Story 2 workflow]
-```
-
-**2. Run Retrospective (Workflow Improvement)**
-```
-Documentor commits
-    ↓
-User: "@handoff next=Retrospective"
-    ↓
-Retrospective analyzes workflow.log
-Retrospective offers improvements
-```
-
-**3. Start New Feature (New Work)**
-```
-Documentor commits
-    ↓
-User: "@handoff next=Planner" (with new request)
-    ↓
-Planner creates new story or FEATURE.md
-Standard workflow begins
-```
-
-**4. Done (No Further Work)**
-```
-Documentor commits
-    ↓
-User closes tab
-No further workflow needed
-```
-
----
-
-## Decision Tree
-
-```
-Documentor commits
-    ↓
-User decides:
-    ├─ More stories in feature? → @handoff next=Planner (next story)
-    ├─ Want workflow improvements? → @handoff next=Retrospective
-    ├─ New feature? → @handoff next=Planner (new feature)
-    └─ Done? → Close tab
-```
+See [workflow-mechanics.md §Post-Documentor Branching](../../.workflow/rules/workflow/workflow-mechanics.md#post-documentor-branching)
+for the authoritative decision tree and branching patterns.
 
 ---
 
@@ -315,6 +260,10 @@ Architect: "@handoff next=Builder"
     ↓
 Builder continues with clear direction
 ```
+
+> **Note:** Builder escalates to Architect directly (not via PE) because
+> this is a return-to-sender pattern — Builder was already prompted and
+> needs architectural clarification to continue, not a new prompt.
 
 ---
 
