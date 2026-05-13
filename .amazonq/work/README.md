@@ -12,7 +12,7 @@ Coordinate work between Q profiles without copy/paste using shared context files
 
 1. **Start work:** `@start`
 2. **Work with profile** (normal back-and-forth)
-3. **End work:** `@handoff next=NextProfile`
+3. **End work:** `@handoff to=NextProfile`
 4. **Next profile:** `@start`
 
 ### Example
@@ -22,7 +22,7 @@ Coordinate work between Q profiles without copy/paste using shared context files
 You: @start
 Builder: [reads HANDOFF.md, acts as Builder]
 [... work happens ...]
-You: @handoff next=Enforcer
+You: @handoff to=Enforcer
 Builder: [writes to HANDOFF.md, cleans up old files]
 ```
 
@@ -41,11 +41,11 @@ Enforcer: ✅ All checks pass
 
 ### Workflow
 
-1. **Send message:** `@send to=ProfileName purpose="description"` or `@send-epr`
+1. **Send message:** `@send to=ProfileName task="description"` or `@send-epr`
 2. **Open new chat:** `@receive`
 3. **Get feedback** in new chat
 4. **Return to original chat** and continue work
-5. **When done:** `@handoff next=NextProfile` (cleans up MESSAGE.md)
+5. **When done:** `@handoff to=NextProfile` (cleans up MESSAGE.md)
 
 ### Example
 
@@ -70,7 +70,7 @@ You: [based on Enforcer feedback]
 Builder: [makes changes]
 You: Looks good, proceed
 Builder: [implements changes]
-You: @handoff next=Enforcer
+You: @handoff to=Enforcer
 Builder: [writes HANDOFF.md, cleans up MESSAGE.md and old files]
 ```
 
@@ -78,7 +78,7 @@ Builder: [writes HANDOFF.md, cleans up MESSAGE.md and old files]
 
 **`@send-epr`** - Send to Enforcer for rule compliance review
 
-**`@send to=ProfileName purpose="description"`** - Send to any profile
+**`@send to=ProfileName task="description"`** - Send to any profile
 
 Common purposes:
 - Validate approach

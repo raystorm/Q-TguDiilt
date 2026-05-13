@@ -101,12 +101,12 @@ PE receives complete requirements
 ```
 Story 1: Planner → TestDesigner → PE → Builder → Enforcer → Documentor
     ↓ (user commits)
-Documentor: "Story 1 complete. Continue with Story 2? Use: `@handoff next=Planner`"
-User: "@handoff next=Planner"
+Documentor: "Story 1 complete. Continue with Story 2? Use: `@handoff to=Planner`"
+User: "@handoff to=Planner"
 Story 2: Planner → TestDesigner → PE → Builder → Enforcer → Documentor
     ↓ (user commits)
-Documentor: "Feature complete. Run retrospective? Use: `@handoff next=Retrospective`"
-User: "@handoff next=Retrospective"
+Documentor: "Feature complete. Run retrospective? Use: `@handoff to=Retrospective`"
+User: "@handoff to=Retrospective"
 Retrospective analyzes and offers improvements
 ```
 
@@ -117,8 +117,8 @@ Retrospective analyzes and offers improvements
 ```
 Story: Planner → TestDesigner → PE → Builder → Enforcer → Documentor
     ↓ (user commits)
-Documentor: "Work complete. Run retrospective? Use: `@handoff next=Retrospective`"
-User: "@handoff next=Retrospective"
+Documentor: "Work complete. Run retrospective? Use: `@handoff to=Retrospective`"
+User: "@handoff to=Retrospective"
 Retrospective analyzes and offers improvements
 ```
 
@@ -129,7 +129,7 @@ Retrospective analyzes and offers improvements
 ```
 Story: Planner → TestDesigner → PE → Builder → Enforcer → Documentor
     ↓ (user commits)
-Documentor: "Work complete. Run retrospective? Use: `@handoff next=Retrospective`"
+Documentor: "Work complete. Run retrospective? Use: `@handoff to=Retrospective`"
 User: (closes tab, done)
 ```
 
@@ -249,14 +249,14 @@ Builder encounters architectural ambiguity
     ↓
 Builder: "This requires architectural decision. Escalating to Architect."
     ↓
-Builder: "@handoff next=Architect"
+Builder: "@handoff to=Architect"
     ↓
-User: "@handoff next=Architect"
+User: "@handoff to=Architect"
     ↓
 Architect analyzes issue
 Architect provides architectural guidance
     ↓
-Architect: "@handoff next=Builder"
+Architect: "@handoff to=Builder"
     ↓
 Builder continues with clear direction
 ```
@@ -288,7 +288,7 @@ User confirms
     ↓
 Doctor applies fix
     ↓
-Doctor: "@handoff next=Enforcer"
+Doctor: "@handoff to=Enforcer"
     ↓
 Enforcer validates fix
 ```
@@ -304,12 +304,12 @@ Planner starts writing story
     ↓
 Planner: "Domain behavior unclear. How does X interact with Y?"
     ↓
-Planner: "@handoff next=Architect"
+Planner: "@handoff to=Architect"
     ↓
 Architect analyzes domain behavior
 Architect provides domain specification
     ↓
-Architect: "@handoff next=Planner"
+Architect: "@handoff to=Planner"
     ↓
 Planner writes story with accurate domain understanding
 ```

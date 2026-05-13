@@ -90,7 +90,7 @@ When the user triggers a Change command, profiles must:
 6. After approval, Write the Changeover file  
 7. **If handoff**
    After approval, Remove stale files from `.amazonq/work/current/`
-   (all files except the newly written `handoff.md` and it's listed artifacts)
+   (all files except the newly written `HANDOFF.md` and it's listed artifacts)
 8. After approval, Display the next user command
 
 **What counts as explicit confirmation:**

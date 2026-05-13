@@ -42,3 +42,16 @@ On rejection:
 - Do NOT write any files
 
 Do not auto-activate next profile. Stay as current profile. User will run @start.
+
+---
+
+## Error Handling
+
+**Profile not found:**
+- List available profiles from _PROFILES.md
+- Suggest correct spelling or alias
+
+**File not found:**
+- Report missing file path
+- Continue with available files
+- Warn user about incomplete rule set
