@@ -246,7 +246,7 @@ Other profiles simply do not perform work outside their domain or worldview.
 ## 7. Changeovers
 
 Changeovers are explicit and file‑based.  
-**Every profile transition to another profile occurs via *Changeover***
+**Every profile transition from one profile to another occurs via *Changeover***
 They preserve:
 - context
 - intent

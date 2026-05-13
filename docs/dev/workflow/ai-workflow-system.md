@@ -492,7 +492,7 @@ Use context commands:
 * `@file` — Scope to specific file
 
 Use saved prompts:
-* `@handoff` — Handoff to next profile (optional: `next=Profile`)
+* `@handoff` — Handoff to next profile (optional: `to=Profile`)
 * `@start` — Read handoff and activate
 * `@send` — Send message to profile (optional: `to=Profile`)
 * `@receive` — Read message and activate

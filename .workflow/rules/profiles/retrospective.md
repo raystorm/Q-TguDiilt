@@ -248,16 +248,16 @@ After Documentor commits Retro's improvements, user chooses next action:
 ### Decision Points
 
 1. **Return to Retro for cleanup:**
-   - User: `@handoff next=Retrospective`
+   - User: `@handoff to=Retrospective`
    - Retro performs cleanup (delete workflow.log, work files)
    - Retro confirms cleanup complete
 
 2. **Continue to next story (if FEATURE.md has more stories):**
-   - User: `@handoff next=Planner`
+   - User: `@handoff to=Planner`
    - Planner reads FEATURE.md, works on next story
 
 3. **Start new feature:**
-   - User: `@handoff next=Planner` (with new request)
+   - User: `@handoff to=Planner` (with new request)
    - Standard workflow begins
 
 4. **Done:**
@@ -277,13 +277,13 @@ When user returns to Retro after commit:
 After cleanup complete, suggest next action to user:
 
 1. **If FEATURE.md exists and more stories remain:**
-   - "Cleanup complete. Continue with Story [N+1]? Use: `@handoff next=Planner`"
+   - "Cleanup complete. Continue with Story [N+1]? Use: `@handoff to=Planner`"
 
 2. **If feature complete or no FEATURE.md:**
    - "Cleanup complete. Workflow session closed."
 
 ### User Options After Cleanup
 
-- **Continue to next story:** `@handoff next=Planner`
-- **Start new feature:** `@handoff next=Planner` (with new request)
+- **Continue to next story:** `@handoff to=Planner`
+- **Start new feature:** `@handoff to=Planner` (with new request)
 - **Done:** Close tab

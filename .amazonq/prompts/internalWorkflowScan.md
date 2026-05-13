@@ -171,8 +171,7 @@ Only 1 Side-trip at a time.
 handoff/send ALWAYS overwrite their changeover file.
 @as is an activation command, not a transfer command.
 @begin is placeholder for @start/@recieve, only flag issues if the definition of @begin is unclear.
-@hello was a diagnostic command/prompt and is to be ignored
-`/compact` is an Amazon Q system command. ignore it. Command is user only, so not in rules.
+@hello was a diagnostic command/prompt and is to be ignored.
 User docs may start workflow diagrams or steps with User
 Tactician is an escalation-only profile. ignore if it's not listed.
 FAQ links to external sites, and is allowed.

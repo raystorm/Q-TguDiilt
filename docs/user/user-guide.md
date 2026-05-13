@@ -201,15 +201,14 @@ flowchart LR
 Some commands accept `key=value` arguments on the same line:
 
 ```text
-@handoff next=Planner
-@send to=Architect purpose="validate the test plan"
+@handoff to=Planner
+@send to=Architect task="validate the test plan"
 ```
 
 Each argument maps to a `{{key}}` template variable inside the
 corresponding prompt file. When an argument is omitted, the
 profile infers the value from workflow context (e.g., the next
-profile in the governed sequence). Quote values that contain
-spaces.
+profile in the governed sequence).
 
 ### 4.1 Transfer Commands
 
@@ -221,13 +220,13 @@ Linear progression to the next profile.
 * `HANDOFF.md`
 
 **Arguments:**  
-* `next=<Profile>` (optional) — override the next profile
+* `to=<Profile>` (optional) — override the next profile
 
 **Usage:**  
 ```text
 @handoff
-@handoff next=Planner
-@handoff next=Enforcer
+@handoff to=Planner
+@handoff to=Enforcer
 ```
 
 #### `@send`
@@ -244,14 +243,14 @@ Use when:
 
 **Arguments:**  
 * `to=<Profile>` (optional) — override the target profile  
-* `purpose="<text>"` (optional) — short description of what you want done  
+* `task="<text>"` (optional) — short description of what you want done  
 
 **Usage:**  
 ```text
 @send
 @send to=Architect
-@send to=Enforcer purpose="validate the test plan"
-@send purpose="review this schema"
+@send to=Enforcer task="validate the test plan"
+@send task="review this schema"
 ```
 
 ---

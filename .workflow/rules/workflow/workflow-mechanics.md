@@ -88,9 +88,9 @@ When the user triggers a Change command, profiles must:
 4. **Wait for approval before completing Changeover**  
 5. **Never complete Changeover without explicit user approval**  
 6. After approval, Write the Changeover file  
-7. After approval, Remove stale files from `.amazonq/work/current/`
-   (all files except the newly written changeover file and its
-   listed artifacts)
+7. **If handoff**
+   After approval, Remove stale files from `.amazonq/work/current/`
+   (all files except the newly written `handoff.md` and it's listed artifacts)
 8. After approval, Display the next user command
 
 **What counts as explicit confirmation:**
@@ -442,12 +442,12 @@ After Documentor creates commit message and user commits, user chooses next acti
     story's routing (skipping Planner)
 - If next story needs refinement, routing is unspecified,
   or dependencies have changed:
-  - User activates Planner: `@handoff next=Planner`
+  - User activates Planner: `@handoff to=Planner`
   - Planner reads FEATURE.md, refines story, and hands off
 
 **2. Run Retrospective (Workflow Improvement)**
 - After completing story or feature
-- User triggers: `@handoff next=Retrospective`
+- User triggers: `@handoff to=Retrospective`
 - Retrospective analyzes workflow.log
 - Retrospective offers improvements (rules, prompts, architecture, docs)
 
@@ -468,12 +468,12 @@ After creating commit message, Documentor should:
 2. **If FEATURE.md exists and stories remain:**
    - If next story is fully specified with routing:
      "Story [N] complete. Next story routes to [first profile].
-      Use: `@handoff next=[first profile]` or `@handoff next=Planner`
+      Use: `@handoff to=[first profile]` or `@handoff to=Planner`
       if refinement needed."
    - If next story needs refinement:
-     "Story [N] complete. Continue with Story [N+1]? Use: `@handoff next=Planner`"
+     "Story [N] complete. Continue with Story [N+1]? Use: `@handoff to=Planner`"
 3. **If feature complete or no FEATURE.md:**
-   - "Work complete. Run retrospective for improvements? Use: `@handoff next=Retrospective`"
+   - "Work complete. Run retrospective for improvements? Use: `@handoff to=Retrospective`"
 4. Wait for user decision
 
 ### Decision Tree
@@ -482,9 +482,9 @@ After creating commit message, Documentor should:
 Documentor commits
     ↓
 User decides:
-    ├─ More stories in feature? → @handoff next=Planner (next story)
-    ├─ Want workflow improvements? → @handoff next=Retrospective
-    ├─ New feature? → @handoff next=Planner (new feature)
+    ├─ More stories in feature? → @handoff to=Planner (next story)
+    ├─ Want workflow improvements? → @handoff to=Retrospective
+    ├─ New feature? → @handoff to=Planner (new feature)
     └─ Done? → Close tab
 ```
 
@@ -558,6 +558,36 @@ Start a new message without `@inquiry`.
 - `@list` - Show all suspended contexts
 - `@note [text]` - Log user observation to workflow log
 - `@inquiry [question]` - Ask questions without triggering workflow commands
+
+### Command Argument Syntax
+
+Commands accept `key=value` arguments on the same line:
+
+    @handoff to=Profile
+    @send to=Profile task="validate the test plan"
+
+Rules:
+- Arguments are optional for the user unless stated otherwise
+- When omitted, the AI infers the value from workflow context
+- Each argument maps to a `{{key}}` template variable in the
+  corresponding prompt file
+
+### Arguments by Command
+
+| Command  | Argument     | Required | User-Supplied | Description                  |
+| -------- | ------------ | -------- | ------------- | ---------------------------- |
+| @handoff | to           | Yes      | Optional      | Target profile for handoff   |
+| @send    | to           | Yes      | Optional      | Target profile for side trip |
+| @send    | task         | No       |               | Short description of task    |
+| @suspend | [positional] | No       |               | Name for suspended context   |
+| @resume  | [positional] | No       |               | Name of context to restore   |
+| @note    | [positional] | Yes      | Yes           | Text to log                  |
+| @inquiry | [positional] | Yes      | Yes           | Question text                |
+| @as      | [positional] | Yes      | Yes           | Profile name                 |
+| @as      | [rest]       | No       |               | Task description             |
+| @start   | (none)       |          |               |                              |
+| @receive | (none)       |          |               |                              |
+| @list    | (none)       |          |               |                              |
 
 ---
 

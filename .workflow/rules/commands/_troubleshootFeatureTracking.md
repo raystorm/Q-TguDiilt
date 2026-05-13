@@ -112,10 +112,10 @@ Status: In Progress
 **Escalation Pattern:**
 ```
 Planner: "Story dependencies unclear. Need Architect analysis."
-User: "@handoff next=Architect"
+User: "@handoff to=Architect"
 Architect: [Analyzes dependencies]
 Architect: [Provides dependency analysis]
-User: "@handoff next=Planner"
+User: "@handoff to=Planner"
 Planner: [Updates FEATURE.md with dependencies]
 ```
 

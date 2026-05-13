@@ -110,7 +110,7 @@ Status: In Progress
 ### Between Stories
 
 After Documentor updates FEATURE.md and user commits:
-1. User triggers: `@handoff next=Planner`
+1. User triggers: `@handoff to=Planner`
 2. Planner reads FEATURE.md
 3. Planner sees current story status
 4. Planner writes next story or escalates if needed

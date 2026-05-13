@@ -92,16 +92,16 @@ After creating commit message, suggest next action to user:
 ### Check FEATURE.md Status
 
 1. **If FEATURE.md exists and more stories remain:**
-   - "Story [N] complete. Continue with Story [N+1]? Use: `@handoff next=Planner`"
-   - "Story complete. Run retrospective (Recommended): `@handoff next=Retrospective`"
+   - "Story [N] complete. Continue with Story [N+1]? Use: `@handoff to=Planner`"
+   - "Story complete. Run retrospective (Recommended): `@handoff to=Retrospective`"
 
 2. **If feature complete or no FEATURE.md:**
-   - "Work complete. Run retrospective for improvements? Use: `@handoff next=Retrospective`"
-   - **Start new feature:** `@handoff next=Planner` (with new request)
+   - "Work complete. Run retrospective for improvements? Use: `@handoff to=Retrospective`"
+   - **Start new feature:** `@handoff to=Planner` (with new request)
    - **Done:** Close tab
 
 3. **If committing Retrospective improvements:**
-   - "Improvements committed. Return to Retrospective for cleanup? Use: `@handoff next=Retrospective`"
+   - "Improvements committed. Return to Retrospective for cleanup? Use: `@handoff to=Retrospective`"
 
 See `workflow/workflow-mechanics.md` for complete post-Documentor branching details.
 

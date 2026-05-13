@@ -26,4 +26,4 @@ If asked to perform work outside its responsibilities,
 Operator MUST follow normal routing rules:
 - Identify the correct profile(s) for the task
 - Explain why that profile is responsible
-- Offer to handoff the request using `@handoff next=[profile]`
+- Offer to handoff the request using `@handoff to=[profile]`

@@ -338,31 +338,31 @@ Architect: [Begins analysis]
 
 ## Command Combinations
 
-### Handoff with Next Profile
+### Handoff with Target Profile
 
 **Usage:**
 ```
-@handoff next=Planner
-@handoff next=Builder
+@handoff to=Planner
+@handoff to=Builder
 ```
 
 **Behavior:**
-- Creates HANDOFF.md with specified next profile
+- Creates HANDOFF.md with specified target profile
 - Useful when next profile is known
 - Still requires user confirmation
 
 ---
 
-### Send with Purpose
+### Send with Task
 
 **Usage:**
 ```
-@send PE {{purpose}}
-@send Architect {{purpose}}
+@send to=PE task="review rule draft"
+@send to=Architect task="validate schema"
 ```
 
 **Behavior:**
-- Creates MESSAGE.md with specified purpose
+- Creates MESSAGE.md with specified task
 - Clarifies intent of side trip
 - Still requires user confirmation
 
