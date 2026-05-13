@@ -449,10 +449,10 @@ for full syntax and examples.
 
 ## Handoff vs Send/Receive
 
-**Handoff** — Sequential workflow in same chat tab
-* Used when: advancing the main thread work forward
+**Handoff** — Linear workflow progression (main thread)
+* Used when: advancing the main thread forward
 * Profile completes work, writes handoff, waits for user
-* User runs `@start` to continue workflow (optionally in a new tab for fresh context)
+* User runs `@start`, in new tab if fresh-context activation is desired
 * Cleans up work directory between steps
 * Used for: Builder → Enforcer → Documentor chains
 

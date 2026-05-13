@@ -245,7 +245,9 @@ while others **only reveal information** or **enter conversational mode**.
 * `@inquiry` — enters question‑only mode, and prevents state transitions
 
 ### Profile Activation
-* `@as [Profile]` — explicit profile activation command
+* `@as [Profile]` — explicit profile activation command.
+  Does not change workflow state. Activates a profile but does not
+  create or modify workflow artifacts.
 
 **Invariants:**
 * Profiles must not simulate or bypass commands

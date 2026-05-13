@@ -48,7 +48,10 @@ Retrospective analyzing workflows
   ↓
 Retrospective creates rule draft
   ↓
-Retrospective: "@send PE"
+Retrospective: "Rule draft ready. Send to PE for integration?
+  Use: @send to=PE"
+  ↓
+User: "@send to=PE"
   ↓
 Retrospective creates MESSAGE.md:
   "Message to PE: Review and integrate rule draft"
