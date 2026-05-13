@@ -17,4 +17,4 @@ What This Milestone Enables
 A short description of the new capabilities, clarity, or affordances unlocked by this milestone.
 
 Full details are available in the GitHub announcement:
-https://github.com/raystorm/Q-TguDiilt/blob/main/docs/announcements/<YYYY-MM-release>.md
+https://github.com/raystorm/Q-TguDiilt/blob/main/docs/announcements/<YYYY-MM>-release/GitHub.md

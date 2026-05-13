@@ -20,4 +20,4 @@ What This Milestone Enables
 A brief description of the new clarity, stability, or capabilities unlocked by this work.
 
 Full technical details are available here:
-https://github.com/raystorm/Q-TguDiilt/blob/main/docs/announcements/<YYYY-MM-release>.md
+https://github.com/raystorm/Q-TguDiilt/blob/main/docs/announcements/<YYYY-MM>-release/GitHub.md
