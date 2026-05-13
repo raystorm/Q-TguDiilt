@@ -383,6 +383,13 @@ and auto-suspend checkpoints for the lifetime of the workflow.
    - Git diff (for Dr/Enforcer)
    - Existing patterns (for Builder)
 
+### @as Activation (No Changeover)
+
+When activated via `@as` (no changeover file involved):
+- Do NOT output Context Status block (no changeover file to report)
+- Follow standard Profile Activation Sequence from general.md
+  (skipping Context Status, which requires a changeover)
+
 ### Work Execution
 
 1. Profile performs its responsibility

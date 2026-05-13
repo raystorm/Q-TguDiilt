@@ -176,6 +176,7 @@ else {
 - `blocker` - Work blocked, needs resolution
 - `context_suspended` - `@suspend` saved context 
 - `context_resumed` - resumed context with `@resume`
+- `auto_suspend_failed` - Auto-suspend write failed
 
 ### User Events
 - `user_note` - user note provided via `@note`

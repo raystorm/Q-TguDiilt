@@ -311,6 +311,7 @@ Explicit profile activation command.
 ```
 @as Builder
 @as Architect
+@as Planner create story for user search
 ```
 
 **Behavior:**
@@ -318,6 +319,14 @@ Explicit profile activation command.
 - Profile follows its rules and boundaries
 - Explicit goal or task is optional
 - Does not read HANDOFF.md or MESSAGE.md
+- Does not output Context Status block (no changeover file)
+
+**Syntax:**
+```
+@as [Profile] [optional task]
+```
+- Everything after the profile name is the task description
+- If no task provided, profile activates and waits for direction
 
 **Example:**
 ```
