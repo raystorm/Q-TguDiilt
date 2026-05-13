@@ -1,0 +1,32 @@
+Q‑TguDiilt — May 2026 Release (The 1.0 Moment)
+
+This milestone marks the Initial Public Release of Q‑TguDiilt —
+a Self‑Improving AI Workflow Engine built for software development.
+
+It captures the first production‑ready, governed, and intention‑revealing form of the system.
+
+What This Milestone Establishes
+  * Formalized conceptual foundations
+    The system’s doctrines, invariants, and architectural vocabulary are now canonical artifacts.
+
+  * Clarified structural organization
+    Repository layout, directory boundaries, and artifact placement rules
+    are now stable, governed, and intention‑revealing.
+
+  * Established workflow patterns
+    Workflow patterns for Planning, Development, and Self‑Update are defined, documented, and tested.
+
+  * Defined governance layer
+    Guardrails, constraints, and architectural rules form the backbone
+    of the self‑improving workflow engine.
+
+What This Milestone Enables
+  * A stable foundation for public visibility
+    The system is now coherent and governed enough to be published without misinterpretation.
+
+  * Clear documentation for users and contributors
+    With doctrine, invariants, and workflow patterns formalized,
+    the system can be understood, extended, and reasoned about without oral tradition.
+
+Full details are available in the GitHub announcement:
+https://github.com/raystorm/Q-TguDiilt/blob/main/docs/announcements/2026-05-release/github.md

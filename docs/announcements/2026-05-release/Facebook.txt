@@ -1,0 +1,22 @@
+Q‑TguDiilt — May 2026 Release (The 1.0 Moment)
+
+Q‑TguDiilt is a self-improving AI workflow engine created to simplify building
+our Sm'algyax learning repository: https://Smalgyax-Files.org/
+
+We’ve reached an important milestone in the project.
+This is the Initial Public Release of Q‑TguDiilt.
+The first stable, governed, and published version of the system.
+
+What This Milestone Establishes
+ * Clear conceptual foundations
+ * An intentional and organized structure
+ * Consistent patterns for planning and development
+ * A governance layer that keeps the system stable over time
+
+What This Milestone Enables
+  * A solid foundation for future community‑focused tools
+  * Clear documentation for anyone who wants to understand or contribute
+  * A stable system for the continued growth of Sm’algyax-Files.org
+
+Full technical details are available here:
+https://github.com/raystorm/Q-TguDiilt/blob/main/docs/announcements/2026-05-release/github.md
