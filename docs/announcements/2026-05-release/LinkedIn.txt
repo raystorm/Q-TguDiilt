@@ -29,4 +29,4 @@ What This Milestone Enables
     the system can be understood, extended, and reasoned about without oral tradition.
 
 Full details are available in the GitHub announcement:
-https://github.com/raystorm/Q-TguDiilt/blob/main/docs/announcements/2026-05-release/github.md
+https://github.com/raystorm/Q-TguDiilt/blob/main/docs/announcements/2026-05-release/GitHub.md

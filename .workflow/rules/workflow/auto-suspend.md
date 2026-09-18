@@ -12,7 +12,7 @@
 
 ### On `workflow_start` Event (MANDATORY)
 
-1. Generate workflowId (e.g., `wf-` + UUID)
+1. Generate workflowId (e.g., `wf-` + kebabe-case-task-title)
 2. Extract profile and goal from workflow_start
 3. Generate subject slug from goal (lowercase, hyphenated)
 4. Create initial auto-suspend file: `auto-[profile]-[subject]-[workflowId].md`

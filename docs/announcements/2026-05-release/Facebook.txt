@@ -19,4 +19,4 @@ What This Milestone Enables
   * A stable system for the continued growth of Sm’algyax-Files.org
 
 Full technical details are available here:
-https://github.com/raystorm/Q-TguDiilt/blob/main/docs/announcements/2026-05-release/github.md
+https://github.com/raystorm/Q-TguDiilt/blob/main/docs/announcements/2026-05-release/GitHub.md
