@@ -1,0 +1,71 @@
+# preferredProvider: When multiple drivers support the same model,
+# this driver is preferred. Falls back to registry order if the
+# preferred provider does not support the requested model.
+preferredProvider: kiro
+
+# preferredModel: Binds a specific model to a specific driver,
+# overriding preferredProvider for that model. Takes precedence
+# over all other resolution rules.
+preferredModel:
+  model: claude-sonnet-5
+  provider: kiro
+
+drivers:
+  kiro:
+    models:
+      - auto
+      - claude-opus-5
+      - claude-sonnet-5
+      - claude-opus-4.8
+      - gpt-5.6-sol
+      - gpt-5.6-terra
+      - gpt-5.6-luna
+      - claude-opus-4.7
+      - claude-opus-4.6
+      - claude-sonnet-4.6
+      - claude-opus-4.5
+      - claude-sonnet-4.5
+      - claude-sonnet-4
+      - claude-haiku-4.5
+      - deepseek-3.2
+      - minimax-m2.5
+      - minimax-m2.1
+      - glm-5
+      - qwen3-coder-next
+
+  copilot:
+    models:
+      - auto
+      - claude-sonnet-5
+      - claude-fable-5.1
+      - claude-fable-5
+      - claude-opus-5
+      - claude-opus-4.8
+      - claude-opus-4.8-fast
+      - claude-opus-4.7
+      - claude-sonnet-4.6
+      - claude-haiku-4.5
+      - gpt-6-astra
+      - gpt-5.6-sol
+      - gpt-5.6-terra
+      - gpt-5.6-luna
+      - gpt-5.5
+      - gpt-5.4
+      - gpt-5.4-mini
+      - gpt-5.3-codex
+      - gpt-5-mini
+      - mai-code-1.1-flash
+      - gemini-3.8-flash
+      - gemini-3.7-flash
+      - gemini-3.6-flash
+      - gemini-3.5-flash
+      - grok-4.5
+      - kimi-k3
+      - kimi-k2.7-code
+
+  # Example custom driver — demonstrates extensibility.
+  # Implement the driver interface and register it here.
+  my-local-model:
+    models:
+      - llama-3.2-local
+      - mistral-7b-local

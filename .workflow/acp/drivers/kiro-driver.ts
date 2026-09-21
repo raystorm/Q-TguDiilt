@@ -5,10 +5,12 @@ export interface CliResult {
    sessionId: string;
 }
 
+// TODO(A4): move shared types to driver.ts
 export interface Cli { run(args: string[]): CliResult; }
 
 export interface KiroConfig { agentEngine?: string; }
 
+// TODO(A4): move shared types to driver.ts
 export interface DriverResult {
    text:      string;
    sessionId: string;
