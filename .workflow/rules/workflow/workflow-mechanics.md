@@ -645,7 +645,7 @@ Create `.amazonq/work/FEATURE.md` when:
 
 **After all stories:**
 1. Retrospective cleans up FEATURE.md
- 
+
 **FEATURE.md Format:**
 
 ```markdown

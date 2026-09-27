@@ -64,3 +64,6 @@ Thumbs.db
 # Workflow files
 .amazonq/workflow.log
 .amazonq/.timestamp-temp
+
+# ACP temp or build Files
+/.workflow/acp/node_modules/

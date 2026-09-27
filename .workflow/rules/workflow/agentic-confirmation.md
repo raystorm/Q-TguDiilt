@@ -110,8 +110,8 @@ Transient, temporary, and working files do NOT require confirmation:
 
 ## Files Requiring Confirmation
 - Persistent Workflow Artifacts
-- All source code files 
-- Configuration files 
+- All source code files
+- Configuration files
 - Application settings and environment files
 - Build and deployment configuration files
 - Any file that affects application behavior

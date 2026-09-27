@@ -1,0 +1,6 @@
+# Ignore all transient runtime files in work/
+*
+
+# Except the directory-structure markers
+!.gitignore
+!.gitkeep
