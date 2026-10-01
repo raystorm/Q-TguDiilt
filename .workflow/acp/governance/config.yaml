@@ -1,0 +1,182 @@
+# Governance policy for the ACP Service Boundary.
+#
+# Every command the AI executes is evaluated against `rules` in order
+# (first match wins), using glob patterns matched against the full
+# command string. `default` applies when no rule matches.
+#
+# A compound command (composed with &&, ||, ;, |, &, or a redirect) is
+# split into segments; each segment is matched independently and the
+# overall decision is the most restrictive across segments (deny > ask >
+# approve). A pattern ending in " *" (e.g. "ls *") also matches the bare
+# command with no trailing arguments (e.g. "ls") — no separate entry
+# needed for the no-args form.
+#
+# No suffix-based rules (e.g. "* --help"): not every command honors a
+# given flag the same way, and a command that merely glob-matches a
+# trailing "--help" isn't guaranteed to actually be a no-op — only
+# prefix/exact patterns are used below.
+#
+# action: approve | deny | ask
+governance:
+  rules:
+    # --- Read-only / inert commands: safe to auto-approve ------------------
+    # No embedded scripting/execution capability of their own; nothing here
+    # can invoke another program or mutate a file through its own syntax.
+    - pattern: "npm test"
+      action: approve
+    - pattern: "npm run test*"
+      action: approve
+    - pattern: "npx tsc --noEmit"
+      action: approve
+    - pattern: "npm list*"
+      action: approve
+    - pattern: "npm ls*"
+      action: approve
+    - pattern: "npm outdated*"
+      action: approve
+    - pattern: "node --version"
+      action: approve
+    - pattern: "npm --version"
+      action: approve
+    # Exact match only (no " *" args form): "env VAR=x command" runs
+    # `command` with a modified environment — effectively arbitrary
+    # command execution through env's syntax. Bare `env` just prints the
+    # environment and is read-only.
+    - pattern: "env"
+      action: approve
+    - pattern: "pwd"
+      action: approve
+    - pattern: "cd *"
+      action: approve
+    - pattern: "whoami"
+      action: approve
+    - pattern: "id"
+      action: approve
+    - pattern: "uname *"
+      action: approve
+    - pattern: "hostname"
+      action: approve
+    - pattern: "which *"
+      action: approve
+    - pattern: "type *"
+      action: approve
+    - pattern: "test *"
+      action: approve
+    - pattern: "ls *"
+      action: approve
+    - pattern: "cat *"
+      action: approve
+    - pattern: "head *"
+      action: approve
+    - pattern: "tail *"
+      action: approve
+    - pattern: "less *"
+      action: approve
+    - pattern: "more *"
+      action: approve
+    - pattern: "wc *"
+      action: approve
+    - pattern: "stat *"
+      action: approve
+    - pattern: "du *"
+      action: approve
+    - pattern: "df *"
+      action: approve
+    - pattern: "locate *"
+      action: approve
+    - pattern: "echo *"
+      action: approve
+    - pattern: "grep *"
+      action: approve
+    - pattern: "egrep *"
+      action: approve
+    - pattern: "fgrep *"
+      action: approve
+    - pattern: "ag *"
+      action: approve
+    - pattern: "uniq *"
+      action: approve
+    - pattern: "cut *"
+      action: approve
+    - pattern: "tr *"
+      action: approve
+    - pattern: "diff *"
+      action: approve
+    - pattern: "comm *"
+      action: approve
+    - pattern: "column *"
+      action: approve
+    - pattern: "nl *"
+      action: approve
+    - pattern: "paste *"
+      action: approve
+    - pattern: "join *"
+      action: approve
+    - pattern: "info *"
+      action: approve
+    - pattern: "help *"
+      action: approve
+    - pattern: "git status"
+      action: approve
+    - pattern: "git branch"
+      action: approve
+    - pattern: "git remote -v"
+      action: approve
+    - pattern: "git blame *"
+      action: approve
+
+    # These commands are generally safe to run,
+    # but have hidden execution/file writes, if the AI is tricked into running an unsafe command
+    - pattern: "file *"
+      action: approve
+    - pattern: "git diff *"
+      action: approve
+    - pattern: "git log *"
+      action: approve
+    - pattern: "git show *"
+      action: approve
+    - pattern: "man *"
+      action: approve
+    - pattern: "rg *"
+      action: approve
+    - pattern: "sort *"
+      action: approve
+    - pattern: "tree *"
+      action: approve
+
+    # --- Commands with embedded exec/mutation capability -------------------
+    # These have safe common forms but can also invoke another program or
+    # mutate a file through their own argument syntax. The dangerous form
+    # is listed first (ask) so it isn't shadowed by the general approve
+    # below it — first-match-wins, order matters.
+    - pattern: "date -s *"
+      action: deny
+    - pattern: "date --set*"
+      action: deny
+    - pattern: "date *"
+      action: approve
+    - pattern: "sed *-i*"
+      action: ask
+    - pattern: "sed *"
+      action: approve
+    - pattern: "awk *system(*"
+      action: ask
+    - pattern: "awk *"
+      action: approve
+
+    # --- No safe subset exists: left at `default: ask` below ---------------
+    # find (-delete/-exec/-ok), xargs (exists to run arbitrary commands),
+    # rsync (-e/--rsh runs a remote shell), curl/wget/ssh/scp (network
+    # egress or remote execution), chmod/chown (permission changes) are
+    # deliberately not listed — no rule needed, they fall through to
+    # `default: ask` like anything else not covered above.
+
+    - pattern: "npm run deploy *"
+      action: deny
+    - pattern: "git checkout *"
+      action: deny
+    - pattern: "git commit *"
+      action: ask
+    - pattern: "npm run *"
+      action: ask
+  default: ask

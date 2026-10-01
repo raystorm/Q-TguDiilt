@@ -21,7 +21,7 @@ compatible with multiple providers.
 
 ## How Skills Relate to the Workflow
 
-Skills are invoked by the ACP Wrapper during automated workflow execution,
+Skills are invoked by the ACP Protocol layer during automated workflow execution,
 and can also be invoked directly in AI environments that support ACP skill
 invocation.
 

@@ -31,7 +31,7 @@ For the full interface contract and type definitions, see
 ## Driver Registry
 
 The registry is a YAML file that maps driver names to their supported
-models. The ACP Wrapper reads this file to resolve which driver to
+models. The ACP Protocol layer reads this file to resolve which driver to
 dispatch to for a given model.
 
 ```yaml
@@ -74,12 +74,12 @@ drivers:
 ```
 
 The installer (A5) ships a default registry with Kiro and Copilot
-entries. Place your custom registry at the path the ACP Wrapper is
+entries. Place your custom registry at the path the ACP Protocol layer is
 configured to read (defined in A4).
 
 ## Model Selection Resolution
 
-When a model is requested, the ACP Wrapper resolves the driver in
+When a model is requested, the ACP Protocol layer resolves the driver in
 this order:
 
 1. `preferredModel` binding matches → use that driver

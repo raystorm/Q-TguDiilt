@@ -2,7 +2,7 @@
 
 The ACP Service Boundary lets a JetBrains IDE run the Q-TguDiilt
 workflow engine over the Agent Client Protocol (ACP). The boundary
-**terminates** ACP at the wrapper and translates ACP session turns to
+**terminates** ACP at the protocol layer and translates ACP session turns to
 and from the existing provider-neutral driver layer. LLM providers stay
 ACP-agnostic — they are reached only through a driver.
 
