@@ -72,18 +72,36 @@ export function createMyDriver(cli: Cli) {
 ## Registry Config Format
 
 The registry is a YAML file that maps driver names to their supported
-models, with optional top-level preference fields.
+models, with optional top-level preference fields, a per-profile
+preference section, and a system-level fallback policy.
 
 ```yaml
 # Optional: preferred driver when multiple drivers support a model.
 # Falls back to registry order if unavailable for the requested model.
-preferredProvider: kiro
+preferredDriver: kiro
 
 # Optional: binds a specific model to a specific driver.
-# Overrides preferredProvider for that model.
+# Overrides preferredDriver for that model.
 preferredModel:
   model: claude-sonnet-5
-  provider: kiro
+  driver: kiro
+
+# Optional: per-profile model/driver preference, keyed by profile name.
+# `driver` is optional; when omitted, resolution falls back to registry
+# order (then preferredDriver/preferredModel tie-break) for that model.
+profiles:
+  Architect:
+    model: claude-opus-5
+    driver: kiro
+  Builder:
+    model: claude-sonnet-5
+
+# Optional: system-level policy (applies to all profiles) for when a
+# profile's own model/driver preference fails to resolve.
+# 'fallback-to-default-driver' (default) falls through to
+# preferredModel/preferredDriver above; 'fail-fast' surfaces the
+# profile's resolution failure immediately with no substitution.
+fallbackMode: fallback-to-default-driver
 
 drivers:
   <driver-name>:
@@ -95,11 +113,12 @@ drivers:
 **Rules:**
 - Each entry key is the driver name (string, required)
 - `models` is a list of model name strings (required, must be non-empty)
-- `preferredProvider` and `preferredModel` are optional
+- `preferredDriver`, `preferredModel`, `profiles`, and `fallbackMode`
+  are all optional
 - Custom driver entries follow the same schema as built-in entries
 
 See `registry.example.yaml` for a complete example with Kiro, Copilot,
-and a custom driver entry.
+a per-profile `profiles:` block, and a custom driver entry.
 
 ---
 
@@ -115,149 +134,30 @@ drivers:
       - mistral-7b-local
 ```
 
-The installer (A5) ships a default registry with Kiro and Copilot entries.
-Place your custom registry at the path the ACP Wrapper is configured to
-read (defined in A4).
+The installer ships a default registry with Kiro and Copilot entries.
+Place your custom registry at the path the ACP service is configured to
+read.
 
 ---
 
 ## Model Selection Resolution
 
-When a model is requested, the ACP Wrapper resolves the driver as follows:
+Model dispatch resolution for a profile is owned by the model dispatch
+resolver, not by this document. See `docs/dev/acp/model-dispatch.md`
+for the full algorithm (profile preference → registry default →
+combined error, with `auto`-model retry and configurable
+`fallbackMode`).
+
+This section covers only the registry-level step that the resolver
+calls into — matching a `(model, driver)` pair against the registry:
 
 1. **preferredModel binding matches** — if `preferredModel.model` equals
-   the requested model, use `preferredModel.provider`'s driver.
-2. **preferredProvider supports the model** — if `preferredProvider` is
+   the requested model, use `preferredModel.driver`'s driver.
+2. **preferredDriver supports the model** — if `preferredDriver` is
    set and its `models` list includes the requested model, use that
-   driver. Emit a warning if `preferredProvider` is set but does not
-   support the model (fallback proceeds).
+   driver.
 3. **First match in registry order** — use the first driver in the
    registry whose `models` list includes the requested model.
-4. **No match** — raise an error identifying the model as unregistered.
-
----
-
-## Test Contract
-
-These scenarios define what A4's registry resolver must satisfy.
-
-### Group 1: Registry Config Format
-
-Scenario: Valid registry parses without error
-  Given a registry YAML with driver-a supporting
-    ["model-x", "model-y"] and driver-b supporting ["model-z"]
-  When the registry is loaded
-  Then it parses successfully with no errors
-  And each entry maps a driver name to a list of supported models
-
-Scenario: Registry entry missing required driver field
-  Given a registry YAML entry with no driver name key
-  When the registry is loaded
-  Then a validation error is raised
-  And the error identifies the missing field
-
-Scenario: Registry entry with empty models list
-  Given a registry YAML entry with an empty models array
-  When the registry is loaded
-  Then a validation error is raised
-  And the error identifies the entry as invalid
-
-Scenario: Registry contains both Kiro and Copilot example entries
-  Given the default registry shipped with the installer
-  When the registry is inspected
-  Then it contains an entry for the Kiro driver
-  And it contains an entry for the Copilot driver
-  And each entry lists at least one supported model
-
-### Group 2: Model Selection Resolution
-
-Scenario: Model supported only by one driver resolves correctly
-  Given a registry where driver-a supports ["model-x"] and
-    driver-b supports ["model-z"]
-  When model selection is requested for "model-x"
-  Then driver-a is returned
-
-Scenario: Model supported only by other driver resolves correctly
-  Given a registry where driver-a supports ["model-x"] and
-    driver-b supports ["model-z"]
-  When model selection is requested for "model-z"
-  Then driver-b is returned
-
-Scenario: Overlapping model — preferred provider wins
-  Given a registry where both driver-a and driver-b support "model-y"
-  And the user has configured preferredProvider: "driver-b"
-  When model selection is requested for "model-y"
-  Then driver-b is returned
-
-Scenario: Overlapping model — preferred model binding overrides
-  preferred provider
-  Given a registry where both driver-a and driver-b support "model-y"
-  And the user has configured preferredProvider: "driver-b"
-  And the user has configured
-    preferredModel: { model: "model-y", provider: "driver-a" }
-  When model selection is requested for "model-y"
-  Then driver-a is returned
-
-Scenario: Unknown model requested
-  Given a registry with known model entries
-  When model selection is requested for "nonexistent-model-x"
-  Then an error is raised
-  And the error message identifies "nonexistent-model-x" as unregistered
-
-### Group 3: Custom Driver Registration
-
-Scenario: Custom driver registered and resolvable
-  Given a registry YAML with a custom driver entry mapping
-    "driver-custom" to ["model-custom-1"]
-  When model selection is requested for "model-custom-1"
-  Then driver-custom is returned
-
-Scenario: Custom driver entry follows the same schema as built-in entries
-  Given a custom driver registry entry
-  When the entry is validated against the registry schema
-  Then it passes validation without errors
-
-### Group 4: Documentation Completeness
-
-Scenario: Interface documentation covers all required topics
-  Given the driver extension documentation
-  When the documentation is reviewed
-  Then it covers: how to implement the driver interface
-  And it covers: how to register a custom driver in the registry
-  And it covers: how model selection resolves to a driver
-
-Scenario: Example registry entries are present for both built-in drivers
-  Given the driver extension documentation
-  When the example registry section is reviewed
-  Then a Kiro example entry is present
-  And a Copilot example entry is present
-  And both entries are valid against the registry schema
-
-### Group 5: Preferred Model and Preferred Provider Config
-
-Scenario: Preferred provider respected for overlapping model
-  Given the user config specifies preferredProvider: "driver-a"
-  And both driver-a and driver-b support "model-y"
-  When model selection is requested for "model-y"
-  Then driver-a is returned
-
-Scenario: Preferred model binding overrides preferred provider
-  Given the user config specifies preferredProvider: "driver-b"
-  And the user config specifies
-    preferredModel: { model: "model-y", provider: "driver-a" }
-  When model selection is requested for "model-y"
-  Then driver-a is returned
-
-Scenario: Preferred provider unavailable for model — falls back
-  Given the user config specifies preferredProvider: "driver-b"
-  And "model-x" is only supported by driver-a
-  When model selection is requested for "model-x"
-  Then driver-a is returned
-  And a warning is emitted that preferred provider was unavailable
-    for this model
-
-Scenario: No preference configured — registry order determines driver
-  Given no preferredProvider or preferredModel is configured
-  And both driver-a and driver-b support "model-y"
-  When model selection is requested for "model-y"
-  Then the driver listed first in the registry is returned
+4. **No match** — retry with `model = "auto"` (keeping whatever driver
+   context is already known), then raise an error if even `auto` has
+   no supporting driver.

@@ -199,12 +199,12 @@ User opens new tab
     ↓
 User: "@start"
     ↓
-=== Context Status ===
-Profile: Builder
-WorkflowId: wf-some-task-title
-Rules Loaded: 12 files
-Context: 42%
-======================
+=== Context Status ===  
+Profile: Builder  
+WorkflowId: wf-some-task-title  
+Rules Loaded: 12 files  
+Context: 42%  
+======================  
     ↓
 Context loaded correctly, workflow continues
 ```

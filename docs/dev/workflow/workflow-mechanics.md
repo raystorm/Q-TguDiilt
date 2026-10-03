@@ -45,12 +45,12 @@ The Context Status block appears immediately after profile activation from a cha
 **Example Output:**
 
 ```
-=== Context Status ===
-Profile: Builder
-WorkflowId: wf-some-task-title
-Rules Loaded: 12 files
-Context: 42%
-======================
+=== Context Status ===  
+Profile: Builder  
+WorkflowId: wf-some-task-title  
+Rules Loaded: 12 files  
+Context: 42%  
+======================  
 
 Reading HANDOFF.md...
 Task: Implement Field and data type change update

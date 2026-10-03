@@ -67,3 +67,7 @@ Thumbs.db
 
 # ACP temp or build Files
 /.workflow/acp/node_modules/
+
+# Local scratch/parking-lot files (not for git history; mined into
+# GitHub Projects once that integration lands)
+/scratch/

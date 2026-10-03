@@ -29,12 +29,12 @@ Context collapse occurs when a profile loses awareness of its rules and mandator
 When you activate a profile with @start or @receive, you should immediately see:
 
 ```
-=== Context Status ===
-Profile: Builder
-WorkflowId: wf-some-task-title
-Rules Loaded: 12 files
-Context: 42%
-======================
+=== Context Status ===  
+Profile: Builder  
+WorkflowId: wf-some-task-title  
+Rules Loaded: 12 files  
+Context: 42%  
+======================  
 ```
 
 **If this block is missing:**
@@ -81,12 +81,12 @@ User: [Closes tab]
 User: [Opens new tab]
 User: @start
 
-=== Context Status ===
-Profile: Builder
-WorkflowId: wf-some-task-title
-Rules Loaded: 12 files
-Context: 42%
-======================
+=== Context Status ===  
+Profile: Builder  
+WorkflowId: wf-some-task-title  
+Rules Loaded: 12 files  
+Context: 42%  
+======================  
 
 [Profile proceeds normally]
 ```

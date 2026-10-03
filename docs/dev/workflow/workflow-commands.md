@@ -102,12 +102,12 @@ Read HANDOFF.md and activate profile specified in "To:" field.
 ```
 User: "@start"
 
-=== Context Status ===
-Profile: Builder
-WorkflowId: wf-some-task-title
-Rules Loaded: 12 files
-Context: 42%
-======================
+=== Context Status ===  
+Profile: Builder  
+WorkflowId: wf-some-task-title  
+Rules Loaded: 12 files  
+Context: 42%  
+======================  
 
 Reading HANDOFF.md...
 Task: Implement schema changes
@@ -136,12 +136,12 @@ Read MESSAGE.md and activate profile specified in "To:" field.
 ```
 User: "@receive"
 
-=== Context Status ===
-Profile: PromptEngineer
-WorkflowId: wf-some-story-title
-Rules Loaded: 10 files
-Context: 38%
-======================
+=== Context Status ===  
+Profile: PromptEngineer  
+WorkflowId: wf-some-story-title  
+Rules Loaded: 10 files  
+Context: 38%  
+======================  
 
 Reading MESSAGE.md...
 Task: Review and integrate rule draft

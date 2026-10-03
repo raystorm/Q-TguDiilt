@@ -139,12 +139,12 @@ and then perform any other profile activation triggers.
 See foundation/terms.md for a full definition of changeover file.
 
 ```
-=== Context Status ===
-Profile: [ProfileName]
-WorkflowId: [workflowId]
-Rules Loaded: [count] files
-Context: [percentage]%
-======================
+=== Context Status ===  
+Profile: [ProfileName]  
+WorkflowId: [workflowId]  
+Rules Loaded: [count] files  
+Context: [percentage]%  
+======================  
 ```
 
 **Fields:**
