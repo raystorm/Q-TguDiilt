@@ -5,67 +5,135 @@
 
 ## Driver Interface Contract
 
-A driver is a plain object with a single method:
+A driver reports each tool call for governance before it runs. The
+contract is defined in `governed-driver.ts`:
 
 ```typescript
-execute(command: string, options?: ExecuteOptions): DriverResult
+interface Driver {
+   readonly name: string;
+   readonly supportsToolCallGovernance: boolean;
+   execute(command: string, options?: ExecuteOptions): Promise<DriverResult>;
+}
 ```
 
-**Types** (defined in `driver.ts` and `kiro-driver.ts`):
+**Types** (all defined in `governed-driver.ts`):
 
 ```typescript
-// driver.ts
 interface ExecuteOptions {
-   context?:   string;   // Prepended to command before dispatch
-   sessionId?: string;   // Resume an existing session
-   model?:     string;   // Model to use for this call
+   context?:    string;   // Prepended to command before dispatch
+   sessionId?:  string;   // Resume an existing session
+   model?:      string;   // Model to use for this call
+   onToolCall?: (report: ToolCallReport) => Promise<ToolCallDecision>;
 }
 
-// kiro-driver.ts (TODO(A4): move to driver.ts)
 interface DriverResult {
    text:      string;
    sessionId: string;
+   toolCalls: ToolCallOutcome[];   // every reported call and its decision
+}
+
+interface ToolCallReport {
+   kind:      ToolCallKind;   // 'read' | 'edit' | 'delete' | 'move' | 'search'
+                              // | 'execute' | 'fetch' | 'think' | 'other'
+   title:     string;
+   command?:  string;
+   paths?:    string[];
+   diff?:     string;
+   rawInput?: unknown;
+}
+
+type ToolCallDecision = 'approve' | 'deny';
+
+interface ToolCallOutcome {
+   report:   ToolCallReport;
+   decision: ToolCallDecision;
 }
 ```
 
 **Contract rules:**
 - `command` is required and must be a non-empty string
 - `options.model`, when provided, must be a non-empty string
-- The driver MUST return a `DriverResult` with `text` and `sessionId`
+- `execute` is asynchronous and resolves a `DriverResult`
+- `onToolCall` is passed per `execute` call, never at driver construction
+- The driver MUST report every tool call through `onToolCall` BEFORE the
+  call runs, and run it only when the answer is exactly `'approve'`
+- Fail closed: with no `onToolCall`, or any answer other than `'approve'`,
+  the call is denied and MUST NOT run. `gateToolCall(options, report)`
+  implements this rule; use it
+- A denied call is a normal result (a `'deny'` outcome in `toolCalls`),
+  not an error. If `onToolCall` throws or rejects, the call does not run
+  and `execute` rejects with that failure
+- `ToolCallDecision` has no `'ask'`: any question to the user is resolved
+  before the decision reaches the driver
+- `ToolCallReport` carries no protocol types: `kind` and `title` always;
+  `command`, `paths`, `diff`, and `rawInput` when applicable
+- The driver MUST declare `supportsToolCallGovernance: true`.
+  `declaresToolCallGovernance(driver)` is true only for an exact `true`
 - The driver MUST NOT throw on empty `options` — treat it as `{}`
 
-See `kiro-driver.ts` and `copilot-driver.ts` as canonical implementations.
+**Protocol layer:** a prompt fails before any work starts, with
+`DriverGovernanceUnsupportedError`, when the driver's declaration is
+`false` or absent. There is no warn mode and no setting.
+
+See `__tests__/fake-governed-driver.ts` as a minimal reference
+implementation.
 
 ---
 
 ## How to Implement a Custom Driver
 
-1. Create a factory function that accepts a `Cli` and optional config:
+1. Implement `Driver` from `governed-driver.ts`, declaring a `name` and
+   `supportsToolCallGovernance: true`. A sketch, provider specifics
+   omitted:
 
 ```typescript
-import { validateExecuteArgs, ExecuteOptions } from './driver.js';
-import { Cli, DriverResult } from './kiro-driver.js';
+import {
+   Driver,
+   ToolCallOutcome,
+   gateToolCall,
+   validateExecuteArgs,
+} from './governed-driver.js';
 
-export function createMyDriver(cli: Cli) {
+export function createMyDriver(): Driver {
    return {
-      execute(command: string, options: ExecuteOptions = {}): DriverResult {
+      name:                       'my-driver',
+      supportsToolCallGovernance: true,
+      async execute(command, options = {}) {
          validateExecuteArgs(command, options);
-         const { context, sessionId, model } = options;
-         const input = context ? `${context}\n\n${command}` : command;
-         const args = ['--prompt', input];
-         if (model)     { args.push('--model',   model);     }
-         if (sessionId) { args.push('--session', sessionId); }
-         const { finalText, sessionId: returnedSessionId } = cli.run(args);
-         return { text: finalText, sessionId: returnedSessionId };
+         const toolCalls: ToolCallOutcome[] = [];
+         // ...start the provider session with `command`...
+         // For each tool call the provider wants to run, build a `report`:
+         //    const decision = await gateToolCall(options, report);
+         //    toolCalls.push({ report, decision });
+         //    run the call only when 'approve' === decision
+         // ...collect `text` and `sessionId` from the provider...
+         return { text, sessionId, toolCalls };
       }
    };
 }
 ```
 
 2. Call `validateExecuteArgs(command, options)` at the top of `execute` —
-   this enforces the interface contract and is required.
+   this enforces the argument rules and is required.
 
-3. The driver must be independently testable by injecting a mock `Cli`.
+3. Route every tool call through `gateToolCall(options, report)` and run
+   the call only when it resolves `'approve'`.
+
+4. Prove the driver with the shared contract suite, in a test under
+   `drivers/__tests__/`:
+
+```typescript
+import { describeGovernedDriverContract } from './governed-driver.contract.js';
+
+describeGovernedDriverContract('my-driver', () => ({
+   driver: createMyDriver(),
+   script: reports => { /* make the driver attempt these tool calls */ },
+   ran:    () => [ /* reports whose side effects actually happened */ ],
+}));
+```
+
+   `script(reports)` sets the tool calls the driver attempts during its
+   next `execute`; `ran()` returns the reports that actually ran.
 
 ---
 

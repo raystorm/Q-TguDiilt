@@ -48,6 +48,20 @@ export const SessionCollapseError = defineError(
    (message: string) => ({ message }),
 );
 
+/**
+ * The resolved driver does not declare tool-call governance support (flag
+ * false, absent, or a legacy-interface driver). Raised before any work
+ * starts; there is no warn mode and no setting.
+ */
+export const DriverGovernanceUnsupportedError = defineError(
+   'DriverGovernanceUnsupportedError',
+   (driverName: string | undefined) => ({
+      message: `${undefined === driverName ? 'an unnamed driver' : `driver ${driverName}`} ` +
+         'cannot report tool calls, so tool-call governance cannot be enforced; ' +
+         'use a driver that declares supportsToolCallGovernance: true',
+   }),
+);
+
 /** The distinct error `kind` values the boundary maps to an ACP error stop. */
 export type BoundaryErrorKind =
    | 'provider_quota'

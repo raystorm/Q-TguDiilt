@@ -7,26 +7,34 @@ registry config.
 
 ## Driver Interface
 
-A driver is a factory function that returns an object with a single
-`execute` method:
+A driver is an object with a `name`, a `supportsToolCallGovernance` flag,
+and an asynchronous `execute` method:
 
 ```typescript
-execute(command: string, options?: ExecuteOptions): DriverResult
+execute(command: string, options?: ExecuteOptions): Promise<DriverResult>
 ```
 
-The driver receives a command string and optional context, session,
-and model. It returns the response text and a session ID for
-conversation continuity.
+The driver receives a command string and optional context, session, model,
+and a per-call `onToolCall` handler. It returns the response text, a
+session ID for conversation continuity, and the outcome (approved or
+denied) of each tool call it reported.
+
+Before running any tool call, the driver reports it through `onToolCall`
+and runs it only on an exact `'approve'`. No handler, or any other answer,
+denies the call (fail closed). A driver must declare
+`supportsToolCallGovernance: true`; the ACP Protocol layer rejects any
+other driver before doing any work.
 
 Key rules:
 - Call `validateExecuteArgs(command, options)` at the top of `execute`
-- Return a `DriverResult` with `text` and `sessionId`
+- Return a `DriverResult` with `text`, `sessionId`, and `toolCalls`
 - Accept an empty or omitted `options` without throwing
-- The driver must be independently testable via an injected `Cli`
+- Report every tool call through `gateToolCall` before it runs
+- Prove the driver with the shared contract suite
+  (`describeGovernedDriverContract`)
 
-See `kiro-driver.ts` and `copilot-driver.ts` as canonical examples.
-For the full interface contract and type definitions, see
-`.workflow/acp/drivers/EXTENDING.md`.
+See `.workflow/acp/drivers/EXTENDING.md` for the full interface contract
+and type definitions.
 
 ## Driver Registry
 
@@ -73,9 +81,9 @@ drivers:
       - mistral-7b-local
 ```
 
-The installer (A5) ships a default registry with Kiro and Copilot
-entries. Place your custom registry at the path the ACP Protocol layer is
-configured to read (defined in A4).
+The installer ships a default registry with Kiro and Copilot entries.
+Place your custom registry at the path the ACP Protocol layer is
+configured to read.
 
 ## Model Selection Resolution
 

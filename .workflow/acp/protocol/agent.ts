@@ -9,8 +9,7 @@
  * outcomes to distinct, actionable ACP error stops. LLM providers stay
  * ACP-agnostic; they are reached only through the injected driver.
  */
-import { ExecuteOptions } from '../drivers/driver.js';
-import { DriverResult } from '../drivers/kiro-driver.js';
+import { Driver, ExecuteOptions, declaresToolCallGovernance } from '../drivers/governed-driver.js';
 import { Logger } from '../shared/logger.js';
 import { AskDetails } from '../shared/types.js';
 import type {
@@ -21,13 +20,9 @@ import type {
 } from '@agentclientprotocol/sdk';
 import {
    TurnInProgressError,
+   DriverGovernanceUnsupportedError,
    boundaryErrorKind,
 } from './errors.js';
-
-/** The driver seam. Structurally matches `createKiroDriver(...)`'s result. */
-export interface Driver {
-   execute(command: string, options?: ExecuteOptions): DriverResult;
-}
 
 /**
  * Minimal subset of the SDK's AgentContext the boundary uses to reach the
@@ -127,6 +122,14 @@ export function createAgent(deps: AgentDeps) {
             throw new Error('prompt must contain non-empty text content');
          }
 
+         if (!declaresToolCallGovernance(driver)) {
+            logger.error('driver_governance_unsupported', {
+               sessionId: params.sessionId,
+               driver:    driver.name ?? 'unnamed',
+            });
+            throw new DriverGovernanceUnsupportedError(driver.name);
+         }
+
          sessionStore.setActiveTurn(params.sessionId, true);
          try {
             // Stream at least one update before the final response.
@@ -141,7 +144,7 @@ export function createAgent(deps: AgentDeps) {
             const options: ExecuteOptions = {};
             if (record.driverSessionId) { options.sessionId = record.driverSessionId; }
 
-            const result = driver.execute(command, options);
+            const result = await driver.execute(command, options);
             record.driverSessionId = result.sessionId;
 
             await cx.notify(SESSION_UPDATE, {

@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { createAgent } from '../agent.js';
 import { createSessionStore } from '../session-store.js';
 import {
@@ -6,6 +6,7 @@ import {
    ProviderQuotaError,
    ProviderAuthError,
    SessionCollapseError,
+   DriverGovernanceUnsupportedError,
 } from '../errors.js';
 
 const PROTOCOL_VERSION = 1;
@@ -41,7 +42,9 @@ function createDriverSpy(result: any = { text: 'ok', sessionId: 'drv-sess' })
    const seen: Array<{ command: string; options: any }> = [];
    return {
       seen,
-      execute: (command: string, options: any = {}) => {
+      name:                       'fake',
+      supportsToolCallGovernance: true,
+      execute: async (command: string, options: any = {}) => {
          seen.push({ command, options });
          if ('function' === typeof result) { return result(command, options); }
          return result;
@@ -456,5 +459,64 @@ describe('Group 9 — operational logging', () => {
       await agent.prompt({ sessionId: s.sessionId, ...textParam('SUPER_SECRET_PROMPT_BODY') }, cx);
       const leaked = logger.entries.some((e: LogEntry) => JSON.stringify(e.data).includes('SUPER_SECRET_PROMPT_BODY'));
       expect(leaked).toBe(false);
+   });
+});
+
+
+// Group 10: Governed driver interface ---------------------------------------
+
+describe('Group 10 — governed driver interface', () => {
+   it('prompt awaits an async execute, then streams its text and stores the session id', async () => {
+      let release!: (result: any) => void;
+      const delayed = new Promise<any>(resolve => { release = resolve; });
+      const driver  = createDriverSpy(() => delayed);
+      const { agent, sessionStore } = makeAgent({ driver });
+      const s    = await agent.newSession(newSessionArgs());
+      const cx   = createCx();
+      const turn = agent.prompt({ sessionId: s.sessionId, ...textParam('q') }, cx);
+      await vi.waitFor(() => expect(driver.seen).toHaveLength(1));
+      expect(JSON.stringify(cx.calls)).not.toContain('late answer');
+      release({ text: 'late answer', sessionId: 'drv-late', toolCalls: [] });
+      await turn;
+      expect(JSON.stringify(cx.calls)).toContain('late answer');
+      expect(sessionStore.get(s.sessionId)?.driverSessionId).toBe('drv-late');
+   });
+
+   const unsupported = [
+      { label: 'supportsToolCallGovernance false',
+        base: { name: 'plain', supportsToolCallGovernance: false },
+        shown: 'plain', logged: 'plain' },
+      { label: 'supportsToolCallGovernance absent',
+        base: { name: 'silent' },
+        shown: 'silent', logged: 'silent' },
+      { label: 'a legacy shape (sync execute, no name)',
+        base: {},
+        shown: 'an unnamed driver', logged: 'unnamed' },
+   ];
+
+   it.each(unsupported)('rejects a driver with $label before any work', async ({ base, shown, logged }) => {
+      const executed: string[] = [];
+      const driver = {
+         ...base,
+         execute: (command: string) => { executed.push(command); return { text: 'x', sessionId: 'y' }; },
+      };
+      const { agent, sessionStore, logger } = makeAgent({ driver });
+      const s   = await agent.newSession(newSessionArgs());
+      const cx  = createCx();
+      const err = await agent
+         .prompt({ sessionId: s.sessionId, ...textParam('SECRET_PROMPT_TEXT') }, cx)
+         .then(() => undefined, (e: any) => e);
+      expect(err).toBeInstanceOf(DriverGovernanceUnsupportedError);
+      expect(err.message).toContain(shown);
+      expect(err.message).toContain('cannot report tool calls');
+      expect(err.message).toContain('supportsToolCallGovernance: true');
+      expect(executed).toEqual([]);
+      expect(cx.calls).toHaveLength(0);
+      expect(sessionStore.hasActiveTurn(s.sessionId)).toBe(false);
+      const errors = logger.entries.filter((e: LogEntry) => 'error' === e.level);
+      expect(errors).toHaveLength(1);
+      expect(errors[0].data.sessionId).toBe(s.sessionId);
+      expect(errors[0].data.driver).toBe(logged);
+      expect(JSON.stringify(errors[0].data)).not.toContain('SECRET_PROMPT_TEXT');
    });
 });
