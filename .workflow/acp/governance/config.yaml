@@ -4,6 +4,14 @@
 # (first match wins), using glob patterns matched against the full
 # command string. `default` applies when no rule matches.
 #
+# Rules can also match other tool calls by `kind` (read, edit, delete,
+# move, search, execute, fetch, think, other), `path` (an absolute prefix)
+# and `files` (file-name patterns; quote them: "*.ts"). First match wins
+# for these too, so put narrow rules before broad ones.
+#
+# A path containing a ".." segment is never auto-approved by any rule or
+# by `default`; it is asked about instead (a matching deny still denies).
+#
 # A compound command (composed with &&, ||, ;, |, &, or a redirect) is
 # split into segments; each segment is matched independently and the
 # overall decision is the most restrictive across segments (deny > ask >
@@ -19,6 +27,15 @@
 # action: approve | deny | ask
 governance:
   rules:
+    # --- Tool kinds the AI performs on its own: approved -------------------
+    # Approving read and search mirrors the AI's own behavior: both target
+    # agents never ask permission for these kinds, so these rules only state
+    # what already happens. Changing either rule probably has no effect.
+    - kind: read
+      action: approve
+    - kind: search
+      action: approve
+
     # --- Read-only / inert commands: safe to auto-approve ------------------
     # No embedded scripting/execution capability of their own; nothing here
     # can invoke another program or mutate a file through its own syntax.

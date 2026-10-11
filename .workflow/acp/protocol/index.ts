@@ -10,10 +10,12 @@
  */
 import { Readable, Writable } from 'node:stream';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { agent, methods, ndJsonStream, PROTOCOL_VERSION } from '@agentclientprotocol/sdk';
 import type { Driver } from '../drivers/governed-driver.js';
 import { createAgent } from './agent.js';
 import { createSessionStore } from './session-store.js';
+import { createGovernanceEngine } from '../governance/engine.js';
 import { createFileLogger } from '../shared/logger.js';
 
 // Operational log lives with workflow runtime state, mirroring workflow.log.
@@ -32,11 +34,21 @@ const driver: Driver = {
    supportsToolCallGovernance: false,
    execute: async () => { throw new Error('no governed driver is wired yet'); },
 };
+
 const sessionStore = createSessionStore({ newWorkflowId });
+
+// Loaded at startup: a missing or malformed governance config throws here,
+// before the server accepts a single request (fail closed).
+const governance = createGovernanceEngine({
+   configPath: fileURLToPath(new URL('../governance/config.yaml', import.meta.url)),
+   logger,
+});
+
 const service      = createAgent({
    driver,
    sessionStore,
    logger,
+   governance,
    protocolVersion: PROTOCOL_VERSION,
 });
 

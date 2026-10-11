@@ -32,8 +32,11 @@ LLM provider (ACP-agnostic)
 ```
 
 Entry point `protocol/index.ts` assembles the SDK stdio transport, the
-translation agent (`createAgent`), a session store, the real Kiro
-driver, and a file logger, then serves the ACP client.
+translation agent (`createAgent`), a session store, a placeholder driver
+(no governed driver is wired yet), the governance engine, and a file
+logger, then serves the ACP client. The governance config is loaded at
+startup; a missing or malformed config fails closed before any request
+is served.
 
 ## Transport
 
@@ -56,6 +59,11 @@ exactly one `driver.execute(...)`**.
   `session/update` chunk before the final response).
 - `DriverResult.sessionId` → stored on the session record for
   continuity across turns.
+- `options.onToolCall` is supplied on every turn: the first, a later
+  one, and a resumed session. It answers each tool call the driver
+  reports through governance (see "Tool-call governance"). A driver
+  that does not declare tool-call governance support is rejected before
+  any work.
 - Each turn streams at least one `session/update` before returning
   `stopReason: 'end_turn'`.
 
@@ -96,6 +104,18 @@ The stable ACP SDK does not enforce initialize ordering, so the boundary
 rejects any request that arrives before `initialize`. Throwing inside a
 handler becomes a JSON-RPC error response, not a server crash.
 
+## Tool-call governance
+
+`prompt` builds a handler per turn over that turn's session and client
+context, so concurrent reports share no state. Each report gets a
+`callId` and is evaluated by the governance engine:
+
+- `approve` — the driver is told approve; the user is not asked.
+- `deny` — the driver is told deny; the user is not asked.
+- `ask` — the ask flow below. Allow is approve; anything else is deny.
+
+An allow covers that one report only; nothing is remembered.
+
 ## Ask flow (governance approvals)
 
 Governance asks are surfaced to the IDE user as **two messages, in
@@ -103,7 +123,9 @@ order**:
 
 1. A detail `session/update` (`tool_call`, `status: 'pending'`) carrying
    the full specifics — command, file paths, diff/patch, tool
-   parameters — as an `AskDetails` payload.
+   parameters — as an `AskDetails` payload. It also carries `kind`,
+   `agentTitle` (the agent's title, labelled as display text and never
+   used as a command), and `note` when governance could not evaluate.
 2. The approval request (`session/request_permission`) with allow/reject
    options.
 
@@ -112,8 +134,34 @@ The user MUST see the specifics (message 1) before the approval request
 command/paths/diff) and is not relied on to carry the specifics.
 
 `AskDetails` is the governance ⇄ boundary contract (`shared/types.ts`):
-governance produces it (A4b), the boundary delivers it (A4a). Denial or
-cancellation fail safe as not-approved and leave the session usable.
+governance produces it, the boundary delivers it.
+
+The user's answer is one of `allow`, `reject`, `cancelled`, or `invalid`
+(a missing outcome or an unknown option). Only `allow` approves.
+
+### Failure handling
+
+Anything but an explicit allow denies, and the session stays usable:
+
+| Situation                               | Result                    | Logged reason      |
+| --------------------------------------- | ------------------------- | ------------------ |
+| User rejects                            | deny                      | none               |
+| IDE answers cancelled                   | deny                      | `cancelled`        |
+| Answer missing or unrecognized          | deny                      | `invalid_answer`   |
+| Detail update or approval request fails | deny; no approval request | `ask_failed`       |
+|                                         | follows a failed detail   |                    |
+| Governance evaluation throws            | ask, with a `note`; deny  | `evaluation_error` |
+|                                         | if the ask fails          |                    |
+
+There is no timeout and no retry. The IDE's error text is never logged.
+
+### Outcome logging
+
+After an ask or a failure the handler writes a `governance_outcome`
+entry: `sessionId`, `callId`, `action`, `answeredBy` (`user` or
+`failure`), and `reason` when there is one. It shares `sessionId` and
+`callId` with the engine's `governance_decision` entry for the same
+report. A report decided by a rule writes only the decision entry.
 
 ## Error model
 

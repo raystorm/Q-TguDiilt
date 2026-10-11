@@ -5,11 +5,21 @@
  * One `session/prompt` turn maps to exactly one `driver.execute(...)`. The
  * boundary streams a `session/update` before the final response, surfaces
  * governance asks as a detail update sent BEFORE the approval request,
+ * answers every tool call the driver reports through governance (an ask goes
+ * to the user; anything that goes wrong denies),
  * enforces reject-with-retry concurrency, and maps provider / session-collapse
  * outcomes to distinct, actionable ACP error stops. LLM providers stay
  * ACP-agnostic; they are reached only through the injected driver.
  */
-import { Driver, ExecuteOptions, declaresToolCallGovernance } from '../drivers/governed-driver.js';
+import {
+   Driver,
+   ExecuteOptions,
+   ToolCallDecision,
+   ToolCallReport,
+   declaresToolCallGovernance,
+} from '../drivers/governed-driver.js';
+import { GovernanceEngine, askDetails } from '../governance/engine.js';
+import { Decision } from '../governance/types.js';
 import { Logger } from '../shared/logger.js';
 import { AskDetails } from '../shared/types.js';
 import type {
@@ -39,11 +49,18 @@ export interface AgentDeps {
    driver:          Driver;
    sessionStore:    SessionStore;
    logger:          Logger;
+   governance:      GovernanceEngine;
    protocolVersion: number;
 }
 
 const SESSION_UPDATE     = 'session/update';
 const REQUEST_PERMISSION = 'session/request_permission';
+
+/** How the IDE answered an approval request. `invalid` is anything unrecognized. */
+type AskAnswer = 'allow' | 'reject' | 'cancelled' | 'invalid';
+
+/** Shown with the details when governance could not evaluate a report. */
+const GOVERNANCE_UNAVAILABLE_NOTE = 'governance could not evaluate this action';
 
 /** Extracts the concatenated text of an ACP prompt content array. */
 function promptText(params: PromptRequest): string {
@@ -57,8 +74,9 @@ function promptText(params: PromptRequest): string {
 }
 
 export function createAgent(deps: AgentDeps) {
-   const { driver, sessionStore, logger, protocolVersion } = deps;
+   const { driver, sessionStore, logger, governance, protocolVersion } = deps;
    let sessionSeq = 0;
+   let callSeq    = 0;
    let initialized = false;
 
    function newSessionId(): string {
@@ -72,6 +90,114 @@ export function createAgent(deps: AgentDeps) {
       if (!initialized) {
          throw new Error('received request before initialize');
       }
+   }
+
+   /**
+    * Ask: emit a detail `session/update` carrying the full
+    * specifics (command, paths, diff, params) BEFORE the approval request,
+    * correlated by ACP session id. Returns `{ approved, answer }`. Anything
+    * but an explicit allow is not approved; an unrecognized answer is
+    * reported as `invalid` so the caller can tell it from a user's rejection.
+    * Denial or cancellation leave the session usable.
+    */
+   async function ask(
+      target: { sessionId: string },
+      specifics: AskDetails,
+      cx: ClientContext,
+   ): Promise<{ approved: boolean; answer: AskAnswer }> {
+      await cx.notify(SESSION_UPDATE, {
+         sessionId: target.sessionId,
+         update: {
+            sessionUpdate: 'tool_call',
+            status:        'pending',
+            title:         specifics.command ?? 'Requested action',
+            rawInput:      specifics,
+         },
+      });
+
+      const response = await cx.request(REQUEST_PERMISSION, {
+         sessionId: target.sessionId,
+         options: [
+            { kind: 'allow_once',  name: 'Allow',  optionId: 'allow'  },
+            { kind: 'reject_once', name: 'Reject', optionId: 'reject' },
+         ],
+      }) as RequestPermissionResponse;
+
+      const outcome = response?.outcome;
+      if ('selected' === outcome?.outcome) {
+         if ('allow'  === outcome.optionId) { return { approved: true,  answer: 'allow'  }; }
+         if ('reject' === outcome.optionId) { return { approved: false, answer: 'reject' }; }
+      }
+      else if ('cancelled' === outcome?.outcome) { return { approved: false, answer: 'cancelled' }; }
+      return { approved: false, answer: 'invalid' };
+   }
+
+   /**
+    * Asks the user about one tool call and logs how it ended. A throw (the
+    * detail update or the request failed) or an unrecognized answer denies,
+    * logged; the IDE's error text is never logged.
+    */
+   async function askForApproval(
+      context: { sessionId: string; callId: number },
+      specifics: AskDetails,
+      cx: ClientContext,
+   ): Promise<ToolCallDecision> {
+      let result: { approved: boolean; answer: AskAnswer };
+      try { result = await ask({ sessionId: context.sessionId }, specifics, cx); }
+      catch {
+         logger.warn('governance_outcome', {
+            ...context, action: 'deny', answeredBy: 'failure', reason: 'ask_failed',
+         });
+         return 'deny';
+      }
+
+      if ('invalid' === result.answer) {
+         logger.warn('governance_outcome', {
+            ...context, action: 'deny', answeredBy: 'failure', reason: 'invalid_answer',
+         });
+         return 'deny';
+      }
+
+      const outcome: Record<string, unknown> = {
+         ...context, action: result.approved ? 'approve' : 'deny', answeredBy: 'user',
+      };
+      if ('cancelled' === result.answer) { outcome.reason = 'cancelled'; }
+      logger.info('governance_outcome', outcome);
+      return result.approved ? 'approve' : 'deny';
+   }
+
+   /**
+    * Answers one tool call a driver reports. Governance decides: approve and
+    * deny map straight through; an ask goes to the user. If governance
+    * itself fails the failure is logged and the call falls back to an ask
+    * (noting that governance could not evaluate it). Built per turn over that
+    * turn's session and context, so concurrent reports share no state.
+    */
+   async function handleToolCall(
+      sessionId: string,
+      report: ToolCallReport,
+      cx: ClientContext,
+   ): Promise<ToolCallDecision> {
+      const context = { sessionId, callId: ++callSeq };
+
+      let decision: Decision;
+      let note: string | undefined;
+      try { decision = governance.evaluateToolCall(report, context); }
+      catch {
+         logger.warn('governance_decision', {
+            ...context, kind: report.kind, action: 'ask', reason: 'evaluation_error',
+         });
+         decision = { action: 'ask', details: { ...askDetails(report), command: report.command } };
+         note     = GOVERNANCE_UNAVAILABLE_NOTE;
+      }
+
+      if ('approve' === decision.action) { return 'approve'; }
+      if ('deny'    === decision.action) { return 'deny'; }
+
+      // The title is agent-supplied display text: shown, labelled, never a command.
+      const specifics: AskDetails = { ...decision.details, kind: report.kind, agentTitle: report.title };
+      if (undefined !== note) { specifics.note = note; }
+      return askForApproval(context, specifics, cx);
    }
 
    return {
@@ -141,7 +267,9 @@ export function createAgent(deps: AgentDeps) {
                },
             });
 
-            const options: ExecuteOptions = {};
+            const options: ExecuteOptions = {
+               onToolCall: report => handleToolCall(params.sessionId, report, cx),
+            };
             if (record.driverSessionId) { options.sessionId = record.driverSessionId; }
 
             const result = await driver.execute(command, options);
@@ -182,39 +310,7 @@ export function createAgent(deps: AgentDeps) {
          sessionStore.setActiveTurn(params.sessionId, false);
       },
 
-      /**
-       * Ask: emit a detail `session/update` carrying the full
-       * specifics (command, paths, diff, params) BEFORE the approval request,
-       * correlated by ACP session id. Returns `{ approved }`. Denial or
-       * cancellation fail safe as not-approved and leave the session usable.
-       */
-      async ask(
-         target: { sessionId: string },
-         specifics: AskDetails,
-         cx: ClientContext,
-      ): Promise<{ approved: boolean }> {
-         await cx.notify(SESSION_UPDATE, {
-            sessionId: target.sessionId,
-            update: {
-               sessionUpdate: 'tool_call',
-               status:        'pending',
-               title:         specifics.command ?? 'Requested action',
-               rawInput:      specifics,
-            },
-         });
-
-         const response = await cx.request(REQUEST_PERMISSION, {
-            sessionId: target.sessionId,
-            options: [
-               { kind: 'allow_once',  name: 'Allow',  optionId: 'allow'  },
-               { kind: 'reject_once', name: 'Reject', optionId: 'reject' },
-            ],
-         }) as RequestPermissionResponse;
-
-         const outcome  = response?.outcome;
-         const approved = 'selected' === outcome?.outcome && 'allow' === outcome.optionId;
-         return { approved };
-      },
+      ask,
 
       /** Release all session mappings on disconnect / stdin EOF (no leaks). */
       onDisconnect() {

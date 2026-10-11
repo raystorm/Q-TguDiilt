@@ -1,6 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createAgent } from '../agent.js';
 import { createSessionStore } from '../session-store.js';
+import { createGovernanceEngine } from '../../governance/engine.js';
+import { createFakeGovernedDriver } from '../../drivers/__tests__/fake-governed-driver.js';
+import type { ToolCallReport } from '../../drivers/governed-driver.js';
 import {
    TurnInProgressError,
    ProviderQuotaError,
@@ -20,8 +23,14 @@ interface LogEntry { level: string; event: string; data: any }
  * client answers a request_permission call.
  */
 function createCx(
-   { permission = { outcome: 'selected', optionId: 'allow' } }:
-   { permission?: { outcome: string; optionId?: string } } = {},
+   { permission = { outcome: 'selected', optionId: 'allow' }, respond, failDetail = false }:
+   {
+      permission?: { outcome: string; optionId?: string };
+      /** Overrides the answer to the Nth approval request (0-based). */
+      respond?:    (params: any, index: number) => unknown;
+      /** Makes the detail update (and only that update) throw. */
+      failDetail?: boolean;
+   } = {},
 )
 {
    const calls: Array<{ kind: string; method: string; params: any }> = [];
@@ -29,9 +38,14 @@ function createCx(
       calls,
       notify: async (method: string, params: any) => {
          calls.push({ kind: 'notify', method, params });
+         if (failDetail && 'tool_call' === params?.update?.sessionUpdate) {
+            throw new Error('connection lost');
+         }
       },
       request: async (method: string, params: any) => {
+         const index = calls.filter(c => 'request' === c.kind).length;
          calls.push({ kind: 'request', method, params });
+         if (respond) { return respond(params, index); }
          return { outcome: permission };
       },
    };
@@ -57,7 +71,9 @@ function createLogger()
    const entries: LogEntry[] = [];
    return {
       entries,
+      debug: (event: string, data: any = {}) => { entries.push({ level: 'debug', event, data }); },
       info:  (event: string, data: any = {}) => { entries.push({ level: 'info',  event, data }); },
+      warn:  (event: string, data: any = {}) => { entries.push({ level: 'warn',  event, data }); },
       error: (event: string, data: any = {}) => { entries.push({ level: 'error', event, data }); },
    };
 }
@@ -68,12 +84,16 @@ function makeAgent(overrides: any = {})
    const logger       = overrides.logger       ?? createLogger();
    const sessionStore = overrides.sessionStore ??
       createSessionStore({ newWorkflowId: (() => { let n = 0; return () => `wf-${++n}`; })() });
-   const agent = createAgent({ driver, sessionStore, logger, protocolVersion: PROTOCOL_VERSION });
+   const governance = overrides.governance ?? createGovernanceEngine({
+      config: { rules: overrides.rules ?? [], default: overrides.defaultAction ?? 'ask' },
+      logger,
+   });
+   const agent = createAgent({ driver, sessionStore, logger, governance, protocolVersion: PROTOCOL_VERSION });
    // Most tests operate on an initialized boundary. `initialize` flips the
    // internal flag synchronously (before its first await), so the guard tests
    // that pass `init: false` reliably observe an un-initialized agent.
    if (false !== overrides.init) { void agent.initialize({ protocolVersion: PROTOCOL_VERSION }); }
-   return { agent, driver, logger, sessionStore };
+   return { agent, driver, logger, sessionStore, governance };
 }
 
 function textParam(text: string)
@@ -518,5 +538,276 @@ describe('Group 10 — governed driver interface', () => {
       expect(errors[0].data.sessionId).toBe(s.sessionId);
       expect(errors[0].data.driver).toBe(logged);
       expect(JSON.stringify(errors[0].data)).not.toContain('SECRET_PROMPT_TEXT');
+   });
+});
+
+
+// Groups 11-14: tool-call governance handler --------------------------------
+
+const readReport: ToolCallReport = { kind: 'read', title: 'Read a.ts', paths: ['/repo/a.ts'] };
+const editReport: ToolCallReport = {
+   kind: 'edit', title: 'Edit a.ts', paths: ['/repo/a.ts'], diff: '- a\n+ b',
+   rawInput: { path: '/repo/a.ts' },
+};
+
+const allow  = { outcome: 'selected', optionId: 'allow'  };
+const reject = { outcome: 'selected', optionId: 'reject' };
+
+type Cx = ReturnType<typeof createCx>;
+
+const requestsOf = (cx: Cx) => cx.calls.filter(c => 'session/request_permission' === c.method);
+const detailsOf  = (cx: Cx) => cx.calls.filter(c => 'tool_call' === c.params?.update?.sessionUpdate);
+const eventsOf   = (logger: { entries: LogEntry[] }, event: string) =>
+   logger.entries.filter(e => event === e.event);
+
+/** Runs one governed turn: scripts `reports` on a fake driver, then prompts. */
+async function runTurn(
+   reports: ToolCallReport[],
+   options: { cx?: Cx; [key: string]: any } = {},
+) {
+   const { cx = createCx(), ...overrides } = options;
+   const fake = createFakeGovernedDriver();
+   fake.script(reports);
+   const made = makeAgent({ driver: fake.driver, ...overrides });
+   const s    = await made.agent.newSession(newSessionArgs());
+   await made.agent.prompt({ sessionId: s.sessionId, ...textParam('go') }, cx);
+   return { ...made, fake, cx, sessionId: s.sessionId };
+}
+
+/** Every way an approval can end in a deny, with the outcome entry it logs. */
+const denials: Array<[string, () => Cx, Record<string, unknown>]> = [
+   ['the user rejects',
+      () => createCx({ permission: reject }),
+      { action: 'deny', answeredBy: 'user' }],
+   ['the IDE answers cancelled',
+      () => createCx({ permission: { outcome: 'cancelled' } }),
+      { action: 'deny', answeredBy: 'user', reason: 'cancelled' }],
+   ['the IDE answers with nothing',
+      () => createCx({ respond: () => undefined }),
+      { action: 'deny', answeredBy: 'failure', reason: 'invalid_answer' }],
+   ['the IDE answers with an error response',
+      () => createCx({ respond: () => ({ error: { code: -32603, message: 'SECRET-ERR' } }) }),
+      { action: 'deny', answeredBy: 'failure', reason: 'invalid_answer' }],
+   ['the IDE selects an unknown option',
+      () => createCx({ permission: { outcome: 'selected', optionId: 'weird' } }),
+      { action: 'deny', answeredBy: 'failure', reason: 'invalid_answer' }],
+   ['the IDE selects no option',
+      () => createCx({ permission: { outcome: 'selected' } }),
+      { action: 'deny', answeredBy: 'failure', reason: 'invalid_answer' }],
+   ['the approval request throws',
+      () => createCx({ respond: () => { throw new Error('SECRET-ERR lost connection'); } }),
+      { action: 'deny', answeredBy: 'failure', reason: 'ask_failed' }],
+   ['the detail update fails',
+      () => createCx({ failDetail: true }),
+      { action: 'deny', answeredBy: 'failure', reason: 'ask_failed' }],
+];
+
+describe('Group 11 — tool-call handler: supplied and answered', () => {
+   it('[H] the handler is supplied on a first turn, a later turn and a resumed session', async () => {
+      const { agent, driver } = makeAgent();
+      const s  = await agent.newSession(newSessionArgs());
+      const cx = createCx();
+      await agent.prompt({ sessionId: s.sessionId, ...textParam('first') }, cx);
+      await agent.prompt({ sessionId: s.sessionId, ...textParam('later') }, cx);
+      await agent.loadSession({ sessionId: 'sess-prev', workflowId: 'wf-prev' } as any);
+      await agent.prompt({ sessionId: 'sess-prev', ...textParam('resumed') }, cx);
+      expect(driver.seen).toHaveLength(3);
+      for (const call of driver.seen) { expect(typeof call.options.onToolCall).toBe('function'); }
+   });
+
+   it('[H] a rule-approved report runs without asking the user', async () => {
+      const { fake, cx } = await runTurn([readReport], { rules: [{ kind: 'read', action: 'approve' }] });
+      expect(fake.ran()).toEqual([readReport]);
+      expect(requestsOf(cx)).toHaveLength(0);
+      expect(detailsOf(cx)).toHaveLength(0);
+   });
+
+   it('[H] a rule-denied report does not run and the user is not asked', async () => {
+      const { fake, cx } = await runTurn([editReport], { rules: [{ kind: 'edit', action: 'deny' }] });
+      expect(fake.ran()).toEqual([]);
+      expect(requestsOf(cx)).toHaveLength(0);
+      expect(detailsOf(cx)).toHaveLength(0);
+   });
+
+   it('[H] ask: the detail is sent before the approval request, and allow runs the call', async () => {
+      const { fake, cx } = await runTurn([editReport]);
+      expect(fake.ran()).toEqual([editReport]);
+      const detail   = cx.calls.findIndex(c => 'tool_call' === c.params?.update?.sessionUpdate);
+      const approval = cx.calls.findIndex(c => 'session/request_permission' === c.method);
+      expect(detail).toBeGreaterThanOrEqual(0);
+      expect(approval).toBeGreaterThan(detail);
+   });
+
+   it.each(denials)('[H] ask, then %s: the call is denied and the turn completes', async (_name, makeCx) => {
+      const cx = makeCx();
+      const { fake } = await runTurn([editReport], { cx });
+      expect(fake.ran()).toEqual([]);
+   });
+
+   it('[H] a failed detail update means no approval request is sent', async () => {
+      const cx = createCx({ failDetail: true });
+      await runTurn([editReport], { cx });
+      expect(requestsOf(cx)).toHaveLength(0);
+   });
+
+   it('[H] a report missing what its kind needs is denied without asking', async () => {
+      const { fake, cx } = await runTurn([{ kind: 'edit', title: 'Edit nothing' }], { defaultAction: 'approve' });
+      expect(fake.ran()).toEqual([]);
+      expect(requestsOf(cx)).toHaveLength(0);
+      expect(detailsOf(cx)).toHaveLength(0);
+   });
+
+   it('[H] an allow is not remembered: the identical ask is asked again', async () => {
+      const cx = createCx({ respond: (_params, index) => ({ outcome: 0 === index ? allow : reject }) });
+      const { fake } = await runTurn([editReport, editReport, readReport], {
+         cx, rules: [{ kind: 'read', action: 'approve' }],
+      });
+      expect(fake.ran()).toEqual([editReport, readReport]);
+      expect(requestsOf(cx)).toHaveLength(2);
+   });
+
+   it('[H] concurrent asks stay separate', async () => {
+      const gates: Array<(answer: unknown) => void> = [];
+      const cx = createCx({ respond: () => new Promise(resolve => { gates.push(resolve); }) });
+      const decided: string[] = [];
+      const driver = createDriverSpy(async (_command: string, options: any) => {
+         const [first, second] = await Promise.all([
+            options.onToolCall({ ...editReport, title: 'first' }),
+            options.onToolCall({ ...editReport, title: 'second' }),
+         ]);
+         decided.push(first, second);
+         return { text: 'ok', sessionId: 'drv' };
+      });
+      const { agent } = makeAgent({ driver });
+      const s    = await agent.newSession(newSessionArgs());
+      const turn = agent.prompt({ sessionId: s.sessionId, ...textParam('q') }, cx);
+      await vi.waitFor(() => expect(gates).toHaveLength(2));
+      gates[1]({ outcome: allow });   // the second ask is answered first
+      gates[0]({ outcome: reject });
+      await turn;
+      expect(decided).toEqual(['deny', 'approve']);
+   });
+
+   it('asks carry the right session and do not share state across sessions', async () => {
+      const answers: Record<string, string> = {};
+      const driver = createDriverSpy(async (command: string, options: any) => {
+         answers[command] = await options.onToolCall(editReport);
+         return { text: 'ok', sessionId: `drv-${command}` };
+      });
+      const { agent } = makeAgent({ driver });
+      const a   = await agent.newSession(newSessionArgs());
+      const b   = await agent.newSession(newSessionArgs());
+      const cxA = createCx({ permission: reject });
+      const cxB = createCx({ permission: allow });
+      await Promise.all([
+         agent.prompt({ sessionId: a.sessionId, ...textParam('one') }, cxA),
+         agent.prompt({ sessionId: b.sessionId, ...textParam('two') }, cxB),
+      ]);
+      expect(answers).toEqual({ one: 'deny', two: 'approve' });
+      for (const [cx, s] of [[cxA, a], [cxB, b]] as const) {
+         const scoped = [...detailsOf(cx), ...requestsOf(cx)];
+         expect(scoped).toHaveLength(2);
+         expect(scoped.every(c => s.sessionId === c.params.sessionId)).toBe(true);
+      }
+   });
+
+   it('a turn with no tool calls returns its text and asks nothing', async () => {
+      const { cx } = await runTurn([]);
+      expect(JSON.stringify(cx.calls)).toContain('done');
+      expect(requestsOf(cx)).toHaveLength(0);
+      expect(detailsOf(cx)).toHaveLength(0);
+   });
+});
+
+describe('Group 12 — governance evaluation error', () => {
+   const failing = { evaluateToolCall: () => { throw new Error('evaluation blew up'); } };
+
+   it('[H] falls back to ask through the normal flow, noting governance could not evaluate', async () => {
+      const { fake, cx, logger } = await runTurn([editReport], { governance: failing });
+      expect(fake.ran()).toEqual([editReport]);
+      expect(JSON.stringify(detailsOf(cx))).toContain('could not evaluate');
+      expect(eventsOf(logger, 'governance_decision')[0].data)
+         .toMatchObject({ action: 'ask', reason: 'evaluation_error', kind: 'edit' });
+   });
+
+   it.each(denials)('[H] and when %s the call is denied', async (_name, makeCx) => {
+      const { fake } = await runTurn([editReport], { cx: makeCx(), governance: failing });
+      expect(fake.ran()).toEqual([]);
+   });
+});
+
+describe('Group 13 — ask payload', () => {
+   const detailOf = (cx: Cx) => detailsOf(cx)[0].params.update.rawInput;
+
+   it('execute: the detail carries the full command', async () => {
+      const command = 'rm -rf build && ls';
+      const { cx } = await runTurn([{ kind: 'execute', title: 'Run', command }]);
+      expect(detailOf(cx).command).toBe(command);
+   });
+
+   it('[H] an edit: paths, the whole diff and the raw request all reach the detail', async () => {
+      const diff     = 'x'.repeat(100_000);
+      const rawInput = { path: '/repo/a.ts', patch: diff };
+      const { cx } = await runTurn([{ kind: 'edit', title: 'Edit', paths: ['/repo/a.ts'], diff, rawInput }]);
+      expect(detailOf(cx).paths).toEqual(['/repo/a.ts']);
+      expect(detailOf(cx).diff).toBe(diff);
+      expect(detailOf(cx).rawInput).toEqual(rawInput);
+   });
+
+   it('the title never becomes the command', async () => {
+      const { cx } = await runTurn([{ kind: 'fetch', title: 'rm -rf /' }]);
+      expect(detailOf(cx).command).toBeUndefined();
+      expect(detailsOf(cx)[0].params.update.title).toBe('Requested action');
+      expect(detailOf(cx).agentTitle).toBe('rm -rf /');
+   });
+
+   it('a report with only kind and title still asks, showing both', async () => {
+      const { cx } = await runTurn([{ kind: 'other', title: 'Switch mode' }]);
+      expect(requestsOf(cx)).toHaveLength(1);
+      expect(detailOf(cx)).toMatchObject({ kind: 'other', agentTitle: 'Switch mode' });
+   });
+});
+
+describe('Group 14 — governance logging', () => {
+   it('[H] an ask logs one decision entry and one outcome entry sharing ids', async () => {
+      const { logger, sessionId } = await runTurn([editReport]);
+      const decisions = eventsOf(logger, 'governance_decision');
+      const outcomes  = eventsOf(logger, 'governance_outcome');
+      expect(decisions).toHaveLength(1);
+      expect(outcomes).toHaveLength(1);
+      expect(decisions[0].data).toMatchObject({ action: 'ask', kind: 'edit', sessionId });
+      expect(outcomes[0].data).toMatchObject({
+         action: 'approve', answeredBy: 'user', sessionId, callId: decisions[0].data.callId,
+      });
+   });
+
+   it('a rule-decided report logs a decision entry and no outcome entry', async () => {
+      const { logger } = await runTurn([readReport], { rules: [{ kind: 'read', action: 'approve' }] });
+      expect(eventsOf(logger, 'governance_decision')).toHaveLength(1);
+      expect(eventsOf(logger, 'governance_outcome')).toHaveLength(0);
+   });
+
+   it('each report gets its own callId', async () => {
+      const { logger } = await runTurn([readReport, readReport], { rules: [{ kind: 'read', action: 'approve' }] });
+      const ids = eventsOf(logger, 'governance_decision').map(e => e.data.callId);
+      expect(new Set(ids).size).toBe(2);
+   });
+
+   it.each(denials)('[H] ask, then %s: the outcome entry records it', async (_name, makeCx, expected) => {
+      const { logger } = await runTurn([editReport], { cx: makeCx() });
+      const outcomes = eventsOf(logger, 'governance_outcome');
+      expect(outcomes).toHaveLength(1);
+      expect(outcomes[0].data).toMatchObject(expected);
+   });
+
+   it('[H] secrets in the diff, raw request, title or IDE errors stay out of every entry', async () => {
+      const report: ToolCallReport = {
+         kind: 'edit', title: 'SECRET-TITLE', paths: ['/repo/a.ts'], diff: 'SECRET-DIFF',
+         rawInput: { token: 'SECRET-RAW' },
+      };
+      for (const [, makeCx] of denials) {
+         const { logger } = await runTurn([report], { cx: makeCx() });
+         expect(JSON.stringify(logger.entries)).not.toContain('SECRET');
+      }
    });
 });

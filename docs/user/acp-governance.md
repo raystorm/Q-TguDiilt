@@ -1,11 +1,9 @@
 # Governance: Approve, Deny, Ask
 
-Every shell command the AI runs is checked against a governance config
-before it executes. The config decides whether to run it
+Every action the AI takes is checked against a governance config
+before it happens: a shell command, a file read, edit, delete or move,
+a search, a web fetch. The config decides whether to allow it
 automatically, block it automatically, or ask you.
-
-(This currently covers shell commands only. File edits and other tool
-calls are not yet governed.)
 
 ## Config file
 
@@ -15,12 +13,19 @@ by default):
 ```yaml
 governance:
   rules:
-    - pattern: "npm test"
+    - kind: read
       action: approve
-    - pattern: "npm run test*"
+    - pattern: "npm test"
       action: approve
     - pattern: "npm run deploy *"
       action: deny
+    - kind: edit
+      files: [".env", "*.pem"]
+      action: deny
+    - kind: edit
+      path: /home/me/project/src
+      files: ["*.ts"]
+      action: approve
   default: ask
 ```
 
@@ -29,14 +34,91 @@ governance:
 - `default` is the action used when no rule matches. It defaults to
   `ask` if omitted — nothing runs unchecked by default.
 
+`default: approve` is **not recommended**. Anything no rule covers then
+runs without asking, including an action whose kind governance does not
+recognize (an unrecognized kind follows `default`). The `..` check below
+softens this but does not remove it.
+
+## Rule keys
+
+A rule has an `action` and at least one of these keys. **Every key a
+rule names must match** for the rule to apply.
+
+| Key       | Matches                                              |
+| --------- | ---------------------------------------------------- |
+| `kind`    | The type of action (listed below)                    |
+| `path`    | A file or directory, and everything under it         |
+| `files`   | File names, in any directory                         |
+| `pattern` | A shell command                                      |
+
+The kinds are:
+
+- `read`, `edit`, `delete`, `move`, `search` — act on file paths
+- `execute` — a shell command
+- `fetch`, `think`, `other` — matched on kind alone
+
+How the keys combine:
+
+- `pattern` alone means `kind: execute`. Existing configs keep their
+  meaning: a pattern-only rule governs shell commands and nothing else.
+  `pattern: "*"` does not approve a file edit.
+- `kind` alone matches every action of that kind.
+- `path` and `files` apply to `read`, `edit`, `delete`, `move` and
+  `search`. With no `kind`, a rule that has `path` or `files` applies to
+  all five. An action that reports no paths is never matched by them.
+
+### `path`
+
+An absolute path. It matches itself and everything under it, at any
+depth, on whole path segments only: `/proj/src` matches `/proj/src` and
+`/proj/src/a/b.ts`, not `/proj/src-old/a`. A trailing slash makes no
+difference.
+
+### `files`
+
+A list of file-name patterns, matched against the last segment of the
+path only. `*` matches any run of characters, including none and a
+leading dot; everything else is literal and case-sensitive. Entries are
+OR'd. An entry cannot be empty or contain `/`.
+
+- `"*.ts"` matches `a.ts`, not `a.tsx`, `a.ts.bak` or `A.TS`.
+- `".env"` matches `.env`, not `.env.local`; `".env*"` matches both.
+- `"*"` matches every name, dot-files included.
+
+`files` alone applies in any directory. With `path`, both must match.
+
+### Quote `files` entries
+
+Write entries in quotes: `"*.pem"`. In YAML an unquoted `*` starts an
+alias, which is a parse error, and the config will not load (the error
+names the file).
+
+### Order matters
+
+The first matching rule wins for every kind of rule, so put narrow
+rules before broad ones. This broad deny hides the narrow approve below
+it:
+
+```yaml
+- files: ["*.foo"]
+  action: deny
+- path: /proj/safe/path
+  files: ["*.foo"]
+  action: approve    # never reached
+```
+
+Swap them and `/proj/safe/path/x.foo` is approved, while `.foo` files
+anywhere else are still denied.
+
 ## Pattern syntax
 
-Patterns use two wildcards, matched against the **entire** command
-string (not a substring):
+`pattern` matches shell commands with two wildcards, against the
+**entire** command string (not a substring):
 
 - `*` — matches any run of characters, including `/`. This is not a
   file-path glob; `cat *` matches `cat /etc/passwd` on purpose, because
-  governance patterns describe commands, not paths.
+  `pattern` describes commands, not paths. To govern file paths use
+  `path` and `files`.
 - `?` — matches exactly one character.
 
 A pattern ending in `" *"` also matches the bare command with no
@@ -57,10 +139,90 @@ before the general one:
 
 ## What happens at each action
 
-- **approve** — the command runs immediately, no prompt.
-- **deny** — the command is blocked; it never runs.
-- **ask** — the full command is shown, with a request to approve or
-  reject it before it runs.
+- **approve** — the action runs immediately, no prompt.
+- **deny** — the action is blocked; it never runs.
+- **ask** — the specifics are shown first (the exact command, every
+  file path, the full diff, and the request details the agent sent),
+  then you are asked to approve or reject. The agent's own description
+  of the action is shown too, labelled as the agent's text.
+
+Allowing an ask applies to that one action only; the same action asks
+again next time.
+
+Rejecting, cancelling, an error from the IDE, an unrecognized answer or
+a lost connection all deny. There is no timeout and no retry. If the
+specifics cannot be shown, you are not asked and the action is denied.
+If governance cannot evaluate an action, it asks you (noting that) and
+denies if asking fails.
+
+## Paths
+
+- **`..` is never auto-approved.** A path with a `..` segment, such as
+  `/proj/src/../../etc/passwd`, is never approved by a rule or by
+  `default: approve`; it is asked about instead. A matching `deny` still
+  denies. Only a whole `..` segment counts: `..foo` and `a..b` are
+  ordinary names.
+- **Nothing else is cleaned up.** `.` segments, doubled slashes,
+  relative paths and symlinks are taken literally, and a relative path
+  never matches a `path` rule. Configure each symlink path like any
+  other path.
+- **Deny rules match literally.** `path: /proj/secrets` does not match
+  `/proj/./secrets/x` or `/proj//secrets/x`. Such a path falls through to
+  the next matching rule or the default, and the shipped config approves
+  every read. Prefer narrow approve rules and `default: ask` so an
+  unexpected spelling is asked about.
+- **Several paths in one action** (a move's source and destination) are
+  each matched on their own, and the most restrictive result wins:
+  `deny` beats `ask` beats `approve`.
+
+## Missing information
+
+An `execute` with no command (or a blank one), or an `edit`, `delete` or
+`move` with no paths (none, an empty list, or only blank entries), is
+denied without asking — even under `default: approve`. That is a defect
+in the driver, not something you can judge. The log records the reason.
+
+## What is never trusted
+
+Rules match only an action's kind, command and paths. The agent's title,
+tool annotation hints such as `readOnlyHint`, and the raw request are
+never matched and never count as permission. `pattern: "safe*"` does not
+approve a command because the title says "safe thing".
+
+## The shipped config
+
+The shipped config approves `read` and `search` with explicit rules.
+This mirrors what the AI already does: both target agents never ask for
+these kinds, so changing those rules probably has no effect. Everything
+else falls to `ask`, apart from the command rules.
+
+## Rules that are rejected
+
+The config fails to load, naming the rule (its position in `rules`,
+counting from 0), when a rule:
+
+- has no `kind`, `path`, `files` or `pattern`
+- uses an unknown or misspelled key (`paths`, `file`, `kinds`)
+- has an unknown `kind`
+- combines `pattern` with a kind other than `execute`, or with `path` or
+  `files`
+- uses `path` or `files` with `execute`, `fetch`, `think` or `other`
+- has a relative or empty `path`
+- has `files` that is not a list, is empty, has an empty entry, or has
+  an entry containing `/`
+
+## Shadowed rules
+
+When an earlier rule already decides everything a later rule could
+match, the later rule can never apply. Governance logs a warning
+(`governance_rule_shadowed`) once at startup, naming both rules and
+their actions. The warning is flagged (`approveHidesStricter`) when an
+`approve` hides a stricter rule — for example `kind: edit` approve above
+`path: /proj/secrets` deny, which hides the deny for edits.
+
+The check is conservative: it may miss some cases but does not warn
+about a rule that can still match something. A warning never changes a
+decision; the first match still wins.
 
 ## Compound commands
 
@@ -71,12 +233,24 @@ independently. The overall decision is the most restrictive one found
 always forces at least `ask`, since its target is a side effect that
 isn't itself evaluated as a command.
 
+Commands are checked this way even when the AI runs them through a shell
+tool instead of an edit tool: `sed -i s/a/b/ f` and `echo x > /proj/a`
+both ask.
+
 ## When a command can't be safely parsed
 
 If a command contains anything that can't be safely taken apart —
 command substitution (`` $(...) ``, backticks), unbalanced quotes, a
 newline, or a `#` comment — it always resolves to `ask`. It is never
 silently approved or denied. Anything ambiguous defaults to asking.
+
+## Logging
+
+Every decision is logged with its kind, matched rule and action. Shell
+commands are redacted; file paths are logged as given, each cut at 500
+characters. A result that governance forced carries a reason:
+`missing_command`, `missing_paths` or `parent_segment`. Diffs, raw
+requests and the agent's title are never logged.
 
 ## Troubleshooting
 
@@ -86,6 +260,16 @@ silently approved or denied. Anything ambiguous defaults to asking.
 - **A missing or broken config file** — governance fails with a clear
   error rather than silently allowing everything. Fix the file at the
   configured path and retry.
+- **"rule at index N" at startup** — that rule is invalid; see "Rules
+  that are rejected". Index 0 is the first rule.
+- **A YAML parse error mentioning an alias** — quote the `*` entry:
+  `"*.foo"`.
+- **A shadow warning in the log** — an earlier rule hides a later one.
+  Move the narrow rule above the broad one.
+- **An edit is approved by a rule but still asks** — its path contains
+  a `..` segment.
+- **An edit is denied without asking** — the report had no paths (or a
+  command had none); check the logged reason.
 - **An expected auto-approve command asks instead** — it likely
   contains an unquoted newline, a `#`, or something that can't be
   safely parsed; this is fail-closed by design.

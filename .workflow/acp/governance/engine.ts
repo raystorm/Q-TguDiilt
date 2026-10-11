@@ -8,14 +8,22 @@
  * `matchCommandGlob` — not a path-glob library; see command-glob.ts for
  * why) is evaluated against the full command string, not a substring.
  * Every decision and config load error is logged.
+ *
+ * Tool-call reports are matched on `kind`, `command` and `paths` only —
+ * never the title, annotation hints or the raw request. `execute` commands
+ * go through `evaluateCommand`, so segmentation and fail-closed parsing are
+ * not reimplemented. First match wins; shadowed rules only log a warning.
  */
 import { readFileSync } from 'node:fs';
 import { load as parseYaml } from 'js-yaml';
 import { parse as parseShell } from 'shell-quote';
 import { matchCommandGlob } from './command-glob.js';
+import { hasParentSegment, lastSegment, matchesName, pathUnder } from './path-match.js';
+import { findShadowedRules, ruleKinds } from './shadow.js';
 import { Logger } from '../shared/logger.js';
 import { AskDetails } from '../shared/types.js';
-import { Decision, GovernanceAction, GovernanceConfig, GovernanceRule } from './types.js';
+import { Decision, GovernanceAction, GovernanceConfig, GovernanceRule, PATH_KINDS, RESTRICTIVENESS } from './types.js';
+import type { ToolCallKind, ToolCallReport } from '../drivers/governed-driver.js';
 import {
    GovernanceConfigMissingError,
    GovernanceConfigParseError,
@@ -24,8 +32,17 @@ import {
 
 const ACTIONS: readonly GovernanceAction[] = ['approve', 'deny', 'ask'];
 
-/** Most-restrictive-wins ranking for reducing multiple segment decisions. */
-const RESTRICTIVENESS: Record<GovernanceAction, number> = { deny: 2, ask: 1, approve: 0 };
+/** Every tool-call kind. The record form makes the compiler flag a kind added to or removed from the driver vocabulary. */
+const KIND_FLAGS: Record<ToolCallKind, true> = {
+   read: true, edit: true, delete: true, move: true, search: true,
+   execute: true, fetch: true, think: true, other: true,
+};
+const TOOL_CALL_KINDS = Object.keys(KIND_FLAGS) as ToolCallKind[];
+
+/** Kinds that cannot act without paths; a report lacking them is a driver defect. */
+const MUTATION_KINDS: readonly ToolCallKind[] = ['edit', 'delete', 'move'];
+
+const RULE_KEYS = ['action', 'pattern', 'kind', 'path', 'files'];
 
 /** Command-substitution markers `shell-quote` does not interpret; unsafe to segment. */
 const COMMAND_SUBSTITUTION_RE = /\$\(|`/;
@@ -167,6 +184,64 @@ function isAction(value: unknown): value is GovernanceAction {
    return 'string' === typeof value && (ACTIONS as readonly string[]).includes(value);
 }
 
+function invalidRule(filePath: string, index: number, problem: string): never {
+   throw new GovernanceConfigInvalidError(filePath, `rule at index ${index} ${problem}`);
+}
+
+function isKind(value: unknown): value is ToolCallKind {
+   return 'string' === typeof value && (TOOL_CALL_KINDS as string[]).includes(value);
+}
+
+/** `files` must be a non-empty list of non-empty names without a `/`. */
+function isFileNameList(value: unknown): value is string[] {
+   return Array.isArray(value) && 0 < value.length
+      && value.every(entry => 'string' === typeof entry && '' !== entry && !entry.includes('/'));
+}
+
+/**
+ * Validates one raw rule. Rejects anything no report could satisfy, so a
+ * typo or a nonsense combination fails at startup instead of silently never
+ * matching (or, worse, matching more than intended).
+ */
+function parseRule(filePath: string, rawRule: unknown, index: number): GovernanceRule {
+   if (null === rawRule || 'object' !== typeof rawRule || Array.isArray(rawRule))
+   { invalidRule(filePath, index, 'must be an object'); }
+
+   const rule       = rawRule as Record<string, unknown>;
+   const unknownKey = Object.keys(rule).find(key => !RULE_KEYS.includes(key));
+   if (undefined !== unknownKey)
+   { invalidRule(filePath, index, `has unknown key ${JSON.stringify(unknownKey)}`); }
+
+   const { action, pattern, kind, path, files } = rule;
+   if (!isAction(action))
+   { invalidRule(filePath, index, `has invalid "action": ${JSON.stringify(action)}`); }
+   if (undefined !== pattern && ('string' !== typeof pattern || '' === pattern))
+   { invalidRule(filePath, index, 'has an empty or non-string "pattern"'); }
+   if (undefined !== kind && !isKind(kind))
+   { invalidRule(filePath, index, `has unknown "kind": ${JSON.stringify(kind)}`); }
+   if (undefined !== path && ('string' !== typeof path || !path.startsWith('/')))
+   { invalidRule(filePath, index, '"path" must be an absolute path'); }
+   if (undefined !== files && !isFileNameList(files))
+   { invalidRule(filePath, index, '"files" must be a non-empty list of names without "/"'); }
+
+   if (undefined === pattern && undefined === kind && undefined === path && undefined === files)
+   { invalidRule(filePath, index, 'has no constraint (needs "pattern", "kind", "path" or "files")'); }
+   if (undefined !== pattern && undefined !== kind && 'execute' !== kind)
+   { invalidRule(filePath, index, '"pattern" only applies to kind "execute"'); }
+   if (undefined !== pattern && (undefined !== path || undefined !== files))
+   { invalidRule(filePath, index, '"pattern" cannot be combined with "path" or "files"'); }
+   if ((undefined !== path || undefined !== files) && undefined !== kind
+      && !PATH_KINDS.includes(kind as ToolCallKind))
+   { invalidRule(filePath, index, '"path" and "files" only apply to kinds with paths'); }
+
+   const parsed: GovernanceRule = { action: action as GovernanceAction };
+   if (undefined !== pattern) { parsed.pattern = pattern as string; }
+   if (undefined !== kind)    { parsed.kind    = kind as ToolCallKind; }
+   if (undefined !== path)    { parsed.path    = path as string; }
+   if (undefined !== files)   { parsed.files   = files as string[]; }
+   return parsed;
+}
+
 /** Validates the parsed YAML document shape; throws on any deviation. */
 function validateConfigShape(filePath: string, doc: unknown): GovernanceConfig {
    if (null === doc || 'object' !== typeof doc || Array.isArray(doc))
@@ -181,22 +256,9 @@ function validateConfigShape(filePath: string, doc: unknown): GovernanceConfig {
    if (undefined !== rawRules && !Array.isArray(rawRules))
    { throw new GovernanceConfigInvalidError(filePath, '"governance.rules" must be an array'); }
 
-   const rules: GovernanceRule[] = (rawRules ?? []).map((rawRule: unknown, index: number) => {
-      if (null === rawRule || 'object' !== typeof rawRule)
-      { throw new GovernanceConfigInvalidError(filePath, `rule at index ${index} must be an object`); }
-
-      const { pattern, action } = rawRule as Record<string, unknown>;
-      if ('string' !== typeof pattern || '' === pattern)
-      { throw new GovernanceConfigInvalidError(filePath, `rule at index ${index} is missing "pattern"`); }
-      if (!isAction(action))
-      {
-         throw new GovernanceConfigInvalidError(
-            filePath,
-            `rule at index ${index} has invalid "action": ${JSON.stringify(action)}`,
-         );
-      }
-      return { pattern, action };
-   });
+   const rules: GovernanceRule[] = (rawRules ?? []).map(
+      (rawRule: unknown, index: number) => parseRule(filePath, rawRule, index),
+   );
 
    const defaultAction: GovernanceAction = undefined === rawDefault ? 'ask' : (rawDefault as GovernanceAction);
    if (!isAction(defaultAction))
@@ -284,9 +346,9 @@ function evaluateSegment(
    segment: string,
    extraDetails?: Omit<AskDetails, 'command'>,
 ): Decision {
-   for (const rule of config.rules) {
-      if (matchesRule(segment, rule.pattern)) {
-         return buildDecision(rule.action, segment, rule.pattern, extraDetails);
+   for (const [index, rule] of config.rules.entries()) {
+      if (appliesToCommand(rule, segment)) {
+         return buildDecision(rule.action, segment, ruleLabel(rule, index), extraDetails);
       }
    }
    return buildDecision(config.default, segment, undefined, extraDetails);
@@ -304,8 +366,144 @@ function buildDecision(
    return decision;
 }
 
+/** Names a rule in logs: its pattern, or `#<position> kind=… path=… files=…`. */
+function ruleLabel(rule: GovernanceRule, index: number): string {
+   if (undefined !== rule.pattern) { return rule.pattern; }
+   const parts = [`#${index + 1}`];
+   if (undefined !== rule.kind)  { parts.push(`kind=${rule.kind}`); }
+   if (undefined !== rule.path)  { parts.push(`path=${rule.path}`); }
+   if (undefined !== rule.files) { parts.push(`files=${rule.files.join(',')}`); }
+   return parts.join(' ');
+}
+
+/** True when a rule governs shell commands: execute-kind, no path or file constraint. */
+function appliesToCommand(rule: GovernanceRule, segment: string): boolean {
+   if (undefined !== rule.path || undefined !== rule.files) { return false; }
+   if (undefined !== rule.kind && 'execute' !== rule.kind)  { return false; }
+   return undefined === rule.pattern || matchesRule(segment, rule.pattern);
+}
+
+/** True when every constraint the rule names matches this kind and (optional) path. */
+function appliesToSubject(rule: GovernanceRule, kind: ToolCallKind, path: string | undefined): boolean {
+   if (undefined !== rule.pattern)      { return false; }
+   if (!ruleKinds(rule).includes(kind)) { return false; }
+   if (undefined !== rule.path && (undefined === path || !pathUnder(path, rule.path))) { return false; }
+   if (undefined !== rule.files) {
+      if (undefined === path) { return false; }
+      const name = lastSegment(path);
+      if (!rule.files.some(entry => matchesName(name, entry))) { return false; }
+   }
+   return true;
+}
+
+/** One path's first-match result, before the paths of a report are reduced. */
+interface PathResult {
+   action:       GovernanceAction;
+   matchedRule?: string;
+   guarded:      boolean;
+}
+
+/**
+ * First-match result for one path (or none). A `..` segment is never
+ * approved by a rule or by the default: an approve becomes an ask. A
+ * matching deny still denies.
+ */
+function evaluateSubject(config: GovernanceConfig, kind: ToolCallKind, path: string | undefined): PathResult {
+   let result: PathResult = { action: config.default, guarded: false };
+   for (const [index, rule] of config.rules.entries()) {
+      if (appliesToSubject(rule, kind, path)) {
+         result = { action: rule.action, matchedRule: ruleLabel(rule, index), guarded: false };
+         break;
+      }
+   }
+   if ('approve' === result.action && undefined !== path && hasParentSegment(path)) {
+      return { ...result, action: 'ask', guarded: true };
+   }
+   return result;
+}
+
+/** Non-blank paths of a report; blank entries are ignored. */
+function usablePaths(report: ToolCallReport): string[] {
+   return (report.paths ?? []).filter(path => '' !== path.trim());
+}
+
+/** Everything but the command that an `ask` must show the user. */
+export function askDetails(report: ToolCallReport): Omit<AskDetails, 'command'> {
+   const details: Omit<AskDetails, 'command'> = {};
+   if (undefined !== report.paths)    { details.paths    = report.paths; }
+   if (undefined !== report.diff)     { details.diff     = report.diff; }
+   if (undefined !== report.rawInput) { details.rawInput = report.rawInput; }
+   return details;
+}
+
+/**
+ * Evaluates a driver's tool-call report. Matches on `kind`, `command` and
+ * `paths` only. `execute` delegates to `evaluateCommand`. A report missing
+ * what its kind needs (an `execute` without a command; an `edit`, `delete`
+ * or `move` without usable paths) is a driver defect and is denied outright,
+ * even under `default: approve`. Several paths are each matched by first
+ * match; the most restrictive result wins (`deny` > `ask` > `approve`).
+ */
+export function evaluateToolCall(config: GovernanceConfig, report: ToolCallReport): Decision {
+   if ('execute' === report.kind) {
+      if (undefined === report.command || '' === report.command.trim())
+      { return { action: 'deny', reason: 'missing_command' }; }
+      return evaluateCommand(config, report.command, askDetails(report));
+   }
+
+   const paths = usablePaths(report);
+   if (MUTATION_KINDS.includes(report.kind) && 0 === paths.length)
+   { return { action: 'deny', reason: 'missing_paths' }; }
+
+   const subjects = PATH_KINDS.includes(report.kind) && 0 < paths.length ? paths : [undefined];
+   const results  = subjects.map(path => evaluateSubject(config, report.kind, path));
+   const worst    = results.reduce((best, next) =>
+      RESTRICTIVENESS[next.action] > RESTRICTIVENESS[best.action] ? next : best);
+
+   const decision: Decision = { action: worst.action };
+   if (undefined !== worst.matchedRule) { decision.matchedRule = worst.matchedRule; }
+   if (worst.guarded)                   { decision.reason      = 'parent_segment'; }
+   if ('ask' === worst.action) {
+      decision.details = { ...askDetails(report) };
+      if (undefined !== report.command) { decision.details.command = report.command; }
+   }
+   return decision;
+}
+
+/** Max length of each path logged with a tool-call decision. */
+const LOGGED_PATH_MAX_LENGTH = 500;
+
+function toolCallLogFields(report: ToolCallReport, decision: Decision, context: ToolCallLogContext) {
+   const fields: Record<string, unknown> = {
+      sessionId: context.sessionId,
+      callId:    context.callId,
+      kind:      report.kind,
+      action:    decision.action,
+   };
+   if ('execute' === report.kind && undefined !== report.command && '' !== report.command.trim())
+   { fields.command = redactCommand(report.command); }
+
+   const paths = usablePaths(report).map(path =>
+      path.length > LOGGED_PATH_MAX_LENGTH ? `${path.slice(0, LOGGED_PATH_MAX_LENGTH)}…` : path);
+   if (PATH_KINDS.includes(report.kind) && 0 < paths.length) { fields.paths = paths; }
+
+   const missingField = 'missing_command' === decision.reason || 'missing_paths' === decision.reason;
+   if (undefined !== decision.matchedRule) { fields.matchedRule = decision.matchedRule; }
+   else if (!missingField)                 { fields.matchedRule = 'default'; }
+   if (undefined !== decision.reason)      { fields.reason = decision.reason; }
+   return fields;
+}
+
+/** Correlates a tool-call decision with its later outcome entry. */
+export interface ToolCallLogContext {
+   sessionId: string;
+   callId:    number;
+}
+
 export interface GovernanceEngine {
    evaluate(command: string, extraDetails?: Omit<AskDetails, 'command'>): Decision;
+   /** Evaluates a tool-call report and logs one `governance_decision` entry. */
+   evaluateToolCall(report: ToolCallReport, context: ToolCallLogContext): Decision;
 }
 
 export interface GovernanceEngineOptions {
@@ -338,6 +536,19 @@ export function createGovernanceEngine(options: GovernanceEngineOptions): Govern
    }
    else { throw new Error('createGovernanceEngine requires either "config" or "configPath"'); }
 
+   for (const { rule, shadowedBy } of findShadowedRules(config.rules)) {
+      const later   = config.rules[rule];
+      const earlier = config.rules[shadowedBy];
+      logger.warn('governance_rule_shadowed', {
+         rule:                 ruleLabel(later, rule),
+         shadowedBy:           ruleLabel(earlier, shadowedBy),
+         ruleAction:           later.action,
+         shadowedByAction:     earlier.action,
+         approveHidesStricter: 'approve' === earlier.action
+            && RESTRICTIVENESS[later.action] > RESTRICTIVENESS[earlier.action],
+      });
+   }
+
    return {
       evaluate(command, extraDetails) {
          const decision = evaluateCommand(config, command, extraDetails);
@@ -346,6 +557,12 @@ export function createGovernanceEngine(options: GovernanceEngineOptions): Govern
             matchedRule: decision.matchedRule ?? 'default',
             action:      decision.action,
          });
+         return decision;
+      },
+
+      evaluateToolCall(report, context) {
+         const decision = evaluateToolCall(config, report);
+         logger.info('governance_decision', toolCallLogFields(report, decision, context));
          return decision;
       },
    };
