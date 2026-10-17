@@ -33,13 +33,17 @@ describe('governed-driver module', () => {
       const options:  ExecuteOptions   = { onToolCall: async () => decision };
       const result:   DriverResult     = { text: '', sessionId: '', toolCalls: [outcome] };
       const driver:   Driver           = {
-         name: 'x', supportsToolCallGovernance: false, execute: async () => result,
+         name: 'x', supportsToolCallGovernance: false, execute: async () => result, close: async () => {},
       };
       // @ts-expect-error name is required
-      const noName: Driver = { supportsToolCallGovernance: true, execute: async () => result };
+      const noName: Driver = { supportsToolCallGovernance: true, execute: async () => result, close: async () => {} };
       // @ts-expect-error supportsToolCallGovernance is required
-      const noFlag: Driver = { name: 'x', execute: async () => result };
-      expect([options, driver, noName, noFlag]).toHaveLength(4);
+      const noFlag: Driver = { name: 'x', execute: async () => result, close: async () => {} };
+      // @ts-expect-error close is required
+      const noClose: Driver = { name: 'x', supportsToolCallGovernance: true, execute: async () => result };
+      // @ts-expect-error close must return a promise
+      const syncClose: Driver = { ...driver, close: () => {} };
+      expect([options, driver, noName, noFlag, noClose, syncClose]).toHaveLength(6);
    });
 
    it('execute returns a Promise resolving to a DriverResult', async () => {
@@ -72,13 +76,14 @@ describe('cancellation additions', () => {
       const options:   ExecuteOptions = { signal: new AbortController().signal };
       const bare:      ExecuteOptions = {};
       const cancelled: DriverResult   = { text: '', sessionId: '', toolCalls: [], cancelled: true };
-      const plain:     Driver         = { name: 'x', supportsToolCallGovernance: true, execute: async () => cancelled };
-      const closable:  Driver         = { ...plain, close: async () => {} };
+      const plain:     Driver         = {
+         name: 'x', supportsToolCallGovernance: true, execute: async () => cancelled, close: async () => {},
+      };
       // @ts-expect-error signal must be an AbortSignal
       const badSignal: ExecuteOptions = { signal: 'abort' };
       // @ts-expect-error a decision is still only approve or deny
       const badDecision: ToolCallDecision = 'cancel';
-      expect([options, bare, plain, closable, badSignal, badDecision]).toHaveLength(6);
+      expect([options, bare, plain, badSignal, badDecision]).toHaveLength(5);
    });
 
    it('[H] a normal result carries no cancelled key', async () => {
@@ -103,8 +108,9 @@ describe('fake governed driver', () => {
    it('offers close, which releases the downstream agent once', async () => {
       const h = createFakeGovernedDriver();
       expect(typeof h.driver.close).toBe('function');
-      await h.driver.close?.();
-      await h.driver.close?.();
+      await h.driver.execute('cmd');
+      await h.driver.close();
+      await h.driver.close();
       expect(h.released()).toBe(1);
    });
 
@@ -135,5 +141,23 @@ describe('validateExecuteArgs mirrors the legacy rules', () => {
    });
    it('options.model empty string → validation error', () => {
       expect(() => validateExecuteArgs('cmd', { model: '' })).toThrow(/model/i);
+   });
+});
+
+describe('close is required', () => {
+   const source = (relative: string) =>
+      readFileSync(fileURLToPath(new URL(relative, import.meta.url)), 'utf8');
+
+   it('the contract suite never skips or guards close', () => {
+      const text = source('./governed-driver.contract.ts');
+      expect(text).not.toMatch(/\bclose\?/);
+      expect(text).not.toMatch(/undefined\s*===\s*close/);
+   });
+
+   it('the protocol layer calls driver.close() without a guard', () => {
+      const text = source('../../protocol/agent.ts');
+      expect(text).toMatch(/driver\.close\(\)/);
+      expect(text).not.toMatch(/driver\.close\?/);
+      expect(text).not.toMatch(/undefined\s*!==\s*driver\.close/);
    });
 });

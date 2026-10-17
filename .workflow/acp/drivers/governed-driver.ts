@@ -50,8 +50,13 @@ export interface Driver {
    readonly name: string;
    readonly supportsToolCallGovernance: boolean;
    execute(command: string, options?: ExecuteOptions): Promise<DriverResult>;
-   /** Releases the downstream agent. Callable any number of times, also concurrently. */
-   close?(): Promise<void>;
+   /**
+    * Releases every process the driver started; a resolved no-op if it
+    * started none. Takes no argument. Idempotent and safe to call
+    * concurrently: every call resolves and the downstream agent is
+    * released once.
+    */
+   close(): Promise<void>;
 }
 
 export function validateExecuteArgs(command: string, options: ExecuteOptions = {}): void {

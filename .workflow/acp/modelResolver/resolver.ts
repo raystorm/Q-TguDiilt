@@ -25,7 +25,7 @@ import { DispatchResult } from './types.js';
 import { NoDriverAvailableError, DispatchResolutionError } from './errors.js';
 
 /** The implicit fallback model, assumed supported by every driver. */
-const AUTO_MODEL = 'auto';
+export const AUTO_MODEL = 'auto';
 
 /** True when `driver` is given and exists in the registry and supports `model`. */
 function driverSupports(config: RegistryConfig, driver: string | undefined, model: string): boolean {

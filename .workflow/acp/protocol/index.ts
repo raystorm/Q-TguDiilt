@@ -33,6 +33,7 @@ const driver: Driver = {
    name:                       'unwired',
    supportsToolCallGovernance: false,
    execute: async () => { throw new Error('no governed driver is wired yet'); },
+   close:   async () => {},
 };
 
 const sessionStore = createSessionStore({ newWorkflowId });

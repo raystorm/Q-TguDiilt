@@ -371,15 +371,12 @@ export function createAgent(deps: AgentDeps) {
       /**
        * Abort every turn, release the downstream agent, then release all
        * session mappings on disconnect / stdin EOF (no leaks). Never rejects.
-       * Without a driver `close` it completes synchronously.
        */
       async onDisconnect() {
          sessionStore.abortAllTurns();
-         if (undefined !== driver.close) {
-            try { await driver.close(); }
-            catch (err) {
-               logger.warn('close_failed', { failureKind: boundaryErrorKind(err) ?? 'internal' });
-            }
+         try { await driver.close(); }
+         catch (err) {
+            logger.warn('close_failed', { failureKind: boundaryErrorKind(err) ?? 'internal' });
          }
          sessionStore.closeAll();
          logger.info('disconnect', {});

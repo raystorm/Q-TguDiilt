@@ -347,22 +347,84 @@ export function describeGovernedDriverContract(
             expect(h.ran()).toEqual([edit]);
          });
 
-         it('[H] close is safe to repeat', async () => {
+         /** Runs one turn, so the driver has something to release. */
+         const runOneTurn = async (h: GovernedDriverHarness) => {
+            h.script([read]);
+            await h.driver.execute('cmd', { onToolCall: async () => 'approve' });
+         };
+
+         it('close with nothing started resolves and releases nothing', async () => {
             const h = createHarness();
-            const close = h.driver.close?.bind(h.driver);
-            if (undefined === close) { return; }
-            await close();
-            await close();
-            await close();
+            await expect(h.driver.close()).resolves.toBeUndefined();
+            expect(h.released()).toBe(0);
+         });
+
+         it('[H] close is idempotent', async () => {
+            const h = createHarness();
+            await runOneTurn(h);
+            await h.driver.close();
+            await h.driver.close();
+            await h.driver.close();
             expect(h.released()).toBe(1);
          });
 
-         it('close called concurrently releases the downstream agent once', async () => {
+         it.each([2, 5])('[H] close called %i times at once resolves every call and releases once', async n => {
             const h = createHarness();
-            const close = h.driver.close?.bind(h.driver);
-            if (undefined === close) { return; }
-            await Promise.all([close(), close()]);
+            await runOneTurn(h);
+            const results = await Promise.all(Array.from({ length: n }, () => h.driver.close()));
+            expect(results).toEqual(Array(n).fill(undefined));
             expect(h.released()).toBe(1);
+         });
+
+         it('a late close after close has finished still resolves', async () => {
+            const h = createHarness();
+            await runOneTurn(h);
+            await h.driver.close();
+            await flush();
+            await expect(h.driver.close()).resolves.toBeUndefined();
+            expect(h.released()).toBe(1);
+         });
+
+         it('[H] close with a decision pending settles the turn and discards the late approve', async () => {
+            const h = createHarness();
+            const asked   = deferred();
+            const pending = deferred<ToolCallDecision>();
+            let settled = false;
+            h.script([edit]);
+            const turn = h.driver.execute('cmd', {
+               onToolCall: () => { asked.resolve(); return pending.promise; },
+            });
+            turn.then(() => { settled = true; }, () => { settled = true; });
+            await asked.promise;
+            await h.driver.close();
+            await flush();
+            expect(settled).toBe(true);
+            pending.resolve('approve');
+            await flush();
+            expect(h.ran()).toEqual([]);
+         });
+
+         it('close between decisions stops further calls', async () => {
+            const h = createHarness();
+            const asked   = deferred();
+            const pending = deferred<ToolCallDecision>();
+            let calls = 0;
+            h.script([read, edit, exec]);
+            const turn = h.driver.execute('cmd', {
+               onToolCall: () => {
+                  calls += 1;
+                  if (2 !== calls) { return Promise.resolve<ToolCallDecision>('approve'); }
+                  asked.resolve();
+                  return pending.promise;
+               },
+            });
+            turn.catch(() => {});
+            await asked.promise;
+            await h.driver.close();
+            pending.resolve('approve');
+            await flush();
+            expect(calls).toBe(2);
+            expect(h.ran()).toEqual([read]);
          });
       });
    });

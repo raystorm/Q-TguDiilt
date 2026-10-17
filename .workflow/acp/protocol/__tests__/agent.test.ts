@@ -63,6 +63,7 @@ function createDriverSpy(result: any = { text: 'ok', sessionId: 'drv-sess' })
          if ('function' === typeof result) { return result(command, options); }
          return result;
       },
+      close: async () => {},
    };
 }
 
@@ -525,7 +526,7 @@ describe('Group 9 — operational logging', () => {
    it('logs disconnect', async () => {
       const { agent, logger } = makeAgent();
       await agent.newSession(newSessionArgs());
-      agent.onDisconnect();
+      await agent.onDisconnect();
       expect(logger.entries.some((e: LogEntry) => 'disconnect' === e.event)).toBe(true);
    });
 
@@ -1052,6 +1053,7 @@ describe('Group 15 — cancel: signal and wind-down', () => {
    it('an unsupported driver or an unknown session leaves nothing behind', async () => {
       const unsupported = {
          name: 'plain', supportsToolCallGovernance: false, execute: async () => ({ text: '', sessionId: '' }),
+         close: async () => {},
       };
       const { agent, sessionStore, logger } = makeAgent({ driver: unsupported });
       const s = await agent.newSession(newSessionArgs());
