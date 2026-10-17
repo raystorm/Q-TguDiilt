@@ -67,7 +67,47 @@ describe('governed-driver module', () => {
    });
 });
 
+describe('cancellation additions', () => {
+   it('are additive and optional (tsc is the gate)', () => {
+      const options:   ExecuteOptions = { signal: new AbortController().signal };
+      const bare:      ExecuteOptions = {};
+      const cancelled: DriverResult   = { text: '', sessionId: '', toolCalls: [], cancelled: true };
+      const plain:     Driver         = { name: 'x', supportsToolCallGovernance: true, execute: async () => cancelled };
+      const closable:  Driver         = { ...plain, close: async () => {} };
+      // @ts-expect-error signal must be an AbortSignal
+      const badSignal: ExecuteOptions = { signal: 'abort' };
+      // @ts-expect-error a decision is still only approve or deny
+      const badDecision: ToolCallDecision = 'cancel';
+      expect([options, bare, plain, closable, badSignal, badDecision]).toHaveLength(6);
+   });
+
+   it('[H] a normal result carries no cancelled key', async () => {
+      const { driver } = createFakeGovernedDriver();
+      const result = await driver.execute('cmd', { signal: new AbortController().signal });
+      expect(result).toStrictEqual({ text: 'done', sessionId: 'fake-sess', toolCalls: [] });
+      expect(Object.keys(result)).not.toContain('cancelled');
+   });
+});
+
 describe('fake governed driver', () => {
+   it('script applies to the next execute started', async () => {
+      const h = createFakeGovernedDriver();
+      h.script([{ kind: 'read', title: 'a' }]);
+      const first = h.driver.execute('one', { onToolCall: async () => 'approve' });
+      h.script([{ kind: 'edit', title: 'b' }]);
+      const second = h.driver.execute('two', { onToolCall: async () => 'approve' });
+      await Promise.all([first, second]);
+      expect(h.ran().map(r => r.title)).toEqual(['a', 'b']);
+   });
+
+   it('offers close, which releases the downstream agent once', async () => {
+      const h = createFakeGovernedDriver();
+      expect(typeof h.driver.close).toBe('function');
+      await h.driver.close?.();
+      await h.driver.close?.();
+      expect(h.released()).toBe(1);
+   });
+
    it('records the gate before the run for each approved call', async () => {
       const h = createFakeGovernedDriver();
       const answers: ToolCallDecision[] = ['approve', 'deny'];

@@ -78,6 +78,69 @@ function createLogger()
    };
 }
 
+interface Deferred<T> {
+   promise: Promise<T>;
+   resolve: (value: T) => void;
+   reject:  (reason?: unknown) => void;
+}
+
+function deferred<T = void>(): Deferred<T>
+{
+   let resolve!: (value: T) => void;
+   let reject!:  (reason?: unknown) => void;
+   const promise = new Promise<T>((res, rej) => { resolve = res; reject = rej; });
+   return { promise, resolve, reject };
+}
+
+/** Lets already-settled promises react, without timers. */
+async function flush()
+{
+   for (let i = 0; i < 20; i++) { await Promise.resolve(); }
+}
+
+/**
+ * A driver whose turns end only when the test releases them, so a test can
+ * cancel, prompt again or disconnect while a turn is in flight. It ignores
+ * the signal, like a driver that does not support cancellation.
+ */
+function createHeldDriver()
+{
+   const starts: Array<Deferred<void>> = [];
+   const holds:  Array<Deferred<any>>  = [];
+   let count   = 0;
+   let running = 0;
+   let peak    = 0;
+   const startOf = (n: number) => {
+      while (starts.length <= n) { starts.push(deferred()); }
+      return starts[n];
+   };
+   const driver = createDriverSpy(async () => {
+      const n = count++;
+      holds[n] = deferred();
+      running += 1;
+      peak     = Math.max(peak, running);
+      startOf(n).resolve();
+      try { return await holds[n].promise; }
+      finally { running -= 1; }
+   });
+   return {
+      driver,
+      started: (n: number) => startOf(n).promise,
+      release: (n: number, result: any = { text: 'ok', sessionId: 'drv-held', toolCalls: [] }) =>
+         holds[n].resolve(result),
+      fail:    (n: number, err: unknown) => holds[n].reject(err),
+      peak:    () => peak,
+   };
+}
+
+/** Opens a session and starts a turn on it without awaiting the turn. */
+async function startTurn(agent: ReturnType<typeof makeAgent>['agent'], cx: any = createCx(), text = 'go')
+{
+   const s    = await agent.newSession(newSessionArgs());
+   const turn = agent.prompt({ sessionId: s.sessionId, ...textParam(text) }, cx);
+   return { sessionId: s.sessionId, turn };
+}
+
 function makeAgent(overrides: any = {})
 {
    const driver       = overrides.driver       ?? createDriverSpy();
@@ -155,7 +218,7 @@ describe('Group 1 — connection & session lifecycle', () => {
    it('disconnect releases all session mappings (no leaks)', async () => {
       const { agent, sessionStore } = makeAgent();
       const a = await agent.newSession(newSessionArgs());
-      agent.onDisconnect();
+      await agent.onDisconnect();
       expect(sessionStore.get(a.sessionId)).toBeUndefined();
    });
 });
@@ -347,12 +410,16 @@ describe('Group 5 — concurrency: reject-with-retry', () => {
 });
 
 describe('Group 5 — cancel is the only interrupt', () => {
-   it('cancel with an active turn frees the session', async () => {
-      const { agent, sessionStore } = makeAgent();
-      const s = await agent.newSession(newSessionArgs());
-      sessionStore.setActiveTurn(s.sessionId, true);
-      await agent.cancel({ sessionId: s.sessionId });
-      expect(sessionStore.hasActiveTurn(s.sessionId)).toBe(false);
+   it('[H] cancel with an active turn aborts it and does not free the session', async () => {
+      const held = createHeldDriver();
+      const { agent, sessionStore } = makeAgent({ driver: held.driver });
+      const { sessionId, turn }     = await startTurn(agent);
+      await held.started(0);
+      await agent.cancel({ sessionId });
+      expect(held.driver.seen[0].options.signal.aborted).toBe(true);
+      expect(sessionStore.hasActiveTurn(sessionId)).toBe(true);
+      held.release(0);
+      await turn;
    });
 
    it('cancel with no active turn is an idempotent no-op', async () => {
@@ -809,5 +876,583 @@ describe('Group 14 — governance logging', () => {
          const { logger } = await runTurn([report], { cx: makeCx() });
          expect(JSON.stringify(logger.entries)).not.toContain('SECRET');
       }
+   });
+});
+
+// Groups 15-19: turn cancel ---------------------------------------------------
+
+describe('Group 15 — cancel: signal and wind-down', () => {
+   it('[H] every turn gets its own signal, none aborted', async () => {
+      const { agent, driver } = makeAgent();
+      const a  = await agent.newSession(newSessionArgs());
+      const b  = await agent.newSession(newSessionArgs());
+      const cx = createCx();
+      await agent.prompt({ sessionId: a.sessionId, ...textParam('first') }, cx);
+      await agent.prompt({ sessionId: a.sessionId, ...textParam('later') }, cx);
+      await agent.prompt({ sessionId: b.sessionId, ...textParam('other') }, cx);
+      await agent.loadSession({ sessionId: 'sess-prev', workflowId: 'wf-prev' } as any);
+      await agent.prompt({ sessionId: 'sess-prev', ...textParam('resumed') }, cx);
+      const signals = driver.seen.map((call: any) => call.options.signal);
+      expect(signals).toHaveLength(4);
+      for (const signal of signals) {
+         expect(signal).toBeInstanceOf(AbortSignal);
+         expect(signal.aborted).toBe(false);
+      }
+      expect(new Set(signals).size).toBe(4);
+   });
+
+   it('[H] a second prompt during wind-down is rejected and nothing changes', async () => {
+      const held = createHeldDriver();
+      const { agent, sessionStore } = makeAgent({ driver: held.driver });
+      const { sessionId, turn }     = await startTurn(agent);
+      await held.started(0);
+      await agent.cancel({ sessionId });
+      const err = await agent.prompt({ sessionId, ...textParam('again') }, createCx())
+         .then(() => undefined, (e: any) => e);
+      expect(err).toBeInstanceOf(TurnInProgressError);
+      expect(err.retryable).toBe(true);
+      expect(held.driver.seen).toHaveLength(1);
+      expect(sessionStore.hasActiveTurn(sessionId)).toBe(true);
+      held.release(0);
+      await turn;
+   });
+
+   it('[H] a rejected prompt does not replace the abort handle of the turn in flight', async () => {
+      const held = createHeldDriver();
+      const { agent }           = makeAgent({ driver: held.driver });
+      const { sessionId, turn } = await startTurn(agent);
+      await held.started(0);
+      await agent.prompt({ sessionId, ...textParam('again') }, createCx()).catch(() => {});
+      await agent.cancel({ sessionId });
+      expect(held.driver.seen[0].options.signal.aborted).toBe(true);
+      held.release(0);
+      await turn;
+   });
+
+   it('[H] the session is freed only when the driver settles, then the next prompt is accepted', async () => {
+      const held = createHeldDriver();
+      const { agent, sessionStore } = makeAgent({ driver: held.driver });
+      const { sessionId, turn }     = await startTurn(agent);
+      await held.started(0);
+      await agent.cancel({ sessionId });
+      expect(sessionStore.hasActiveTurn(sessionId)).toBe(true);
+      held.release(0);
+      await turn;
+      expect(sessionStore.hasActiveTurn(sessionId)).toBe(false);
+      const next = agent.prompt({ sessionId, ...textParam('next') }, createCx());
+      await held.started(1);
+      expect(held.driver.seen[1].options.signal.aborted).toBe(false);
+      held.release(1);
+      await expect(next).resolves.toEqual({ stopReason: 'end_turn' });
+   });
+
+   it('[H] two turns never run at once', async () => {
+      const held = createHeldDriver();
+      const { agent }           = makeAgent({ driver: held.driver });
+      const { sessionId, turn } = await startTurn(agent);
+      await held.started(0);
+      await agent.cancel({ sessionId });
+      await expect(agent.prompt({ sessionId, ...textParam('two') }, createCx()))
+         .rejects.toBeInstanceOf(TurnInProgressError);
+      held.release(0);
+      await turn;
+      const third = agent.prompt({ sessionId, ...textParam('three') }, createCx());
+      await held.started(1);
+      await expect(agent.prompt({ sessionId, ...textParam('four') }, createCx()))
+         .rejects.toBeInstanceOf(TurnInProgressError);
+      held.release(1);
+      await third;
+      expect(held.driver.seen).toHaveLength(2);
+      expect(held.peak()).toBe(1);
+   });
+
+   it('[H] a driver that ignores the signal keeps the session busy until it settles', async () => {
+      const held = createHeldDriver();
+      const { agent, sessionStore } = makeAgent({ driver: held.driver });
+      const { sessionId, turn }     = await startTurn(agent);
+      let settled = false;
+      const tracked = turn.then(() => { settled = true; });
+      await held.started(0);
+      await agent.cancel({ sessionId });
+      await flush();
+      expect(settled).toBe(false);
+      expect(sessionStore.hasActiveTurn(sessionId)).toBe(true);
+      held.release(0);
+      await tracked;
+      expect(sessionStore.hasActiveTurn(sessionId)).toBe(false);
+   });
+
+   it('cancel twice is harmless and the turn settles once', async () => {
+      const held = createHeldDriver();
+      const { agent }           = makeAgent({ driver: held.driver });
+      const { sessionId, turn } = await startTurn(agent);
+      await held.started(0);
+      await agent.cancel({ sessionId });
+      await expect(agent.cancel({ sessionId })).resolves.toBeUndefined();
+      held.release(0);
+      await expect(turn).resolves.toEqual({ stopReason: 'cancelled' });
+   });
+
+   it('[H] a stale cancel does nothing', async () => {
+      const { agent, driver } = makeAgent();
+      const s = await agent.newSession(newSessionArgs());
+      await agent.cancel({ sessionId: s.sessionId });   // no turn yet
+      await agent.cancel({ sessionId: 'ghost' });       // unknown session
+      await agent.prompt({ sessionId: s.sessionId, ...textParam('first') }, createCx());
+      await agent.cancel({ sessionId: s.sessionId });   // the turn already settled
+      await agent.prompt({ sessionId: s.sessionId, ...textParam('second') }, createCx());
+      expect(driver.seen[0].options.signal.aborted).toBe(false);
+      expect(driver.seen[1].options.signal.aborted).toBe(false);
+   });
+
+   it('[H] cancel is isolated to its session', async () => {
+      const held = createHeldDriver();
+      const { agent } = makeAgent({ driver: held.driver });
+      const a = await startTurn(agent);
+      await held.started(0);
+      const b = await startTurn(agent);
+      await held.started(1);
+      await agent.cancel({ sessionId: a.sessionId });
+      expect(held.driver.seen[0].options.signal.aborted).toBe(true);
+      expect(held.driver.seen[1].options.signal.aborted).toBe(false);
+      held.release(1);
+      held.release(0);
+      await expect(b.turn).resolves.toEqual({ stopReason: 'end_turn' });
+      await expect(a.turn).resolves.toEqual({ stopReason: 'cancelled' });
+   });
+
+   it('[H] cancel before the driver is called hands it an already-aborted signal', async () => {
+      const gate = deferred();
+      const base = createCx();
+      const cx   = {
+         ...base,
+         notify: async (method: string, params: any) => { await gate.promise; return base.notify(method, params); },
+      };
+      const { agent, driver }   = makeAgent();
+      const { sessionId, turn } = await startTurn(agent, cx);
+      await agent.cancel({ sessionId });
+      gate.resolve();
+      await expect(turn).resolves.toEqual({ stopReason: 'cancelled' });
+      expect(driver.seen).toHaveLength(1);
+      expect(driver.seen[0].options.signal.aborted).toBe(true);
+   });
+
+   it('a prompt rejected before it starts leaves no flag and no abort handle', async () => {
+      const { agent, driver, sessionStore, logger } = makeAgent();
+      const s = await agent.newSession(newSessionArgs());
+      await expect(agent.prompt({ sessionId: s.sessionId, prompt: [] } as any, createCx())).rejects.toThrow();
+      expect(sessionStore.hasActiveTurn(s.sessionId)).toBe(false);
+      expect(sessionStore.get(s.sessionId)?.abort).toBeUndefined();
+      await agent.cancel({ sessionId: s.sessionId });
+      expect(eventsOf(logger, 'cancel_requested')).toHaveLength(0);
+      await agent.prompt({ sessionId: s.sessionId, ...textParam('next') }, createCx());
+      expect(driver.seen[0].options.signal.aborted).toBe(false);
+   });
+
+   it('an unsupported driver or an unknown session leaves nothing behind', async () => {
+      const unsupported = {
+         name: 'plain', supportsToolCallGovernance: false, execute: async () => ({ text: '', sessionId: '' }),
+      };
+      const { agent, sessionStore, logger } = makeAgent({ driver: unsupported });
+      const s = await agent.newSession(newSessionArgs());
+      await expect(agent.prompt({ sessionId: s.sessionId, ...textParam('q') }, createCx()))
+         .rejects.toBeInstanceOf(DriverGovernanceUnsupportedError);
+      await expect(agent.prompt({ sessionId: 'ghost', ...textParam('q') }, createCx()))
+         .rejects.toThrow(/session/i);
+      expect(sessionStore.hasActiveTurn(s.sessionId)).toBe(false);
+      expect(sessionStore.get(s.sessionId)?.abort).toBeUndefined();
+      expect(sessionStore.get('ghost')).toBeUndefined();
+      await agent.cancel({ sessionId: s.sessionId });
+      await agent.cancel({ sessionId: 'ghost' });
+      expect(eventsOf(logger, 'cancel_requested')).toHaveLength(0);
+   });
+
+   it('a turn that fails before the driver is called clears the flag and the abort handle', async () => {
+      const cx = { ...createCx(), notify: async () => { throw new Error('connection lost'); } };
+      const { agent, driver, sessionStore } = makeAgent();
+      const s = await agent.newSession(newSessionArgs());
+      await expect(agent.prompt({ sessionId: s.sessionId, ...textParam('q') }, cx)).rejects.toThrow('connection lost');
+      expect(driver.seen).toHaveLength(0);
+      expect(sessionStore.hasActiveTurn(s.sessionId)).toBe(false);
+      expect(sessionStore.get(s.sessionId)?.abort).toBeUndefined();
+   });
+
+   it('a notification failure after a cancel still surfaces as an error', async () => {
+      const gate = deferred();
+      const cx   = { ...createCx(), notify: async () => { await gate.promise; throw new Error('connection lost'); } };
+      const { agent, sessionStore } = makeAgent();
+      const { sessionId, turn }     = await startTurn(agent, cx);
+      const outcome = turn.then(() => undefined, (e: any) => e);
+      await agent.cancel({ sessionId });
+      gate.resolve();
+      expect((await outcome)?.message).toBe('connection lost');
+      expect(sessionStore.hasActiveTurn(sessionId)).toBe(false);
+   });
+});
+
+describe('Group 16 — cancel: result of a cancelled turn', () => {
+   const cancelledResult = (extra: object = {}) =>
+      ({ cancelled: true, text: 'partial', sessionId: 'drv-c', toolCalls: [], ...extra });
+
+   it('[H] a cancelled result streams the partial text, returns cancelled and keeps the session usable', async () => {
+      const driver = createDriverSpy(cancelledResult());
+      const { agent, sessionStore } = makeAgent({ driver });
+      const s   = await agent.newSession(newSessionArgs());
+      const cx  = createCx();
+      const res = await agent.prompt({ sessionId: s.sessionId, ...textParam('q') }, cx);
+      expect(res).toEqual({ stopReason: 'cancelled' });
+      expect(JSON.stringify(cx.calls)).toContain('partial');
+      expect(sessionStore.hasActiveTurn(s.sessionId)).toBe(false);
+      await agent.prompt({ sessionId: s.sessionId, ...textParam('again') }, createCx());
+      expect(driver.seen).toHaveLength(2);
+   });
+
+   it('a cancelled result with no text streams nothing extra and raises no error', async () => {
+      const driver = createDriverSpy(cancelledResult({ text: '' }));
+      const { agent, logger } = makeAgent({ driver });
+      const s   = await agent.newSession(newSessionArgs());
+      const cx  = createCx();
+      const res = await agent.prompt({ sessionId: s.sessionId, ...textParam('q') }, cx);
+      const chunks = cx.calls.filter(c => 'agent_message_chunk' === c.params?.update?.sessionUpdate);
+      expect(res).toEqual({ stopReason: 'cancelled' });
+      expect(chunks).toHaveLength(1);   // only 'Working on it...'
+      expect(logger.entries.filter((e: LogEntry) => 'error' === e.level)).toEqual([]);
+   });
+
+   it('[H] a non-empty driver session id on a cancelled result is stored', async () => {
+      const { agent, sessionStore } = makeAgent({ driver: createDriverSpy(cancelledResult()) });
+      const s = await agent.newSession(newSessionArgs());
+      await agent.prompt({ sessionId: s.sessionId, ...textParam('q') }, createCx());
+      expect(sessionStore.get(s.sessionId)?.driverSessionId).toBe('drv-c');
+   });
+
+   it('[H] an empty driver session id keeps the previous one', async () => {
+      let n = 0;
+      const driver = createDriverSpy(() => 0 === n++
+         ? { text: 'x', sessionId: 'drv-1', toolCalls: [] }
+         : cancelledResult({ sessionId: '' }));
+      const { agent, sessionStore } = makeAgent({ driver });
+      const s = await agent.newSession(newSessionArgs());
+      await agent.prompt({ sessionId: s.sessionId, ...textParam('first') }, createCx());
+      await agent.prompt({ sessionId: s.sessionId, ...textParam('second') }, createCx());
+      expect(sessionStore.get(s.sessionId)?.driverSessionId).toBe('drv-1');
+   });
+
+   it('[H] an empty id on a first cancelled turn stays undefined, so the next turn passes none', async () => {
+      let n = 0;
+      const driver = createDriverSpy(() => 0 === n++
+         ? cancelledResult({ sessionId: '' })
+         : { text: 'ok', sessionId: 'drv-n', toolCalls: [] });
+      const { agent, sessionStore } = makeAgent({ driver });
+      const s = await agent.newSession(newSessionArgs());
+      await agent.prompt({ sessionId: s.sessionId, ...textParam('first') }, createCx());
+      expect(sessionStore.get(s.sessionId)?.driverSessionId).toBeUndefined();
+      await agent.prompt({ sessionId: s.sessionId, ...textParam('second') }, createCx());
+      expect(driver.seen[1].options.sessionId).toBeUndefined();
+   });
+
+   it('[H] the next turn after a cancel passes the stored id and ends normally', async () => {
+      let n = 0;
+      const driver = createDriverSpy(() => 0 === n++
+         ? cancelledResult()
+         : { text: 'ok', sessionId: 'drv-n', toolCalls: [] });
+      const { agent } = makeAgent({ driver });
+      const s = await agent.newSession(newSessionArgs());
+      await agent.prompt({ sessionId: s.sessionId, ...textParam('first') }, createCx());
+      const res = await agent.prompt({ sessionId: s.sessionId, ...textParam('second') }, createCx());
+      expect(driver.seen[1].options.sessionId).toBe('drv-c');
+      expect(res).toEqual({ stopReason: 'end_turn' });
+   });
+
+   it.each([
+      ['a generic error', () => new Error('SECRET-ERR'),              'internal'],
+      ['a quota error',   () => new ProviderQuotaError('SECRET-ERR'), 'provider_quota'],
+   ])('[H] %s after the abort settles cancelled and logs only its kind', async (_name, makeError, kind) => {
+      const held = createHeldDriver();
+      const { agent, sessionStore, logger } = makeAgent({ driver: held.driver });
+      const { sessionId, turn }             = await startTurn(agent);
+      await held.started(0);
+      await agent.cancel({ sessionId });
+      held.fail(0, makeError());
+      await expect(turn).resolves.toEqual({ stopReason: 'cancelled' });
+      expect(sessionStore.hasActiveTurn(sessionId)).toBe(false);
+      expect(eventsOf(logger, 'turn_cancelled')[0].data).toMatchObject({ sessionId, failureKind: kind });
+      expect(eventsOf(logger, 'prompt_failed')).toHaveLength(0);
+      expect(JSON.stringify(logger.entries)).not.toContain('SECRET');
+   });
+
+   it('without an abort the same throw still surfaces as an error', async () => {
+      const err    = new ProviderQuotaError('rate limited');
+      const driver = createDriverSpy(() => { throw err; });
+      const { agent, logger } = makeAgent({ driver });
+      const s = await agent.newSession(newSessionArgs());
+      await expect(agent.prompt({ sessionId: s.sessionId, ...textParam('q') }, createCx())).rejects.toBe(err);
+      expect(eventsOf(logger, 'turn_cancelled')).toHaveLength(0);
+   });
+
+   it('[H] a normal result after an abort is still cancelled', async () => {
+      const held = createHeldDriver();
+      const { agent, sessionStore } = makeAgent({ driver: held.driver });
+      const { sessionId, turn }     = await startTurn(agent);
+      await held.started(0);
+      await agent.cancel({ sessionId });
+      held.release(0);
+      await expect(turn).resolves.toEqual({ stopReason: 'cancelled' });
+      expect(sessionStore.hasActiveTurn(sessionId)).toBe(false);
+   });
+});
+
+describe('Group 17 — cancel with asks', () => {
+   /** A cx whose approval request stays open until the test answers it. */
+   function createOpenAskCx()
+   {
+      const asked  = deferred();
+      const answer = deferred<unknown>();
+      const cx     = createCx({ respond: () => { asked.resolve(); return answer.promise; } });
+      return { cx, asked, answer };
+   }
+
+   it.each([
+      ['the IDE answers cancelled', { outcome: 'cancelled' }],
+      ['the user rejects',          reject],
+      ['the user allows',           allow],
+   ])('[H] cancel with an ask open, then %s: the call never runs', async (_name, inner) => {
+      const fake = createFakeGovernedDriver();
+      fake.script([editReport]);
+      const { cx, asked, answer } = createOpenAskCx();
+      const { agent, logger }     = makeAgent({ driver: fake.driver });
+      const { sessionId, turn }   = await startTurn(agent, cx);
+      await asked.promise;
+      await agent.cancel({ sessionId });
+      answer.resolve({ outcome: inner });
+      await expect(turn).resolves.toEqual({ stopReason: 'cancelled' });
+      await flush();
+      expect(fake.ran()).toEqual([]);
+      const outcomes = eventsOf(logger, 'governance_outcome');
+      expect(outcomes).toHaveLength(1);
+      expect(outcomes[0].data).toMatchObject({ action: 'deny', reason: 'cancelled' });
+   });
+
+   it.each([
+      ['the request fails',     (a: Deferred<unknown>) => a.reject(new Error('SECRET-ERR')), 'ask_failed'],
+      ['the IDE sends nothing', (a: Deferred<unknown>) => a.resolve(undefined),              'invalid_answer'],
+   ])('[H] cancel with an ask open, then %s: logged as cancelled with its cause', async (_name, settle, cause) => {
+      const fake = createFakeGovernedDriver();
+      fake.script([editReport]);
+      const { cx, asked, answer } = createOpenAskCx();
+      const { agent, logger }     = makeAgent({ driver: fake.driver });
+      const { sessionId, turn }   = await startTurn(agent, cx);
+      await asked.promise;
+      await agent.cancel({ sessionId });
+      settle(answer);
+      await expect(turn).resolves.toEqual({ stopReason: 'cancelled' });
+      await flush();
+      expect(fake.ran()).toEqual([]);
+      const outcomes = eventsOf(logger, 'governance_outcome');
+      expect(outcomes).toHaveLength(1);
+      expect(outcomes[0].level).toBe('info');
+      expect(outcomes[0].data)
+         .toMatchObject({ action: 'deny', answeredBy: 'cancel', reason: 'cancelled', cause });
+      expect(JSON.stringify(logger.entries)).not.toContain('SECRET');
+   });
+
+   it('[H] an ask nobody answers does not hold the cancel; a late answer changes nothing', async () => {
+      const fake = createFakeGovernedDriver();
+      fake.script([editReport]);
+      const { cx, asked, answer }   = createOpenAskCx();
+      const { agent, sessionStore } = makeAgent({ driver: fake.driver });
+      const { sessionId, turn }     = await startTurn(agent, cx);
+      await asked.promise;
+      await agent.cancel({ sessionId });
+      await expect(turn).resolves.toEqual({ stopReason: 'cancelled' });
+      expect(sessionStore.hasActiveTurn(sessionId)).toBe(false);
+      answer.resolve({ outcome: allow });
+      await flush();
+      expect(fake.ran()).toEqual([]);
+   });
+
+   it('cancel with no ask pending settles cancelled without prompting the user', async () => {
+      const held = createHeldDriver();
+      const cx   = createCx();
+      const { agent }           = makeAgent({ driver: held.driver });
+      const { sessionId, turn } = await startTurn(agent, cx);
+      await held.started(0);
+      await agent.cancel({ sessionId });
+      held.release(0);
+      await expect(turn).resolves.toEqual({ stopReason: 'cancelled' });
+      expect(requestsOf(cx)).toHaveLength(0);
+      expect(detailsOf(cx)).toHaveLength(0);
+   });
+
+   it('[H] a report that arrives after the cancel is refused without evaluation or asking', async () => {
+      const started = deferred();
+      const gate    = deferred();
+      let answered: unknown;
+      const driver = createDriverSpy(async (_command: string, options: any) => {
+         started.resolve();
+         await gate.promise;
+         answered = await options.onToolCall(editReport);
+         return { text: 'ok', sessionId: 'drv', toolCalls: [] };
+      });
+      const governance = { evaluateToolCall: vi.fn() };
+      const cx = createCx();
+      const { agent, logger }   = makeAgent({ driver, governance });
+      const { sessionId, turn } = await startTurn(agent, cx);
+      await started.promise;
+      await agent.cancel({ sessionId });
+      gate.resolve();
+      await turn;
+      expect(answered).toBe('deny');
+      expect(governance.evaluateToolCall).not.toHaveBeenCalled();
+      expect(detailsOf(cx)).toHaveLength(0);
+      expect(requestsOf(cx)).toHaveLength(0);
+      expect(eventsOf(logger, 'governance_outcome')[0].data)
+         .toMatchObject({ sessionId, action: 'deny', reason: 'cancelled', answeredBy: 'cancel' });
+   });
+
+   it('[H] an Allow that arrives after the cancel reaches the driver as a deny', async () => {
+      let answered: unknown;
+      const driver = createDriverSpy(async (_command: string, options: any) => {
+         answered = await options.onToolCall(editReport);
+         return { text: 'ok', sessionId: 'drv', toolCalls: [] };
+      });
+      const { cx, asked, answer } = createOpenAskCx();
+      const { agent, logger }     = makeAgent({ driver });
+      const { sessionId, turn }   = await startTurn(agent, cx);
+      await asked.promise;
+      await agent.cancel({ sessionId });
+      answer.resolve({ outcome: allow });
+      await turn;
+      expect(answered).toBe('deny');
+      expect(eventsOf(logger, 'governance_outcome')[0].data)
+         .toMatchObject({ action: 'deny', reason: 'cancelled', answeredBy: 'user' });
+   });
+});
+
+describe('Group 18 — disconnect', () => {
+   it('[H] aborts every turn, then closes the driver once, then releases the sessions', async () => {
+      const held = createHeldDriver();
+      let ids: string[] = [];
+      let atClose: unknown;
+      const close = vi.fn(async () => {
+         atClose = {
+            aborted:      held.driver.seen.map((c: any) => c.options.signal.aborted),
+            present:      ids.map(id => undefined !== sessionStore.get(id)),
+            disconnected: eventsOf(logger, 'disconnect').length,
+         };
+      });
+      const { agent, sessionStore, logger } = makeAgent({ driver: Object.assign(held.driver, { close }) });
+      const a = await startTurn(agent);
+      await held.started(0);
+      const b = await startTurn(agent);
+      await held.started(1);
+      ids = [a.sessionId, b.sessionId];
+      await agent.onDisconnect();
+      expect(close).toHaveBeenCalledTimes(1);
+      expect(atClose).toEqual({ aborted: [true, true], present: [true, true], disconnected: 0 });
+      expect(ids.map(id => sessionStore.get(id))).toEqual([undefined, undefined]);
+      expect(eventsOf(logger, 'disconnect')).toHaveLength(1);
+      held.release(0);
+      held.release(1);
+      await Promise.all([a.turn, b.turn]);
+   });
+
+   it('idle sessions: the driver is still closed once and the sessions are released', async () => {
+      const close = vi.fn(async () => {});
+      const { agent, sessionStore } = makeAgent({ driver: Object.assign(createDriverSpy(), { close }) });
+      const a = await agent.newSession(newSessionArgs());
+      const b = await agent.newSession(newSessionArgs());
+      await agent.onDisconnect();
+      expect(close).toHaveBeenCalledTimes(1);
+      expect([sessionStore.get(a.sessionId), sessionStore.get(b.sessionId)]).toEqual([undefined, undefined]);
+   });
+
+   const closers: Array<[string, () => Promise<void>]> = [
+      ['throws',  () => { throw new Error('SECRET-CLOSE'); }],
+      ['rejects', () => Promise.reject(new Error('SECRET-CLOSE'))],
+   ];
+
+   it.each(closers)('[H] a close that %s: sessions released, kind only logged, no retry', async (_how, impl) => {
+      const close = vi.fn(impl);
+      const { agent, sessionStore, logger } = makeAgent({ driver: Object.assign(createDriverSpy(), { close }) });
+      const s = await agent.newSession(newSessionArgs());
+      await expect(agent.onDisconnect()).resolves.toBeUndefined();
+      expect(close).toHaveBeenCalledTimes(1);
+      expect(sessionStore.get(s.sessionId)).toBeUndefined();
+      expect(eventsOf(logger, 'close_failed')[0].data).toEqual({ failureKind: 'internal' });
+      expect(JSON.stringify(logger.entries)).not.toContain('SECRET');
+      expect(eventsOf(logger, 'disconnect')).toHaveLength(1);
+   });
+
+   it('disconnect twice is harmless', async () => {
+      const close = vi.fn(async () => {});
+      const { agent } = makeAgent({ driver: Object.assign(createDriverSpy(), { close }) });
+      await agent.onDisconnect();
+      await expect(agent.onDisconnect()).resolves.toBeUndefined();
+   });
+
+   it('a turn that settles after the disconnect throws nothing and recreates nothing', async () => {
+      const held = createHeldDriver();
+      const { agent, sessionStore, logger } = makeAgent({ driver: held.driver });
+      const { sessionId, turn }             = await startTurn(agent);
+      await held.started(0);
+      await agent.onDisconnect();
+      held.release(0);
+      await expect(turn).resolves.toEqual({ stopReason: 'cancelled' });
+      expect(sessionStore.get(sessionId)).toBeUndefined();
+      expect(eventsOf(logger, 'prompt_failed')).toHaveLength(0);
+   });
+});
+
+describe('Group 19 — cancel logging', () => {
+   it('cancel_requested is logged once per aborted turn, with the session id only', async () => {
+      const held = createHeldDriver();
+      const { agent, logger }   = makeAgent({ driver: held.driver });
+      const { sessionId, turn } = await startTurn(agent);
+      await held.started(0);
+      await agent.cancel({ sessionId });
+      await agent.cancel({ sessionId });
+      expect(eventsOf(logger, 'cancel_requested').map(e => e.data)).toEqual([{ sessionId }]);
+      held.release(0);
+      await turn;
+   });
+
+   it('turn_cancelled is logged when the turn settles, without failureKind when the driver did not throw', async () => {
+      const held = createHeldDriver();
+      const { agent, logger }   = makeAgent({ driver: held.driver });
+      const { sessionId, turn } = await startTurn(agent);
+      await held.started(0);
+      await agent.cancel({ sessionId });
+      expect(eventsOf(logger, 'turn_cancelled')).toHaveLength(0);
+      held.release(0);
+      await turn;
+      expect(eventsOf(logger, 'turn_cancelled').map(e => e.data)).toEqual([{ sessionId }]);
+   });
+
+   it('a cancel with no active turn logs no cancel_requested', async () => {
+      const { agent, logger } = makeAgent();
+      const s = await agent.newSession(newSessionArgs());
+      await agent.cancel({ sessionId: s.sessionId });
+      await agent.prompt({ sessionId: s.sessionId, ...textParam('q') }, createCx());
+      await agent.cancel({ sessionId: s.sessionId });
+      await agent.cancel({ sessionId: 'ghost' });
+      expect(eventsOf(logger, 'cancel_requested')).toHaveLength(0);
+   });
+
+   it('[H] prompt text, partial text and error messages stay out of every log entry', async () => {
+      const held = createHeldDriver();
+      const { agent, logger }   = makeAgent({ driver: held.driver });
+      const { sessionId, turn } = await startTurn(agent, createCx(), 'SECRET-PROMPT');
+      await held.started(0);
+      await agent.cancel({ sessionId });
+      held.release(0, { cancelled: true, text: 'SECRET-PARTIAL', sessionId: 'drv', toolCalls: [] });
+      await turn;
+      const next = agent.prompt({ sessionId, ...textParam('SECRET-PROMPT-2') }, createCx());
+      await held.started(1);
+      await agent.cancel({ sessionId });
+      held.fail(1, new Error('SECRET-ERR'));
+      await next;
+      expect(eventsOf(logger, 'turn_cancelled')).toHaveLength(2);
+      expect(JSON.stringify(logger.entries)).not.toContain('SECRET');
    });
 });

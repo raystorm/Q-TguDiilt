@@ -13,6 +13,7 @@ export interface SessionRecord {
    workflowId:       string;
    driverSessionId?: string;
    activeTurn:       boolean;
+   abort?:           AbortController;
 }
 
 export interface SessionStoreDeps {
@@ -27,7 +28,10 @@ export interface SessionStore {
    close(sessionId: string): void;
    closeAll(): void;
    hasActiveTurn(sessionId: string): boolean;
-   setActiveTurn(sessionId: string, active: boolean): void;
+   setActiveTurn(sessionId: string, active: boolean, controller?: AbortController): void;
+   /** Aborts the active turn once; true only if a turn was actually aborted. */
+   abortTurn(sessionId: string): boolean;
+   abortAllTurns(): void;
 }
 
 export function createSessionStore(deps: SessionStoreDeps): SessionStore {
@@ -55,10 +59,13 @@ export function createSessionStore(deps: SessionStoreDeps): SessionStore {
       },
 
       close(sessionId) {
+         const record = sessions.get(sessionId);
+         if (record) { record.abort = undefined; }
          sessions.delete(sessionId);
       },
 
       closeAll() {
+         for (const record of sessions.values()) { record.abort = undefined; }
          sessions.clear();
       },
 
@@ -66,9 +73,23 @@ export function createSessionStore(deps: SessionStoreDeps): SessionStore {
          return sessions.get(sessionId)?.activeTurn ?? false;
       },
 
-      setActiveTurn(sessionId, active) {
+      setActiveTurn(sessionId, active, controller) {
          const record = sessions.get(sessionId);
-         if (record) { record.activeTurn = active; }
+         if (record) {
+            record.activeTurn = active;
+            record.abort      = active ? controller : undefined;
+         }
+      },
+
+      abortTurn(sessionId) {
+         const abort = sessions.get(sessionId)?.abort;
+         if (undefined === abort || abort.signal.aborted) { return false; }
+         abort.abort();
+         return true;
+      },
+
+      abortAllTurns() {
+         for (const record of sessions.values()) { record.abort?.abort(); }
       },
    };
 }

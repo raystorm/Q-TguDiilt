@@ -55,7 +55,8 @@ From your side, a session follows this lifecycle:
 Only one prompt turn runs at a time per session. If you send a second
 prompt while one is still running, the service rejects it and asks you
 to retry once the current turn finishes. To interrupt a running turn,
-use your IDE's cancel action (ACP `session/cancel`).
+use your IDE's cancel action (ACP `session/cancel`); see "Stopping a
+turn".
 
 ## Approvals
 
@@ -64,11 +65,28 @@ When a step needs your approval, the service first shows you the
 tool parameters — and then presents the approval request. You always
 see what you are approving before you approve it.
 
+## Stopping a turn
+
+Use your IDE's stop (cancel) action to end a running turn. The service
+passes the stop on to the provider, shows any text produced so far, and
+ends the turn as cancelled. The session stays usable.
+
+- **Winding down:** the session stays busy until the provider has
+  finished. A new prompt sent right after Stop can be rejected as "turn
+  in progress"; wait a moment and retry.
+- **Pending approvals:** an approval you have not answered yet is denied
+  when you stop. Answering it afterwards, even with Allow, changes
+  nothing and the action does not run.
+- **Nothing is rolled back:** an action that already ran stays done.
+- **Disconnect:** closing the connection stops every running turn, shuts
+  down the provider, and releases all sessions.
+
 ## Operational log
 
 The service writes an operational log to `.workflow/work/acp.log`
 (JSONL). It records connection lifecycle events (connect, disconnect,
-session mapping) and errors with context. No secrets or raw prompt text
+session mapping), stops (`cancel_requested`, `turn_cancelled`) and errors
+with context. No secrets or raw prompt text
 are written to the log.
 
 This log is transient runtime state; it is not version-controlled.
@@ -80,7 +98,12 @@ This log is transient runtime state; it is not version-controlled.
 - **Prompts fail immediately with "before initialize"** — the IDE sent
   a request before the connection finished initializing; reconnect.
 - **A prompt is rejected as "turn in progress"** — a previous turn is
-  still running; wait for it to finish or cancel it, then retry.
+  still running or still winding down after a stop; wait for it to
+  finish or cancel it, then retry.
+- **The session stays busy after Stop** — the driver in use cannot be
+  interrupted, so the turn ends only when the driver finishes its
+  current work. Wait, then retry. The log shows `cancel_requested` when
+  the stop reached the service and `turn_cancelled` when the turn ended.
 - **Provider quota / authentication errors** — these surface as clear,
   actionable errors; resolve the provider issue (quota or re-login) and
   retry the turn.

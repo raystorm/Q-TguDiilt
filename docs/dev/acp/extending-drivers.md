@@ -8,16 +8,17 @@ registry config.
 ## Driver Interface
 
 A driver is an object with a `name`, a `supportsToolCallGovernance` flag,
-and an asynchronous `execute` method:
+an asynchronous `execute` method, and an optional `close` method:
 
 ```typescript
 execute(command: string, options?: ExecuteOptions): Promise<DriverResult>
 ```
 
 The driver receives a command string and optional context, session, model,
-and a per-call `onToolCall` handler. It returns the response text, a
-session ID for conversation continuity, and the outcome (approved or
-denied) of each tool call it reported.
+a per-call `onToolCall` handler, and a per-call abort `signal`. It returns
+the response text, a session ID for conversation continuity, the outcome
+(approved or denied) of each tool call it reported, and `cancelled: true`
+when the turn ended because the signal aborted.
 
 Before running any tool call, the driver reports it through `onToolCall`
 and runs it only on an exact `'approve'`. No handler, or any other answer,
@@ -25,11 +26,25 @@ denies the call (fail closed). A driver must declare
 `supportsToolCallGovernance: true`; the ACP Protocol layer rejects any
 other driver before doing any work.
 
+The `signal` aborts the turn when the user stops it or the connection
+ends. A driver that honors it asks nothing new, discards any late answer
+(an approve included, which never runs), and settles with
+`cancelled: true`. A driver may also offer `close()`, which releases the
+downstream agent. The interface marks `signal`, `cancelled` and `close`
+optional, so a driver that ignores them still conforms, but a cancel then
+leaves its session busy until `execute` settles. A driver that holds a
+downstream agent should implement `close()`.
+
 Key rules:
 - Call `validateExecuteArgs(command, options)` at the top of `execute`
 - Return a `DriverResult` with `text`, `sessionId`, and `toolCalls`
 - Accept an empty or omitted `options` without throwing
 - Report every tool call through `gateToolCall` before it runs
+- Honor `options.signal` when the provider can be interrupted: settle
+  `cancelled: true`, report nothing new, discard late answers
+- If the driver holds a downstream agent (any driver that wraps an ACP
+  agent does), implement `close()`: it releases that agent, and must be
+  safe to call any number of times, also concurrently
 - Prove the driver with the shared contract suite
   (`describeGovernedDriverContract`)
 

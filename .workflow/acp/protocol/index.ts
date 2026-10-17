@@ -64,4 +64,4 @@ agent({ name: 'q-tguudiilt-acp' })
    .onNotification(methods.agent.session.cancel, ctx => service.cancel(ctx.params as any))
    .connect(stream);
 
-process.stdin.on('end', () => service.onDisconnect());
+process.stdin.on('end', () => { void service.onDisconnect(); });

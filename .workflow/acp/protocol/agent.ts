@@ -13,6 +13,7 @@
  */
 import {
    Driver,
+   DriverResult,
    ExecuteOptions,
    ToolCallDecision,
    ToolCallReport,
@@ -141,10 +142,19 @@ export function createAgent(deps: AgentDeps) {
       context: { sessionId: string; callId: number },
       specifics: AskDetails,
       cx: ClientContext,
+      signal: AbortSignal,
    ): Promise<ToolCallDecision> {
+      // Anything that ends an open ask after the abort is part of the cancel.
+      const denyCancelled = (answeredBy: string, cause?: string): ToolCallDecision => {
+         const outcome: Record<string, unknown> = { ...context, action: 'deny', answeredBy, reason: 'cancelled' };
+         if (undefined !== cause) { outcome.cause = cause; }
+         logger.info('governance_outcome', outcome);
+         return 'deny';
+      };
       let result: { approved: boolean; answer: AskAnswer };
       try { result = await ask({ sessionId: context.sessionId }, specifics, cx); }
       catch {
+         if (signal.aborted) { return denyCancelled('cancel', 'ask_failed'); }
          logger.warn('governance_outcome', {
             ...context, action: 'deny', answeredBy: 'failure', reason: 'ask_failed',
          });
@@ -152,11 +162,15 @@ export function createAgent(deps: AgentDeps) {
       }
 
       if ('invalid' === result.answer) {
+         if (signal.aborted) { return denyCancelled('cancel', 'invalid_answer'); }
          logger.warn('governance_outcome', {
             ...context, action: 'deny', answeredBy: 'failure', reason: 'invalid_answer',
          });
          return 'deny';
       }
+
+      // A late answer, Allow included, never becomes an approve.
+      if (signal.aborted) { return denyCancelled('user'); }
 
       const outcome: Record<string, unknown> = {
          ...context, action: result.approved ? 'approve' : 'deny', answeredBy: 'user',
@@ -177,8 +191,17 @@ export function createAgent(deps: AgentDeps) {
       sessionId: string,
       report: ToolCallReport,
       cx: ClientContext,
+      signal: AbortSignal,
    ): Promise<ToolCallDecision> {
       const context = { sessionId, callId: ++callSeq };
+
+      // After the abort: no evaluation, no detail update, no approval request.
+      if (signal.aborted) {
+         logger.info('governance_outcome', {
+            ...context, action: 'deny', answeredBy: 'cancel', reason: 'cancelled',
+         });
+         return 'deny';
+      }
 
       let decision: Decision;
       let note: string | undefined;
@@ -197,7 +220,7 @@ export function createAgent(deps: AgentDeps) {
       // The title is agent-supplied display text: shown, labelled, never a command.
       const specifics: AskDetails = { ...decision.details, kind: report.kind, agentTitle: report.title };
       if (undefined !== note) { specifics.note = note; }
-      return askForApproval(context, specifics, cx);
+      return askForApproval(context, specifics, cx, signal);
    }
 
    return {
@@ -256,7 +279,9 @@ export function createAgent(deps: AgentDeps) {
             throw new DriverGovernanceUnsupportedError(driver.name);
          }
 
-         sessionStore.setActiveTurn(params.sessionId, true);
+         const controller = new AbortController();
+         const { signal } = controller;
+         sessionStore.setActiveTurn(params.sessionId, true, controller);
          try {
             // Stream at least one update before the final response.
             await cx.notify(SESSION_UPDATE, {
@@ -268,11 +293,38 @@ export function createAgent(deps: AgentDeps) {
             });
 
             const options: ExecuteOptions = {
-               onToolCall: report => handleToolCall(params.sessionId, report, cx),
+               signal,
+               onToolCall: report => handleToolCall(params.sessionId, report, cx, signal),
             };
             if (record.driverSessionId) { options.sessionId = record.driverSessionId; }
 
-            const result = await driver.execute(command, options);
+            let result: DriverResult;
+            try { result = await driver.execute(command, options); }
+            catch (err) {
+               if (!signal.aborted) { throw err; }
+               // A failure after a cancel is part of the cancel: log the kind only.
+               logger.info('turn_cancelled', {
+                  sessionId:   params.sessionId,
+                  failureKind: boundaryErrorKind(err) ?? 'internal',
+               });
+               return { stopReason: 'cancelled' as const };
+            }
+
+            if (result.cancelled || signal.aborted) {
+               if ('' !== result.sessionId) { record.driverSessionId = result.sessionId; }
+               if ('' !== result.text) {
+                  await cx.notify(SESSION_UPDATE, {
+                     sessionId: params.sessionId,
+                     update: {
+                        sessionUpdate: 'agent_message_chunk',
+                        content: { type: 'text', text: result.text },
+                     },
+                  });
+               }
+               logger.info('turn_cancelled', { sessionId: params.sessionId });
+               return { stopReason: 'cancelled' as const };
+            }
+
             record.driverSessionId = result.sessionId;
 
             await cx.notify(SESSION_UPDATE, {
@@ -305,15 +357,30 @@ export function createAgent(deps: AgentDeps) {
       },
 
       async cancel(params: { sessionId: string }) {
-         // session/cancel is the only interrupt: free the session. Cancelling
-         // with no active turn is an idempotent no-op.
-         sessionStore.setActiveTurn(params.sessionId, false);
+         // session/cancel is the only interrupt. It aborts the turn but does
+         // not free the session: prompt's finally does, once the driver has
+         // settled. No active turn, an unknown session, or a second cancel
+         // is a no-op.
+         if (sessionStore.abortTurn(params.sessionId)) {
+            logger.info('cancel_requested', { sessionId: params.sessionId });
+         }
       },
 
       ask,
 
-      /** Release all session mappings on disconnect / stdin EOF (no leaks). */
-      onDisconnect() {
+      /**
+       * Abort every turn, release the downstream agent, then release all
+       * session mappings on disconnect / stdin EOF (no leaks). Never rejects.
+       * Without a driver `close` it completes synchronously.
+       */
+      async onDisconnect() {
+         sessionStore.abortAllTurns();
+         if (undefined !== driver.close) {
+            try { await driver.close(); }
+            catch (err) {
+               logger.warn('close_failed', { failureKind: boundaryErrorKind(err) ?? 'internal' });
+            }
+         }
          sessionStore.closeAll();
          logger.info('disconnect', {});
       },

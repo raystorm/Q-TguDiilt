@@ -64,8 +64,11 @@ exactly one `driver.execute(...)`**.
   reports through governance (see "Tool-call governance"). A driver
   that does not declare tool-call governance support is rejected before
   any work.
-- Each turn streams at least one `session/update` before returning
-  `stopReason: 'end_turn'`.
+- `options.signal` is supplied on every turn. It aborts when the client
+  cancels the turn or the connection ends (see "Cancel and wind-down").
+  A driver may honor it; a driver that ignores it still conforms.
+- Each turn streams at least one `session/update` before returning its
+  stop reason (`end_turn`, or `cancelled` after a cancel).
 
 An empty prompt (no text content) is rejected with a clear error.
 
@@ -79,6 +82,8 @@ exactly one `workflowId`** and tracks:
 - `driverSessionId` — the driver's continuity id, updated after each
   turn.
 - `activeTurn` — the per-session in-flight flag.
+- `abort` — the abort controller of the in-flight turn; set and cleared
+  together with `activeTurn`.
 
 Lifecycle:
 
@@ -86,17 +91,63 @@ Lifecycle:
 - `session/new` — creates a session record with a fresh `workflowId`.
 - `session/load` — re-establishes a session bound to a supplied
   `workflowId` (resume).
-- `session/cancel` — clears the active-turn flag; the only interrupt. A
-  cancel with no active turn is an idempotent no-op.
-- disconnect / stdin EOF — releases all mappings (`closeAll`), so
-  nothing leaks.
+- `session/cancel` — aborts the active turn; the only interrupt. It does
+  not free the session (see "Cancel and wind-down"). A cancel with no
+  active turn, an unknown session, or a second cancel is an idempotent
+  no-op.
+- disconnect / stdin EOF — aborts every active turn, closes the driver,
+  then releases all mappings (`closeAll`), so nothing leaks.
 
 ### Concurrency: reject-with-retry
 
-Only one turn runs per session at a time. A second prompt while a turn
-is in flight throws `TurnInProgressError` (`retryable: true`); the
+Only one turn runs per session at a time, and that holds through a
+cancel. A second prompt while a turn is in flight, or still winding down
+after a cancel, throws `TurnInProgressError` (`retryable: true`); the
 in-flight turn is unaffected and the client may retry after it
-completes.
+completes. A session never runs two turns at once.
+
+### Cancel and wind-down
+
+`prompt` creates an `AbortController` when it sets the active-turn flag
+(after the rejection checks) and passes its `signal` to the driver. The
+controller lives on the session record, set and cleared with the flag.
+
+`session/cancel` with an active turn aborts it once and logs
+`cancel_requested`. It does **not** free the session: the flag and
+controller are cleared only when `driver.execute` settles. Until then a
+new prompt gets the retryable `TurnInProgressError`.
+
+When the turn settles after an abort:
+
+- The turn is cancelled if the driver result says so or the signal is
+  aborted, whatever the result holds. Non-empty partial text is
+  streamed, `turn_cancelled` is logged, and the prompt returns
+  `stopReason: 'cancelled'`. The session stays usable.
+- The driver session id is stored only when it is non-empty (a turn
+  cancelled before a downstream session existed has none).
+- A driver that throws after the abort is also a cancel: the prompt
+  returns `stopReason: 'cancelled'` and `turn_cancelled` is logged with
+  `failureKind`. Without an abort a throw is unchanged (`prompt_failed`,
+  the error surfaces).
+
+After the abort the tool-call handler denies at once: no governance
+evaluation, no detail update, no approval request. An ask that is
+already open ends as a deny however it ends (a late Allow, Reject, a
+cancelled answer, or a failed or invalid ask), and nothing waits for an
+unanswered ask. A cancel never rolls anything back: a call that already
+ran stays done.
+
+A driver that ignores the signal still conforms. A cancel on it leaves
+the session busy until `execute` settles.
+
+### Disconnect
+
+On stdin end the entry point calls `onDisconnect`. In order, it aborts
+every active turn, awaits `driver.close()` when the driver has one,
+releases all session mappings, and logs `disconnect`. It never rejects:
+a `close` that fails is logged as `close_failed` with `failureKind` only,
+the sessions are still released, and there is no retry. Calling it twice
+is harmless.
 
 ### Before-initialize guard
 
@@ -155,11 +206,21 @@ Anything but an explicit allow denies, and the session stays usable:
 
 There is no timeout and no retry. The IDE's error text is never logged.
 
+After a cancel, failures are part of the cancel:
+
+| Situation                               | Result                  | Logged                                   |
+| --------------------------------------- | ----------------------- | ---------------------------------------- |
+| Driver throws after the abort           | `stopReason: cancelled` | `turn_cancelled` with `failureKind`      |
+| Open ask ends after the abort           | deny                    | `governance_outcome`, reason `cancelled` |
+| Ask fails or answer invalid after abort | deny                    | same, with `cause`                       |
+| Partial text cannot be streamed         | error surfaces          | `prompt_failed`                          |
+| `close` fails on disconnect             | sessions still released | `close_failed` with `failureKind`        |
+
 ### Outcome logging
 
 After an ask or a failure the handler writes a `governance_outcome`
-entry: `sessionId`, `callId`, `action`, `answeredBy` (`user` or
-`failure`), and `reason` when there is one. It shares `sessionId` and
+entry: `sessionId`, `callId`, `action`, `answeredBy` (`user`, `failure`
+or `cancel`), and `reason` when there is one. It shares `sessionId` and
 `callId` with the engine's `governance_decision` entry for the same
 report. A report decided by a rule writes only the decision entry.
 
@@ -194,6 +255,24 @@ ordered, circular-safe serialization and error-cause chains, and falls
 back to stderr. The backend is swappable behind the `Logger` interface.
 Connection lifecycle (connect, disconnect, session mapping) and errors
 (with context) are logged; secrets and raw prompt text are not.
+
+### Cancel logging
+
+| Event                | Level | Fields                                           |
+| -------------------- | ----- | ------------------------------------------------ |
+| `cancel_requested`   | info  | `sessionId`; only when an active turn is aborted |
+| `turn_cancelled`     | info  | `sessionId`; `failureKind` when the driver threw |
+| `close_failed`       | warn  | `failureKind` only                               |
+
+After an abort, `governance_outcome` is always `action: deny`,
+`reason: cancelled`, at info level. `answeredBy` is `cancel` when the
+call was refused at once or the ask itself failed or came back invalid,
+and `user` for a late answer. `cause` (`ask_failed` or `invalid_answer`)
+is added only when the ask itself failed.
+
+`failureKind` is one of `provider_quota`, `provider_auth`,
+`session_collapse`, `internal`. No prompt text, partial text, error
+messages, diffs or titles appear in any of these entries.
 
 `.workflow/work/acp.log` is transient runtime state and is not
 version-controlled.

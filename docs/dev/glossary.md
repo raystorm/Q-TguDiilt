@@ -333,6 +333,76 @@ Governance Layer
 Loaded explicitly during profile activation based on each profile's Uses list.  
 Defines behavior, boundaries, communication standards, and workflow mechanics.
 
+ACP (Agent Client Protocol)
+: The protocol an IDE uses to drive an agent over stdio, as JSON-RPC.  
+The IDE speaks ACP to the Protocol Layer; every supported driver reaches
+its provider over ACP.  
+Spec: https://agentclientprotocol.com
+
+Protocol Layer
+: The part of the engine (`.workflow/acp/protocol/`) that terminates ACP
+for the IDE. Also called the service boundary.  
+Maps each session to a workflow, turns each prompt into one driver call,
+and answers every tool call the driver reports through governance.
+
+Session
+: One ACP conversation between an IDE and the service.  
+Maps to exactly one workflow (`workflowId`), carries the driver's
+continuity id from turn to turn, and runs at most one turn at a time.
+
+Turn
+: One prompt and its response: a single ACP `session/prompt` (ACP calls it a
+prompt turn), run as exactly one `driver.execute(...)`.  
+A session runs at most one turn at a time.  
+A turn ends completed, cancelled (the user stopped it), or failed.
+
+Wind-down
+: The time between a cancel and the driver settling.  
+The turn is aborted but the session stays busy, and a new prompt is
+rejected as retryable until the driver finishes.
+
+Provider
+: The AI service or agent a driver reaches, for example Kiro or Copilot.  
+Normally a CLI command that the driver launches. A Driver is this system's
+adapter to a provider.
+
+Driver
+: The provider-neutral adapter the Protocol Layer calls to run a turn on a
+Provider.  
+Reports each tool call for governance before running it, and runs it only
+on approve. Drivers are listed by name in the Driver Registry.
+
+Driver Registry
+: A YAML config mapping driver names to the models they support.  
+Also holds per-profile preferences, the preferred driver and model, and
+the fallback mode. Model Dispatch reads it.
+
+Model Dispatch
+: Choosing the model and driver for a profile's commands.  
+Profile preference first, then the registry defaults, then an error.
+The `auto` model is the fallback when a named model does not resolve.
+
+Tool Call
+: An action the AI takes: read, edit, delete, move, search, execute,
+fetch, think, or other.  
+The driver reports it, with its kind and details (command, paths, diff,
+raw input), before it runs.
+
+Governance Engine
+: Evaluates a tool call against a declarative YAML config and returns
+`approve`, `deny`, or `ask`.  
+Rules match on kind, command, path, and file name; first match wins.
+
+Ask
+: A governance outcome that sends the decision to the user.  
+The user first sees the specifics (command, paths, diff, parameters),
+then the approval request. Anything but an explicit Allow is a deny.
+
+Fail Closed
+: When governance cannot decide safely, the outcome is never approve.  
+A bad config throws, an unparsable command asks, and a failed or invalid
+ask denies.
+
 ---
 
 ### Glossary Formatting Notes

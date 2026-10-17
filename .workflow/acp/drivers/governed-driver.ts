@@ -31,18 +31,27 @@ export interface ExecuteOptions {
    sessionId?:  string;
    model?:      string;
    onToolCall?: (report: ToolCallReport) => Promise<ToolCallDecision>;
+   /** Aborts the turn. Supplied per call, like `onToolCall`. */
+   signal?:     AbortSignal;
 }
 
 export interface DriverResult {
    text:      string;
    sessionId: string;
    toolCalls: ToolCallOutcome[];
+   /**
+    * True when the turn ended because the signal aborted.
+    * `sessionId` may be empty only if cancelled before a downstream session existed.
+    */
+   cancelled?: boolean;
 }
 
 export interface Driver {
    readonly name: string;
    readonly supportsToolCallGovernance: boolean;
    execute(command: string, options?: ExecuteOptions): Promise<DriverResult>;
+   /** Releases the downstream agent. Callable any number of times, also concurrently. */
+   close?(): Promise<void>;
 }
 
 export function validateExecuteArgs(command: string, options: ExecuteOptions = {}): void {

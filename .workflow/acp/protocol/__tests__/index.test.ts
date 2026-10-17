@@ -16,6 +16,7 @@ const mocks = vi.hoisted(() => ({
    connect:        vi.fn(),
    logEntries:     [] as Array<{ level: string; event: string; data: any }>,
    configOverride: undefined as string | undefined,
+   onDisconnect:   undefined as any,
 }));
 
 vi.mock('@agentclientprotocol/sdk', () => {
@@ -54,6 +55,19 @@ vi.mock('../../governance/engine.js', async importOriginal => {
       createGovernanceEngine: vi.fn((options: any) => actual.createGovernanceEngine(
          undefined === mocks.configOverride ? options : { ...options, configPath: mocks.configOverride },
       )),
+   };
+});
+
+// Real agent; only a spy on its onDisconnect, to prove the stdin wiring calls it.
+vi.mock('../agent.js', async importOriginal => {
+   const actual = await importOriginal<typeof import('../agent.js')>();
+   return {
+      ...actual,
+      createAgent: vi.fn((deps: any) => {
+         const service = actual.createAgent(deps);
+         mocks.onDisconnect = vi.spyOn(service, 'onDisconnect');
+         return service;
+      }),
    };
 });
 
@@ -107,5 +121,17 @@ describe('entry point startup — governance config', () => {
       await expect(import('../index.js')).rejects.toThrow(message);
       expect(mocks.connect).not.toHaveBeenCalled();
       expect(mocks.logEntries.some(e => 'governance_config_error' === e.event)).toBe(true);
+   });
+});
+
+describe('entry point shutdown', () => {
+   it('[H] stdin ending calls onDisconnect', async () => {
+      await import('../index.js');
+      const onEnd = vi.mocked(process.stdin.on).mock.calls
+         .find(([event]) => 'end' === event)?.[1] as (() => void) | undefined;
+      expect(typeof onEnd).toBe('function');
+      expect(mocks.onDisconnect).not.toHaveBeenCalled();
+      onEnd?.();
+      expect(mocks.onDisconnect).toHaveBeenCalledTimes(1);
    });
 });

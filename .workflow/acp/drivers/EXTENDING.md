@@ -13,6 +13,7 @@ interface Driver {
    readonly name: string;
    readonly supportsToolCallGovernance: boolean;
    execute(command: string, options?: ExecuteOptions): Promise<DriverResult>;
+   close?(): Promise<void>;
 }
 ```
 
@@ -24,12 +25,14 @@ interface ExecuteOptions {
    sessionId?:  string;   // Resume an existing session
    model?:      string;   // Model to use for this call
    onToolCall?: (report: ToolCallReport) => Promise<ToolCallDecision>;
+   signal?:     AbortSignal;   // Aborts the turn; supplied per call
 }
 
 interface DriverResult {
    text:      string;
    sessionId: string;
    toolCalls: ToolCallOutcome[];   // every reported call and its decision
+   cancelled?: boolean;            // true when the turn ended because the signal aborted
 }
 
 interface ToolCallReport {
@@ -62,21 +65,45 @@ interface ToolCallOutcome {
   implements this rule; use it
 - A denied call is a normal result (a `'deny'` outcome in `toolCalls`),
   not an error. If `onToolCall` throws or rejects, the call does not run
-  and `execute` rejects with that failure
+  and `execute` rejects with that failure, except after an abort (below)
 - `ToolCallDecision` has no `'ask'`: any question to the user is resolved
   before the decision reaches the driver
 - `ToolCallReport` carries no protocol types: `kind` and `title` always;
   `command`, `paths`, `diff`, and `rawInput` when applicable
 - The driver MUST declare `supportsToolCallGovernance: true`.
   `declaresToolCallGovernance(driver)` is true only for an exact `true`
+- `signal` is passed per `execute` call, never at driver construction.
+  Honoring it is optional: a driver that ignores `signal`, `cancelled`
+  and `close` still conforms, but a cancel then leaves its session busy
+  until `execute` settles
+- A signal already aborted at entry settles `cancelled: true` without
+  doing work, with or without a handler
+- After an abort, no new tool call reaches `onToolCall`, and `execute`
+  settles `cancelled` without waiting for a pending decision. A late
+  answer, an approve included, is discarded and the call never runs.
+  Decisions made before the abort stay in `toolCalls`
+- A turn whose signal aborted settles `cancelled` whatever the downstream
+  reason. A throw or rejection from `onToolCall` after the abort also
+  settles `cancelled`; without an abort it still rejects
+- No shared abort state: a settled turn's signal cannot cancel a later
+  turn, and aborting one concurrent turn leaves another running
+- `DriverResult.sessionId` may be empty only when cancelled before a
+  downstream session existed
+- `close()` releases the downstream agent. A driver that holds one must
+  offer it. It may be called any number of times, also concurrently, and
+  after success it does little more than return
 - The driver MUST NOT throw on empty `options` — treat it as `{}`
 
 **Protocol layer:** a prompt fails before any work starts, with
 `DriverGovernanceUnsupportedError`, when the driver's declaration is
 `false` or absent. There is no warn mode and no setting.
 
+On a cancel the protocol layer aborts the signal and keeps the session
+busy until `execute` settles. On disconnect it aborts every turn and
+awaits `close()` when present.
+
 See `__tests__/fake-governed-driver.ts` as a minimal reference
-implementation.
+implementation. It honors the signal and offers `close`.
 
 ---
 
@@ -102,6 +129,8 @@ export function createMyDriver(): Driver {
          validateExecuteArgs(command, options);
          const toolCalls: ToolCallOutcome[] = [];
          // ...start the provider session with `command`...
+         // If `options.signal` is aborted (at entry, or while a decision is
+         // pending), stop and return { text, sessionId, toolCalls, cancelled: true }
          // For each tool call the provider wants to run, build a `report`:
          //    const decision = await gateToolCall(options, report);
          //    toolCalls.push({ report, decision });
@@ -119,7 +148,11 @@ export function createMyDriver(): Driver {
 3. Route every tool call through `gateToolCall(options, report)` and run
    the call only when it resolves `'approve'`.
 
-4. Prove the driver with the shared contract suite, in a test under
+4. Honor `options.signal` if the provider can be interrupted, and offer
+   `close()` if the driver holds a downstream agent (see the contract
+   rules above).
+
+5. Prove the driver with the shared contract suite, in a test under
    `drivers/__tests__/`:
 
 ```typescript
@@ -129,11 +162,15 @@ describeGovernedDriverContract('my-driver', () => ({
    driver: createMyDriver(),
    script: reports => { /* make the driver attempt these tool calls */ },
    ran:    () => [ /* reports whose side effects actually happened */ ],
+   released: () => /* times close() released the downstream agent */ 0,
 }));
 ```
 
    `script(reports)` sets the tool calls the driver attempts during its
-   next `execute`; `ran()` returns the reports that actually ran.
+   next `execute`; `ran()` returns the reports that actually ran;
+   `released()` returns how many times `close()` actually released the
+   downstream agent (the suite expects once, however often `close()` is
+   called).
 
 ---
 
