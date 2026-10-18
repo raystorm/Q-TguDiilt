@@ -4,7 +4,7 @@ import type { AgentExit, AgentHandle, EndSignal } from '../types.js';
 /** A responder returns this to leave a request unanswered. */
 export const NEVER = Symbol('never');
 
-/** Gets the request params; may return a promise. A throw answers with an error. */
+/** Gets the request params; may return a promise. A throw answers with an error (its numeric `code`, if it has one). */
 type Responder = (params: any, request: AnyRequest) => unknown;
 
 export interface KillRecord {
@@ -68,7 +68,9 @@ export function createFakeAcpAgent({ pid = 4242 }: { pid?: number } = {}) {
       }
       catch (err) {
          const message = err instanceof Error ? err.message : String(err);
-         await send({ jsonrpc: '2.0', id: request.id, error: { code: INTERNAL_ERROR, message } });
+         const code    = 'number' === typeof (err as { code?: unknown } | null)?.code
+            ? (err as { code: number }).code : INTERNAL_ERROR;
+         await send({ jsonrpc: '2.0', id: request.id, error: { code, message } });
       }
    }
 

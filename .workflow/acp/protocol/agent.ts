@@ -44,7 +44,7 @@ export interface ClientContext {
    request(method: string, params: unknown): Promise<unknown> | unknown;
 }
 
-import { SessionStore } from './session-store.js';
+import { SessionRecord, SessionStore } from './session-store.js';
 
 export interface AgentDeps {
    driver:          Driver;
@@ -82,6 +82,18 @@ export function createAgent(deps: AgentDeps) {
 
    function newSessionId(): string {
       return `acp-sess-${++sessionSeq}`;
+   }
+
+   /**
+    * Keeps the driver's session id for the IDE session. A new or changed id is
+    * logged once, as the join between the two ids.
+    */
+   function linkDriverSession(record: SessionRecord, sessionId: string, driverSessionId: string): void {
+      const changed = driverSessionId !== record.driverSessionId;
+      record.driverSessionId = driverSessionId;
+      if (changed && '' !== driverSessionId) {
+         logger.info('agent_session_linked', { sessionId, agentSessionId: driverSessionId });
+      }
    }
 
    function requireInitialized(): void {
@@ -311,7 +323,7 @@ export function createAgent(deps: AgentDeps) {
             }
 
             if (result.cancelled || signal.aborted) {
-               if ('' !== result.sessionId) { record.driverSessionId = result.sessionId; }
+               if ('' !== result.sessionId) { linkDriverSession(record, params.sessionId, result.sessionId); }
                if ('' !== result.text) {
                   await cx.notify(SESSION_UPDATE, {
                      sessionId: params.sessionId,
@@ -325,7 +337,7 @@ export function createAgent(deps: AgentDeps) {
                return { stopReason: 'cancelled' as const };
             }
 
-            record.driverSessionId = result.sessionId;
+            linkDriverSession(record, params.sessionId, result.sessionId);
 
             await cx.notify(SESSION_UPDATE, {
                sessionId: params.sessionId,

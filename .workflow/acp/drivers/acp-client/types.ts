@@ -1,4 +1,4 @@
-import type { Stream } from '@agentclientprotocol/sdk';
+import type { InitializeResponse, NewSessionResponse, Stream } from '@agentclientprotocol/sdk';
 import type { Logger } from '../../shared/logger.js';
 
 /** How to start one downstream agent. */
@@ -39,6 +39,18 @@ export interface AgentHandle {
 export type Connect = (spec: LaunchSpec) => Promise<AgentHandle>;
 
 /**
+ * What differs between agents besides the launch command line: checks on what
+ * the agent reports. Each returns the reason to refuse the agent, or nothing.
+ * A refusal ends the process before the next step (`verifyInitialize` before
+ * `session/new`, `verifySession` before the prompt). The reason is the error
+ * message the user sees, so it says what to do.
+ */
+export interface AcpPolicy {
+   verifyInitialize?(response: InitializeResponse): string | undefined;
+   verifySession?(response: NewSessionResponse): string | undefined;
+}
+
+/**
  * What the ACP-client core needs to drive one kind of agent. A concrete
  * driver (Kiro, Copilot) supplies the launch command line; the rest is
  * shared.
@@ -50,5 +62,7 @@ export interface AcpDriverDeps {
    connect: Connect;
    /** The agent's command line; the working directory is always the service's. */
    launch:  { command: string; args: readonly string[] };
+   /** Per-agent checks; none when omitted. */
+   policy?: AcpPolicy;
    logger:  Logger;
 }

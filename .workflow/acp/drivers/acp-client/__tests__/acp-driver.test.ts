@@ -2,32 +2,11 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { isAbsolute, join } from 'node:path';
-import { SETUP_TIMEOUT_MS, createAcpDriver } from '../acp-driver.js';
+import { SETUP_TIMEOUT_MS } from '../acp-driver.js';
 import { AgentSetupTimeoutError } from '../errors.js';
 import { SessionCollapseError } from '../../../protocol/errors.js';
-import { NEVER, createFakeAcpAgent } from './fake-acp-agent.js';
-
-type FakeAgent = ReturnType<typeof createFakeAcpAgent>;
-
-const LAUNCH = { command: 'agent-cli', args: ['acp', '--flag'] };
-
-function createLogger() {
-   return { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() };
-}
-
-/** A driver over fake agents: each connect hands out the next one, after `delayConnect(index)` if given. */
-function makeDriver(count = 1, delayConnect?: (index: number) => Promise<void> | undefined) {
-   const agents: FakeAgent[] = Array.from({ length: count }, (_, i) => createFakeAcpAgent({ pid: 4000 + i }));
-   let next = 0;
-   const connect = vi.fn(async () => {
-      const index = next++;
-      await delayConnect?.(index);
-      return agents[index].handle;
-   });
-   const logger  = createLogger();
-   const driver  = createAcpDriver({ name: 'test', connect, launch: LAUNCH, logger });
-   return { driver, agents, connect, logger };
-}
+import { NEVER } from './fake-acp-agent.js';
+import { LAUNCH, deferred, flush, makeDriver, sent, type FakeAgent } from './acp-driver.helpers.js';
 
 const chunk = (sessionId: string, text: string) => ({
    sessionId,
@@ -41,10 +20,6 @@ function sayDuringPrompt(agent: FakeAgent, texts: string[], stopReason = 'end_tu
       return { stopReason };
    });
 }
-
-/** Params of every message the client sent with this method. */
-const sent = (agent: FakeAgent, method: string): any[] =>
-   agent.received.filter((m: any) => method === m.method).map((m: any) => m.params);
 
 describe('launch and setup', () => {
    it('nothing is launched before the first prompt', () => {
@@ -136,34 +111,27 @@ describe('client surface', () => {
    });
 
    it('an unknown agent notification and an unknown update kind are ignored', async () => {
-      const { driver, agents, logger } = makeDriver();
-      agents[0].respond('session/prompt', async (params: any) => {
-         await agents[0].notify('_kiro/sessions/changed', {});
-         await agents[0].notify('session/update', {
-            sessionId: params.sessionId, update: { sessionUpdate: 'something_new' },
+      // The SDK writes an unknown update, in full, to the service's stderr. Held back here so the test run stays quiet.
+      const echo = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      try {
+         const { driver, agents, logger } = makeDriver();
+         agents[0].respond('session/prompt', async (params: any) => {
+            await agents[0].notify('_kiro/sessions/changed', {});
+            await agents[0].notify('session/update', {
+               sessionId: params.sessionId, update: { sessionUpdate: 'something_new' },
+            });
+            await agents[0].notify('session/update', chunk(params.sessionId, 'ok'));
+            return { stopReason: 'end_turn' };
          });
-         await agents[0].notify('session/update', chunk(params.sessionId, 'ok'));
-         return { stopReason: 'end_turn' };
-      });
-      const result = await driver.execute('go');
-      expect(result.text).toBe('ok');
-      expect(logger.error).not.toHaveBeenCalled();
-      expect(logger.warn).not.toHaveBeenCalled();
-   });
-
-   it('[H] a permission request is never allowed here: it is answered cancelled', async () => {
-      const { driver, agents } = makeDriver();
-      let response: any;
-      agents[0].respond('session/prompt', async (params: any) => {
-         response = await agents[0].request('session/request_permission', {
-            sessionId: params.sessionId,
-            toolCall:  { toolCallId: 't1' },
-            options:   [{ optionId: 'a', name: 'Allow', kind: 'allow_once' }],
-         });
-         return { stopReason: 'end_turn' };
-      });
-      await driver.execute('go');
-      expect(response.result).toEqual({ outcome: { outcome: 'cancelled' } });
+         const result = await driver.execute('go');
+         await flush();
+         expect(result.text).toBe('ok');
+         expect(logger.error).not.toHaveBeenCalled();
+         expect(logger.warn).not.toHaveBeenCalled();
+         expect(echo).toHaveBeenCalledTimes(1);
+         expect(echo.mock.calls[0][0]).toBe('Error handling notification');
+      }
+      finally { echo.mockRestore(); }
    });
 });
 
@@ -340,17 +308,6 @@ describe('close', () => {
       expect(agents.map(agent => agent.stdinCloses)).toEqual([1, 1, 1]);
    });
 });
-
-function deferred<T = void>() {
-   let resolve!: (value: T) => void;
-   const promise = new Promise<T>(res => { resolve = res; });
-   return { promise, resolve };
-}
-
-/** Lets already-settled promises react, without timers. */
-async function flush() {
-   for (let i = 0; i < 20; i++) { await Promise.resolve(); }
-}
 
 const ANSWERS = {
    'initialize':  { protocolVersion: 1, agentCapabilities: {}, authMethods: [] },

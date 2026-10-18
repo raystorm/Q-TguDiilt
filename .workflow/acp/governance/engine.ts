@@ -473,6 +473,11 @@ export function evaluateToolCall(config: GovernanceConfig, report: ToolCallRepor
 /** Max length of each path logged with a tool-call decision. */
 const LOGGED_PATH_MAX_LENGTH = 500;
 
+/** A path as logged: cut at the logged-path limit. */
+export function loggedPath(path: string): string {
+   return path.length > LOGGED_PATH_MAX_LENGTH ? `${path.slice(0, LOGGED_PATH_MAX_LENGTH)}…` : path;
+}
+
 function toolCallLogFields(report: ToolCallReport, decision: Decision, context: ToolCallLogContext) {
    const fields: Record<string, unknown> = {
       sessionId: context.sessionId,
@@ -483,8 +488,7 @@ function toolCallLogFields(report: ToolCallReport, decision: Decision, context: 
    if ('execute' === report.kind && undefined !== report.command && '' !== report.command.trim())
    { fields.command = redactCommand(report.command); }
 
-   const paths = usablePaths(report).map(path =>
-      path.length > LOGGED_PATH_MAX_LENGTH ? `${path.slice(0, LOGGED_PATH_MAX_LENGTH)}…` : path);
+   const paths = usablePaths(report).map(path => loggedPath(path));
    if (PATH_KINDS.includes(report.kind) && 0 < paths.length) { fields.paths = paths; }
 
    const missingField = 'missing_command' === decision.reason || 'missing_paths' === decision.reason;
