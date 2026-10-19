@@ -382,16 +382,21 @@ export function createAgent(deps: AgentDeps) {
 
       /**
        * Abort every turn, release the downstream agent, then release all
-       * session mappings on disconnect / stdin EOF (no leaks). Never rejects.
+       * session mappings on disconnect / stdin EOF (no leaks). When the driver
+       * could not be released, everything else is still done and the close
+       * error is thrown last.
        */
       async onDisconnect() {
          sessionStore.abortAllTurns();
+         let failure: { error: unknown } | undefined;
          try { await driver.close(); }
          catch (err) {
             logger.warn('close_failed', { failureKind: boundaryErrorKind(err) ?? 'internal' });
+            failure = { error: err };
          }
          sessionStore.closeAll();
          logger.info('disconnect', {});
+         if (undefined !== failure) { throw failure.error; }
       },
    };
 }

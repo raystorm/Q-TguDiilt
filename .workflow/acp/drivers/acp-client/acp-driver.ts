@@ -7,6 +7,7 @@ import {
    client,
    methods,
    PROTOCOL_VERSION,
+   RequestError,
    type ClientConnection,
    type RequestPermissionRequest,
    type RequestPermissionResponse,
@@ -20,12 +21,12 @@ import {
 } from '../governed-driver.js';
 import { loggedPath } from '../../governance/engine.js';
 import { AUTO_MODEL } from '../../modelResolver/resolver.js';
-import { SessionCollapseError } from '../../protocol/errors.js';
+import { SessionCollapseError, boundaryErrorKind } from '../../protocol/errors.js';
 import { TguDiiltError } from '../../shared/errors.js';
 import type { Logger } from '../../shared/logger.js';
-import { type EndStage, endAgent } from './ending.js';
+import { type EndStage, endAgent, exitsWithin } from './ending.js';
 import {
-   AgentProtocolError, AgentRefusedError, AgentSetupTimeoutError, ModelUnavailableError,
+   AgentCancelTimeoutError, AgentProtocolError, AgentRefusedError, AgentSetupTimeoutError, ModelUnavailableError,
    exitFailure, launchFailure, requestFailure,
 } from './errors.js';
 import { answerFor, cancelledAnswer, createToolCallTable, type ToolCallTable } from './permissions.js';
@@ -34,6 +35,12 @@ import type { AcpDriverDeps, AgentHandle } from './types.js';
 
 /** How long each setup step (connect, initialize, session/new) may take before the agent is ended. */
 export const SETUP_TIMEOUT_MS = 30000;
+
+/** How long the agent has to answer a cancel before it is ended. It counts from the abort. */
+export const CANCEL_DEADLINE_MS = 5000;
+
+/** How long an agent has to exit after its output ended before the connection counts as dead. */
+export const OUTPUT_END_GRACE_MS = 500;
 
 /** Why the driver ended a process: the `reason` of its `agent_process_ended` entry. */
 type EndReason =
@@ -74,9 +81,13 @@ interface Turn {
 
 /** A prompt in flight. */
 interface ActiveTurn {
-   options:  ExecuteOptions;
+   options:   ExecuteOptions;
    /** One outcome per permission request, in request order; `deny` until the handler answers. */
-   outcomes: ToolCallOutcome[];
+   outcomes:  ToolCallOutcome[];
+   /** True once the turn's abort has been seen. */
+   aborted:   boolean;
+   /** Settles when the abort is seen, so a wait on the handler ends at once. */
+   abortSeen: Promise<void>;
 }
 
 /** One running agent and the single downstream session it serves. */
@@ -139,8 +150,10 @@ function connectClient(
 /**
  * Answers one permission request. The handler is asked once, and the answer is
  * sent only after it settles. A request for another session, with no turn in
- * flight, or on a dead connection is cancelled and never reaches the handler.
- * A handler that fails fails the turn and gets a cancelled answer; so does a
+ * flight, after the turn's abort, or on a dead connection is cancelled and never
+ * reaches the handler. An abort cancels a request still waiting on the handler
+ * at once, and the handler's late answer, approve included, is discarded. A
+ * handler that fails fails the turn and gets a cancelled answer; so does a
  * request still open when the connection dies.
  */
 async function answerPermission(
@@ -151,13 +164,18 @@ async function answerPermission(
       return cancelledAnswer();
    }
    const { active } = proc.turn;
-   if (proc.dead || undefined === active) { return cancelledAnswer(); }
+   if (proc.dead || undefined === active || active.aborted) { return cancelledAnswer(); }
 
    const report  = proc.turn.calls.report(params.toolCall);
    const outcome: ToolCallOutcome = { report, decision: 'deny' };
    active.outcomes.push(outcome);
-   try { outcome.decision = await gateToolCall(active.options, report); }
-   catch (err) { fail(err); return cancelledAnswer(); }
+   const gated = await Promise.race([
+      gateToolCall(active.options, report).then(decision => ({ decision }), (err: unknown) => ({ err })),
+      active.abortSeen.then(() => undefined),
+   ]);
+   if (undefined === gated || active.aborted) { return cancelledAnswer(); }
+   if ('err' in gated) { fail(gated.err); return cancelledAnswer(); }
+   outcome.decision = gated.decision;
    if (proc.dead) { return cancelledAnswer(); }
    return answerFor(params.options, outcome.decision, wanted =>
       logger.warn('permission_option_fallback', { agentSessionId: proc.sessionId, wanted }));
@@ -166,9 +184,14 @@ async function answerPermission(
 /**
  * What a failed request means: our own errors pass through; an agent that has
  * exited failed by exiting; anything else is explained with the agent's output.
+ * A connection that closed (not an error answer) may be an agent that is just
+ * exiting: its output ends before the exit is reported, so the exit is awaited.
  */
 async function explain(proc: ProcState, method: string, err: unknown): Promise<unknown> {
    if (err instanceof TguDiiltError) { return err; }
+   if (!(err instanceof RequestError) && !proc.handle.hasExited()) {
+      await exitsWithin(proc.handle, OUTPUT_END_GRACE_MS);
+   }
    const tail = proc.stderr.tail();
    if (proc.handle.hasExited()) { return exitFailure(await proc.handle.exited, tail); }
    return requestFailure(method, err, tail);
@@ -250,7 +273,7 @@ export function createAcpDriver(deps: AcpDriverDeps): Driver {
       void end(proc.handle, reason, proc.sessionId);
    }
 
-   /** An abort was seen while setting up: the agent is ended and the turn settles cancelled. */
+   /** An abort, or a close, was seen while setting up: the agent is ended and the turn settles cancelled. */
    function abandon(proc: Proc, step: string): undefined {
       logger.info('agent_setup_aborted', { step, pid: proc.handle.pid });
       void end(proc.handle, 'aborted_during_setup');
@@ -259,10 +282,11 @@ export function createAcpDriver(deps: AcpDriverDeps): Driver {
 
    /**
     * Launches an agent and runs initialize and session/new, each step bounded by
-    * SETUP_TIMEOUT_MS. An abort is seen when a step returns, not before; then the
-    * agent is ended and nothing is returned.
+    * SETUP_TIMEOUT_MS. An abort, or a close, is seen when a step returns, not
+    * before; then the agent is ended and nothing is returned.
     */
    async function start(signal?: AbortSignal): Promise<Proc | undefined> {
+      const stopped = () => true === signal?.aborted || undefined !== closing;
       const launched = connect({ command: launch.command, args: launch.args, cwd: process.cwd() });
       let handle: AgentHandle;
       try { handle = await bounded('connect', launched); }
@@ -272,6 +296,8 @@ export function createAcpDriver(deps: AcpDriverDeps): Driver {
          lost = err instanceof AgentSetupTimeoutError ? 'setup_timeout' : 'launch_failure';
          throw launchFailure(launch.command, err);
       }
+      // The driver was closed while this agent was starting: end it at once.
+      if (undefined !== closing) { void end(handle, 'disconnect'); return undefined; }
       if (undefined !== lost) {
          logger.info('agent_relaunched', { pid: handle.pid, after: lost });
          lost = undefined;
@@ -296,12 +322,17 @@ export function createAcpDriver(deps: AcpDriverDeps): Driver {
          if (endings.has(handle)) { return; }
          failProc(proc, exitFailure(exit, stderr.tail()), '' === proc.sessionId ? 'launch_failure' : 'crash');
       });
+      // The agent's output ended while it still runs: nothing can be answered on it any more.
+      void proc.connection.closed.then(async () => {
+         if (endings.has(handle) || await exitsWithin(handle, OUTPUT_END_GRACE_MS) || endings.has(handle)) { return; }
+         failProc(proc, new AgentProtocolError('the agent closed its output but did not exit', stderr.tail()), 'protocol_failure');
+      });
 
-      if (signal?.aborted) { return abandon(proc, 'launch'); }
+      if (stopped()) { return abandon(proc, 'launch'); }
       try {
          const init = await bounded('initialize', call(proc, 'initialize', proc.connection.agent.request(
             methods.agent.initialize, { protocolVersion: PROTOCOL_VERSION, clientCapabilities: {} })));
-         if (signal?.aborted) { return abandon(proc, 'initialize'); }
+         if (stopped()) { return abandon(proc, 'initialize'); }
          if (PROTOCOL_VERSION !== init.protocolVersion) {
             throw new AgentProtocolError(
                `the agent speaks ACP version ${String(init.protocolVersion)}, not ${PROTOCOL_VERSION}`, stderr.tail());
@@ -310,7 +341,7 @@ export function createAcpDriver(deps: AcpDriverDeps): Driver {
          if (undefined !== refusedAfterInitialize) { throw new AgentRefusedError(refusedAfterInitialize); }
          const created = await bounded('session/new', call(proc, 'session/new', proc.connection.agent.request(
             methods.agent.session.new, { cwd: process.cwd(), mcpServers: [] })));
-         if (signal?.aborted) { return abandon(proc, 'session_new'); }
+         if (stopped()) { return abandon(proc, 'session_new'); }
          if ('string' !== typeof created.sessionId || '' === created.sessionId) {
             throw new AgentProtocolError('the agent did not name a session', stderr.tail());
          }
@@ -339,7 +370,7 @@ export function createAcpDriver(deps: AcpDriverDeps): Driver {
       let proc: Proc;
       if (undefined === options.sessionId) {
          const started = await start(signal).catch((err: unknown) => {
-            if (signal?.aborted) { return undefined; }
+            if (signal?.aborted || undefined !== closing) { return undefined; }
             throw err;
          });
          if (undefined === started) { return cancelledResult(); }
@@ -362,19 +393,57 @@ export function createAcpDriver(deps: AcpDriverDeps): Driver {
 
       proc.turn.text = '';
       proc.turn.calls.clear();
-      const active: ActiveTurn = { options, outcomes: [] };
+      let markAborted!: () => void;
+      const active: ActiveTurn = {
+         options, outcomes: [], aborted: false,
+         abortSeen: new Promise<void>(resolve => { markAborted = () => { active.aborted = true; resolve(); }; }),
+      };
       proc.turn.active = active;
+      let deadline: ReturnType<typeof setTimeout> | undefined;
+      /** The abort: ask the agent to stop and give it CANCEL_DEADLINE_MS to answer. Acts once. */
+      const onAbort = () => {
+         if (active.aborted) { return; }
+         markAborted();
+         if (proc.dead) { return; }
+         void proc.connection.agent.notify(methods.agent.session.cancel, { sessionId: proc.sessionId })
+            .catch(() => undefined);
+         deadline = setTimeout(() => {
+            logger.warn('agent_cancel_deadline', {
+               agentSessionId: proc.sessionId, pid: proc.handle.pid, deadlineMs: CANCEL_DEADLINE_MS,
+            });
+            failProc(proc, new AgentCancelTimeoutError(CANCEL_DEADLINE_MS), 'deadline');
+         }, CANCEL_DEADLINE_MS);
+      };
+      const result = (): DriverResult => ({
+         text: proc.turn.text, sessionId: proc.sessionId, toolCalls: active.outcomes,
+         ...(active.aborted ? { cancelled: true } : {}),
+      });
       try {
          const context = options.context;
          const text    = undefined === context || '' === context ? command : `${context}\n\n${command}`;
-         const response = await call(proc, 'session/prompt', proc.connection.agent.request(
-            methods.agent.session.prompt, { sessionId: proc.sessionId, prompt: [{ type: 'text', text }] }));
-         if ('cancelled' === response.stopReason) {
+         const prompt = proc.connection.agent.request(
+            methods.agent.session.prompt, { sessionId: proc.sessionId, prompt: [{ type: 'text', text }] });
+         signal?.addEventListener('abort', onAbort);
+         if (signal?.aborted) { onAbort(); }
+         const response = await call(proc, 'session/prompt', prompt);
+         if ('cancelled' === response.stopReason && !active.aborted) {
             logger.info('agent_cancel_unrequested', { agentSessionId: proc.sessionId });
          }
-         return { text: proc.turn.text, sessionId: proc.sessionId, toolCalls: active.outcomes };
+         return result();
+      }
+      catch (err) {
+         if (!active.aborted) { throw err; }
+         // The deadline is the driver's own doing and has its own entry.
+         if (!(err instanceof AgentCancelTimeoutError)) {
+            logger.info('agent_failure_after_cancel', {
+               agentSessionId: proc.sessionId, failureKind: boundaryErrorKind(err) ?? 'internal',
+            });
+         }
+         return result();
       }
       finally {
+         signal?.removeEventListener('abort', onAbort);
+         clearTimeout(deadline);
          proc.turn.active = undefined;
          proc.turn.calls.clear();
       }

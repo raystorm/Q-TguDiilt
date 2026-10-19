@@ -10,7 +10,7 @@ export type EndStage = 'none' | 'stdin_closed' | 'sigterm' | 'sigkill';
 const sequences = new WeakMap<AgentHandle, Promise<EndStage>>();
 
 /** True if the agent exits within `ms`; leaves no timer behind either way. */
-function exitsWithin(handle: AgentHandle, ms: number): Promise<boolean> {
+export function exitsWithin(handle: AgentHandle, ms: number): Promise<boolean> {
    return new Promise(resolve => {
       const timer = setTimeout(() => resolve(false), ms);
       void handle.exited.then(() => { clearTimeout(timer); resolve(true); });

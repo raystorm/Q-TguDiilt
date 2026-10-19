@@ -44,11 +44,11 @@ describe('Group 18 — disconnect', () => {
       ['rejects', () => Promise.reject(new Error('SECRET-CLOSE'))],
    ];
 
-   it.each(closers)('[H] a close that %s: sessions released, kind only logged, no retry', async (_how, impl) => {
+   it.each(closers)('[H] a close that %s: sessions released, kind only logged, no retry, error thrown last', async (_how, impl) => {
       const close = vi.fn(impl);
       const { agent, sessionStore, logger } = makeAgent({ driver: Object.assign(createDriverSpy(), { close }) });
       const s = await agent.newSession(newSessionArgs());
-      await expect(agent.onDisconnect()).resolves.toBeUndefined();
+      await expect(agent.onDisconnect()).rejects.toThrow('SECRET-CLOSE');
       expect(close).toHaveBeenCalledTimes(1);
       expect(sessionStore.get(s.sessionId)).toBeUndefined();
       expect(eventsOf(logger, 'close_failed')[0].data).toEqual({ failureKind: 'internal' });

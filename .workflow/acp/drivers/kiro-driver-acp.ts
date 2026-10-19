@@ -6,6 +6,7 @@
 import type { InitializeResponse } from '@agentclientprotocol/sdk';
 import type { Logger } from '../shared/logger.js';
 import { createAcpDriver } from './acp-client/acp-driver.js';
+import { spawnAgent } from './acp-client/connect.js';
 import type { AcpPolicy, Connect } from './acp-client/types.js';
 import type { Driver } from './governed-driver.js';
 
@@ -44,15 +45,15 @@ export function verifyKiroV3(response: InitializeResponse): string | undefined {
 /** What this driver checks on the agent: that it is the V3 server, before any session is created. */
 export const kiroPolicy: AcpPolicy = { verifyInitialize: verifyKiroV3 };
 
-/** What the Kiro driver needs from its caller: how to start the process, and where to log. */
+/** What the Kiro driver needs from its caller: where to log, and optionally how to start the process. */
 export interface KiroDriverDeps {
-   /** Starts the `kiro-cli` process. */
-   connect: Connect;
+   /** Starts the `kiro-cli` process. A real child process unless a test passes a fake. */
+   connect?: Connect;
    logger:  Logger;
 }
 
 /** A governed driver over `kiro-cli` as Kiro's V3 ACP server. Its name is `kiro`. */
-export function createKiroAcpDriver({ connect, logger }: KiroDriverDeps): Driver {
+export function createKiroAcpDriver({ connect = spawnAgent, logger }: KiroDriverDeps): Driver {
    return createAcpDriver({
       name:   'kiro',
       connect,

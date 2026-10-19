@@ -49,6 +49,7 @@ export function createFakeAcpAgent({ pid = 4242 }: { pid?: number } = {}) {
 
    const heard:     string[] = [];
    const listeners: Array<(text: string) => void> = [];
+   const watchers:  Array<(message: AnyMessage) => void> = [];
 
    const send = (message: object) => writer.write(message as AnyMessage).catch(() => {});
 
@@ -79,6 +80,7 @@ export function createFakeAcpAgent({ pid = 4242 }: { pid?: number } = {}) {
          const { done, value } = await reader.read();
          if (done) { return; }
          received.push(value);
+         watchers.forEach(watch => watch(value));
          if (isRequest(value)) { void answer(value); }
          else if (isReply(value)) { waiting.get(value.id)?.(value); waiting.delete(value.id); }
       }
@@ -106,6 +108,16 @@ export function createFakeAcpAgent({ pid = 4242 }: { pid?: number } = {}) {
       get stdinClosed() { return 0 < stdinCloses; },
       /** Method names of everything the client sent, in order. */
       methods: () => received.filter(m => 'method' in m).map(m => (m as AnyRequest).method),
+      /** Resolves once the client has sent this method (at once if it already has). */
+      arrived: (method: string) => new Promise<void>(resolve => {
+         const is = (m: AnyMessage) => method === (m as AnyRequest).method;
+         if (received.some(is)) { resolve(); return; }
+         watchers.push(m => { if (is(m)) { resolve(); } });
+      }),
+      /** Sends a message to the client exactly as given. */
+      raw: (message: object) => send(message),
+      /** The agent's stdout ends while the process keeps running. */
+      endOutput: () => { void writer.close().catch(() => {}); },
       respond: (method: string, responder: Responder) => { responders.set(method, responder); },
       notify:  (method: string, params: unknown) => send({ jsonrpc: '2.0', method, params }),
       /** Sends a request to the client; resolves with its response. */

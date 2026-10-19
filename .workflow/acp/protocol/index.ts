@@ -2,8 +2,8 @@
 /**
  * ACP Service Boundary entry point.
  *
- * Assembles the ACP SDK stdio transport, the translation agent, and a
- * placeholder driver, then serves an ACP client (e.g. a JetBrains IDE launching this
+ * Assembles the ACP SDK stdio transport, the translation agent and the Kiro
+ * driver, then serves an ACP client (e.g. a JetBrains IDE launching this
  * as a subprocess via ~/.jetbrains/acp.json). The SDK owns JSON-RPC framing,
  * method dispatch, version negotiation, and unknown-method handling; this file
  * only wires our handlers to it.
@@ -12,9 +12,10 @@ import { Readable, Writable } from 'node:stream';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { agent, methods, ndJsonStream, PROTOCOL_VERSION } from '@agentclientprotocol/sdk';
-import type { Driver } from '../drivers/governed-driver.js';
+import { createKiroAcpDriver } from '../drivers/kiro-driver-acp.js';
 import { createAgent } from './agent.js';
 import { createSessionStore } from './session-store.js';
+import { createShutdownHandler } from './shutdown.js';
 import { createGovernanceEngine } from '../governance/engine.js';
 import { createFileLogger } from '../shared/logger.js';
 
@@ -28,13 +29,8 @@ function newWorkflowId(): string {
    return `wf-acp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-// TODO: replace with a real governed driver; driver choice is not configurable yet.
-const driver: Driver = {
-   name:                       'unwired',
-   supportsToolCallGovernance: false,
-   execute: async () => { throw new Error('no governed driver is wired yet'); },
-   close:   async () => {},
-};
+// The default driver. Choosing a driver by name is not built yet.
+const driver = createKiroAcpDriver({ logger });
 
 const sessionStore = createSessionStore({ newWorkflowId });
 
@@ -65,4 +61,13 @@ agent({ name: 'q-tguudiilt-acp' })
    .onNotification(methods.agent.session.cancel, ctx => service.cancel(ctx.params as any))
    .connect(stream);
 
-process.stdin.on('end', () => { void service.onDisconnect(); });
+const shutdown = createShutdownHandler({
+   disconnect: () => service.onDisconnect(),
+   exit:       code => process.exit(code),
+});
+
+// The end of the chat is the end of the connection: stdin ends, or a signal ends the service.
+// Whichever comes first runs the disconnect, once.
+// Windows: signal handling is best effort and untested for now.
+process.stdin.on('end', shutdown);
+for (const signal of ['SIGTERM', 'SIGINT', 'SIGHUP'] as const) { process.on(signal, shutdown); }

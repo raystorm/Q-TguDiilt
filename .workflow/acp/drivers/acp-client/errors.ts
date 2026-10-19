@@ -24,6 +24,14 @@ export const AgentSetupTimeoutError = defineError(
 );
 export type AgentSetupTimeoutError = InstanceType<typeof AgentSetupTimeoutError>;
 
+/** The agent did not answer a cancel in time, so it was ended. */
+export const AgentCancelTimeoutError = defineError(
+   'AgentCancelTimeoutError',
+   (timeoutMs: number) => ({
+      message: `the agent did not answer the cancel within ${timeoutMs / 1000} s; it was ended`,
+   }),
+);
+
 /** The command that starts the agent does not exist. */
 export const AgentNotFoundError = defineError(
    'AgentNotFoundError',
