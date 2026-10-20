@@ -19,17 +19,20 @@ Source lives under `.workflow/acp/governance/`.
   patterns describe commands, not filesystem paths. File paths are
   governed by the separate `path` and `files` keys.
 - **Fail-closed on ambiguous input.** Anything that can't be safely
-  parsed — command substitution, unbalanced quotes, an unquoted
-  newline, or a shell comment — resolves to `ask`, never auto-approve
-  or auto-deny.
+  parsed — command substitution, unbalanced quotes, a variable
+  expansion outside single quotes, whitespace other than a plain space,
+  a shell comment, or an operator with no command beside it — resolves
+  to `ask`, never auto-approve or auto-deny.
 - **Compound commands are evaluated per-segment.** A command composed
   with `&&`, `||`, `;`, `|`, `&`, or a redirect is split and each part
   checked independently; the overall decision is the most restrictive
   result. A redirect always forces at least `ask`, since its target is
-  a side effect that isn't itself evaluated.
+  a side effect that isn't itself evaluated. An unquoted glob stays one
+  word of its segment, as written.
 - **Tool-call reports are matched on `kind`, `command` and `paths`
   only.** The title, annotation hints and raw request are never matched.
-- **A report missing what its kind needs is denied**, not asked.
+- **A report missing what its kind needs is denied**, not asked. So is a
+  report that would be asked about with nothing to show the user.
 - **Every decision and config error is logged**, with the logged
   command redacted (full detail still reaches the `ask` payload a user
   reviews, never the log).
@@ -60,13 +63,49 @@ when it was forced. The steps:
    kinds that carry paths.
 5. **Reduce.** The most restrictive path result wins: `deny` over `ask`
    over `approve`.
-6. **Ask details.** An `ask` carries every path of the report as given,
+6. **Nothing to show.** An `ask` result for a report with no command, no
+   usable path, no diff, no raw input and a blank title is `deny`
+   (`missing_details`). A title alone still asks (a mode switch).
+7. **Ask details.** An `ask` carries every path of the report as given,
    plus `command`, `diff` and `rawInput` when present.
 
 A rule applies when it has no `pattern`, its kinds include the report's
 kind, its `path` matches, and its `files` match the last path segment.
 A rule's kinds are its own `kind`; `execute` for a bare `pattern`;
 otherwise `read`, `edit`, `delete`, `move` and `search`.
+
+## Command parsing
+
+The engine and the shell must read the same words. Wherever the
+`shell-quote` parser would drop or split a character differently from a
+shell, the engine does not guess: the command is unparseable and asks.
+
+Unparseable, beyond substitution and unbalanced quotes:
+
+- Whitespace other than a plain space. `shell-quote` splits words on
+  every whitespace character JavaScript knows; a shell splits on space,
+  tab and newline only, so `ls<NBSP>-la` is one word to a shell.
+- `#`, a shell comment: `shell-quote` and a shell can disagree about
+  where it starts.
+- A variable expansion outside single quotes (`$NAME`, `${NAME}`, `$1`,
+  `$@`, `$?`). `shell-quote` replaces it with nothing, so a hidden
+  option, as in `sed $OPTS s/a/b/ f` with `OPTS=-i`, would go unseen.
+  A `$` inside single quotes, escaped, or before a quote or space is
+  literal.
+- An operator with no command before it, or a trailing `&&`, `||`, `|`
+  or `|&`. A shell rejects these as syntax errors. A trailing `;` or
+  `&`, and operators after a closing `)`, are valid.
+
+Globs: `shell-quote` reports an unquoted `*` or `?` as an operator. The
+engine keeps it as a word of its segment, as written, so
+`ls *.ts | cat` is two segments (`ls *.ts` and `cat`) and `rm -rf build/*`
+matches as `rm -rf build/*`. A glob that is the target of a redirect is
+dropped with the redirect, which still asks.
+
+Accepted limits (secondary tier): the engine sees a glob pattern where
+the shell sees file names, so a name starting with `-` can become an
+option. Brace expansion (`{a,b}`) and tilde expansion (`~root`) also make
+the shell run different words than the engine saw.
 
 ## Path matching
 
@@ -80,7 +119,8 @@ library's `*` stops at `/`, a leading dot needs a special option, and
   wildcard and matches any run, including none and a leading dot. Every
   other character, `?` and regex characters included, is literal.
   Case-sensitive and anchored to the whole name.
-- The `..` guard looks for a whole `..` segment only.
+- The `..` guard looks for a whole `..` segment only, splitting the path
+  on `/` and on `\` (Windows is best effort and untested).
 
 Nothing is resolved or normalized: a relative path does not match an
 absolute prefix, doubled slashes are not collapsed, `.` segments are
@@ -129,7 +169,8 @@ means no rule matched. A denial forced by a missing field has no
 - `governance_decision` (engine) — `sessionId`, `callId`, `kind`,
   redacted `command` (`execute` only), `paths` (array, only for kinds
   with paths, each cut at 500 characters with `…`), `matchedRule`,
-  `action`, and `reason` when forced. Empty fields are omitted. The plain
+  `action`, and `reason` when forced (`missing_command`, `missing_paths`,
+  `missing_details` or `parent_segment`). Empty fields are omitted. The plain
   `evaluate(command)` entry carries the redacted `command`, `matchedRule`
   and `action`.
 - `governance_rule_shadowed` (warning, at startup) — `rule`,
@@ -141,8 +182,8 @@ The diff, the raw request and the title are never logged. The handler's
 
 ## Known gaps
 
-- Adversarial security review against real tool-call inputs is still
-  outstanding.
+- The adversarial security review is done. Findings that were accepted
+  rather than fixed are in `docs/dev/acp/security-review.md`.
 - The shipped `config.yaml`'s auto-approve comment overstates safety
   for a few entries with exec-capable flags; not yet corrected.
 - Matching is textual. Only `..` is guarded; `.` segments and doubled

@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { loggedPath } from '../../../governance/engine.js';
-import { SESSION, ALLOW, REJECT, type Decide, approve, deny, type Script, runTurn, unrequested } from './permissions.helpers.js';
+import {
+   SESSION, ALLOW, REJECT, type Decide, approve, deny, type Script, runTurn, unrequested,
+} from './permissions.helpers.js';
 
 describe('tool calls that run without a request', () => {
    const run = (script: (s: Script) => Promise<unknown>, decide: Decide = approve) => runTurn(script, decide);

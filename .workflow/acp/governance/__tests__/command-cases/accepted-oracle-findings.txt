@@ -1,0 +1,3 @@
+# Oracle findings accepted after triage. Format: <command> | <tier> | <reason>
+ls {a,b} | S | brace expansion; harmless for ls; hiding a flag needs crafted input; trusted posture
+ls ~root/.. | S | tilde expansion; harmless for ls; trusted posture

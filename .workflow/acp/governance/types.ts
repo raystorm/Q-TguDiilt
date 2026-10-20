@@ -45,6 +45,6 @@ export interface Decision {
    action:      GovernanceAction;
    matchedRule?: string;
    details?:    AskDetails;
-   /** Why the result was forced: `missing_command`, `missing_paths` or `parent_segment`. */
+   /** Why the result was forced: `missing_command`, `missing_paths`, `missing_details` or `parent_segment`. */
    reason?:     string;
 }

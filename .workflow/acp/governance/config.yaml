@@ -111,6 +111,11 @@ governance:
       action: approve
     - pattern: "ag *"
       action: approve
+    # `uniq in out` writes its second argument as a file, like a `>` redirect.
+    # Two or more arguments ask. `uniq -c file` and `uniq -f 1 file` also ask
+    # (accepted cost). Bare `uniq`, `uniq -c` and `uniq file` stay approved.
+    - pattern: "uniq * *"
+      action: ask
     - pattern: "uniq *"
       action: approve
     - pattern: "cut *"
@@ -156,6 +161,19 @@ governance:
       action: approve
     - pattern: "rg *"
       action: approve
+    # `sort -o out in` and `sort --output=out in` write a file. The `?` patterns
+    # catch `-o` inside a flag cluster (`-ro`, `-uro`); `*-o*` also catches an
+    # attached value (`-oout.txt`). Accepted cost: any argument with a dash, up
+    # to two characters and an `o` also asks, such as a file name
+    # (`my-notes.txt`) and the long options `--numeric-sort`, `--version-sort`
+    # and `--month-sort`. `--compress-program` (which runs a program) asks
+    # because `-??o` matches `--co`; the tests pin that.
+    - pattern: "sort *-o*"
+      action: ask
+    - pattern: "sort *-?o*"
+      action: ask
+    - pattern: "sort *-??o*"
+      action: ask
     - pattern: "sort *"
       action: approve
     - pattern: "tree *"
@@ -166,13 +184,30 @@ governance:
     # mutate a file through their own argument syntax. The dangerous form
     # is listed first (ask) so it isn't shadowed by the general approve
     # below it — first-match-wins, order matters.
+    # A combined short-flag cluster (`-ni`, `-nEi`, `-us`) hides the flag from a
+    # pattern that looks for `-i` or `-s` right after the command. The `?`
+    # patterns below match the flag letter as the second or third character
+    # after a dash, so clusters ask while `sed -n 5p src/index.ts` and
+    # `date -d yesterday` stay approved. A dash inside a file name followed by
+    # one or two characters and the letter (`my-fish.ts`) also asks; that is the
+    # price of glob matching.
     - pattern: "date -s *"
       action: deny
     - pattern: "date --set*"
       action: deny
+    - pattern: "date *-s*"
+      action: ask
+    - pattern: "date -?s*"
+      action: ask
+    - pattern: "date -??s*"
+      action: ask
     - pattern: "date *"
       action: approve
     - pattern: "sed *-i*"
+      action: ask
+    - pattern: "sed *-?i*"
+      action: ask
+    - pattern: "sed *-??i*"
       action: ask
     - pattern: "sed *"
       action: approve

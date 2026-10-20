@@ -1,7 +1,10 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createFakeGovernedDriver } from '../../drivers/__tests__/fake-governed-driver.js';
 import { ProviderQuotaError } from '../errors.js';
-import { type LogEntry, createCx, createDriverSpy, type Deferred, deferred, flush, createHeldDriver, startTurn, makeAgent, newSessionArgs, editReport, allow, reject, requestsOf, detailsOf, eventsOf, textParam } from './agent.helpers.js';
+import {
+   type LogEntry, createCx, createDriverSpy, type Deferred, deferred, flush, createHeldDriver, startTurn,
+   makeAgent, newSessionArgs, editReport, allow, reject, requestsOf, detailsOf, eventsOf, textParam,
+} from './agent.helpers.js';
 
 describe('Group 16 — cancel: result of a cancelled turn', () => {
    const cancelledResult = (extra: object = {}) =>

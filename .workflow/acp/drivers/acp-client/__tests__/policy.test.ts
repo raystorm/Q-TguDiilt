@@ -15,7 +15,9 @@ describe('driver policy checks', () => {
 
    it('the initialize check sees the initialize answer', async () => {
       const seen: unknown[] = [];
-      const { driver, agents } = makeDriver(1, undefined, { verifyInitialize: response => { seen.push(response); return undefined; } });
+      const { driver, agents } = makeDriver(1, undefined, {
+         verifyInitialize: response => { seen.push(response); return undefined; },
+      });
       agents[0].respond('initialize', () => ({
          protocolVersion: 1, authMethods: [], agentCapabilities: { _meta: { marker: 'on' } },
       }));
@@ -26,14 +28,17 @@ describe('driver policy checks', () => {
 
    it('the session check sees the session/new answer', async () => {
       const seen: unknown[] = [];
-      const { driver, agents } = makeDriver(1, undefined, { verifySession: response => { seen.push(response); return undefined; } });
+      const { driver, agents } = makeDriver(1, undefined, {
+         verifySession: response => { seen.push(response); return undefined; },
+      });
       agents[0].respond('session/new', () => ({ sessionId: SESSION, configOptions: [] }));
       await driver.execute('go');
       expect(seen).toHaveLength(1);
       expect(seen[0]).toMatchObject({ sessionId: SESSION, configOptions: [] });
    });
 
-   it('[H] a refusal after initialize ends the process before session/new, and the error is the driver\'s message', async () => {
+   it('[H] a refusal after initialize ends the process before session/new, '
+      + 'and the error is the driver\'s message', async () => {
       const { driver, agents, logger } = makeDriver(1, undefined, { verifyInitialize: () => REFUSAL });
       const error = await failureOf(driver.execute('go'));
       expect(error).toBeInstanceOf(AgentRefusedError);

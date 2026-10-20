@@ -1,0 +1,18 @@
+# Findings accepted after triage. Format: <command> | <tier> | <reason>
+# Only secondary-tier (S) approvals can be accepted here. An approved
+# primary-tier line (P) is blocking and is fixed, never accepted.
+sed -n 'w out.txt' f | S | needs crafted input; trusted posture; revisit with the hardened preset (backlog)
+sed 's/a/b/w out.txt' f | S | needs crafted input; trusted posture; revisit with the hardened preset (backlog)
+sed 'e id' f | S | needs crafted input; trusted posture; revisit with the hardened preset (backlog)
+awk 'BEGIN{print "x" > "f"}' | S | needs crafted input; trusted posture; revisit with the hardened preset (backlog)
+awk 'BEGIN{"id" | getline x; print x}' | S | needs crafted input; trusted posture; revisit with the hardened preset (backlog)
+awk -f prog.awk f | S | needs crafted input; trusted posture; revisit with the hardened preset (backlog)
+git log --output=out.txt | S | needs crafted input; trusted posture; revisit with the hardened preset (backlog)
+git diff --output=out.txt | S | needs crafted input; trusted posture; revisit with the hardened preset (backlog)
+git show --output=out.txt | S | needs crafted input; trusted posture; revisit with the hardened preset (backlog)
+rg --pre ./hook pattern | S | needs crafted input; trusted posture; revisit with the hardened preset (backlog)
+ag --pager=./hook pattern | S | needs crafted input; trusted posture; revisit with the hardened preset (backlog)
+tree -o out.txt | S | needs crafted input; trusted posture; revisit with the hardened preset (backlog)
+less +!id f | S | needs crafted input; trusted posture; revisit with the hardened preset (backlog)
+man --html=./hook ls | S | needs crafted input; trusted posture; revisit with the hardened preset (backlog)
+man -P ./hook ls | S | needs crafted input; trusted posture; revisit with the hardened preset (backlog)

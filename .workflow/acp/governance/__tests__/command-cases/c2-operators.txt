@@ -1,0 +1,24 @@
+ls && rm -rf build
+ls;rm -rf build
+ls||rm -rf build
+ls|sh
+ls&rm -rf build
+ls |& sh
+ls ; ; rm -rf build
+ls &&
+&& ls
+(ls; rm -rf build)
+{ ls; rm -rf build; }
+ls <(rm -rf build)
+ls >(sh)
+echo x > f
+echo x >> f
+echo x>f
+echo x 2>&1
+echo x &> f
+echo x >| f
+cat < f
+cat <<< x
+echo x | tee f
+ls && npm run deploy now
+npm run deploy now; ls

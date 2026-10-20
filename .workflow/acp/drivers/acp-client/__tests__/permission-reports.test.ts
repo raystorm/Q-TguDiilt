@@ -86,7 +86,9 @@ describe('permission reports: correlation', () => {
       const { reports } = await runTurn(async ({ agent, ask }) => {
          void agent.notify('session/update', {
             sessionId: SESSION,
-            update: { sessionUpdate: 'tool_call', toolCallId: 'B', title: '', kind: 'execute', rawInput: { command: 'ls' } },
+            update: {
+               sessionUpdate: 'tool_call', toolCallId: 'B', title: '', kind: 'execute', rawInput: { command: 'ls' },
+            },
          });
          await ask({ toolCallId: 'B' });
       });

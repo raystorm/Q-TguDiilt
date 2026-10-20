@@ -348,7 +348,10 @@ and answers every tool call the driver reports through governance.
 Session
 : One ACP conversation between an IDE and the service.  
 Maps to exactly one workflow (`workflowId`), carries the driver's
-continuity id from turn to turn, and runs at most one turn at a time.
+continuity id from turn to turn, and runs at most one turn at a time.  
+With an ACP driver, a session has its own Downstream Agent process. It lasts
+until disconnect, unless the core ends it earlier (cancel deadline, crash,
+timeout).
 
 Turn
 : One prompt and its response: a single ACP `session/prompt` (ACP calls it a
@@ -367,10 +370,9 @@ Normally a CLI command that the driver launches. A Driver is this system's
 adapter to a provider.
 
 Driver
-: The provider-neutral adapter the Protocol Layer calls to run a turn on a
-Provider.  
-Reports each tool call for governance before running it, and runs it only
-on approve. Drivers are listed by name in the Driver Registry.
+: The provider-neutral adapter the Protocol Layer calls to run a turn on a Provider.  
+Supports and integrates with ACP Governance to check tool calls and only runs them on `approve`.
+Releases every process it started when closed. Drivers are listed by name in the Driver Registry.
 
 Driver Registry
 : A YAML config mapping driver names to the models they support.  
@@ -402,6 +404,58 @@ Fail Closed
 : When governance cannot decide safely, the outcome is never approve.  
 A bad config throws, an unparsable command asks, and a failed or invalid
 ask denies.
+
+Downstream Agent
+: The ACP agent process (Kiro, Copilot) the service drives for the IDE.  
+One process per downstream session. The IDE is upstream of the service, the
+agent is downstream.
+
+ACP Driver Core
+: The shared driver code that talks ACP to any Downstream Agent.  
+The service is the ACP client here, not the agent. A concrete driver supplies
+only the launch command and optional checks.
+
+Driver Policy
+: Optional checks a driver gives the ACP Driver Core: one on the agent's
+`initialize` answer, one before the first prompt.  
+A refusal ends the agent, creates no session, and its text is the error message.
+
+Unsafe Setting
+: An agent setting, such as Copilot's `allow_all` or `autopilot`, that lets
+tools run without asking.  
+The core refuses a session that starts with one on, and warns when one is
+switched on later.
+
+Wind-down Deadline
+: The time an agent gets to answer a cancel before it is ended.  
+It counts from the abort. The next prompt starts a fresh agent.
+
+Ending Sequence
+: How the core ends an agent: close stdin, then SIGTERM, then SIGKILL, sent to
+its process group.  
+An agent that already exited is never touched.
+
+Shutdown Handler
+: The one function that runs the disconnect once, whichever comes first: stdin
+end, SIGTERM, SIGINT or SIGHUP.  
+The service then exits 0 after a clean disconnect and 1 otherwise.
+
+Tool-Call Report
+: What governance evaluates for one tool call: kind, command, paths, diff and
+raw input.  
+Built from the agent's stream and its permission request.
+
+Unrequested Call
+: A tool call that ran with no permission request.  
+The service logs a warning; it cannot stop the call.
+
+Redaction
+: Replacing text that looks like a secret before it reaches the user.  
+Pattern based, not a guarantee.
+
+Stderr Tail
+: The last lines a Downstream Agent printed, bounded and redacted, kept for
+error messages.
 
 ---
 

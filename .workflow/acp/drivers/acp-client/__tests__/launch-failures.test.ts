@@ -16,7 +16,9 @@ describe('a command that cannot start', () => {
    it('[H] a missing binary is an error that names the command and says what to do, and leaves no timer', async () => {
       vi.useFakeTimers();
       const missing = Object.assign(new Error('spawn agent-cli ENOENT'), { code: 'ENOENT' });
-      const driver  = createAcpDriver({ name: 'test', connect: failingConnect(missing), launch: LAUNCH, logger: createLogger() });
+      const driver  = createAcpDriver({
+         name: 'test', connect: failingConnect(missing), launch: LAUNCH, logger: createLogger(),
+      });
       const error = await failureOf(driver.execute('go'));
       expect(error).toBeInstanceOf(AgentNotFoundError);
       expect(error?.message).toContain('agent-cli');
@@ -26,14 +28,17 @@ describe('a command that cannot start', () => {
 
    it('any other failure to start names the command and the reason', async () => {
       const denied = Object.assign(new Error('spawn agent-cli EACCES'), { code: 'EACCES' });
-      const driver = createAcpDriver({ name: 'test', connect: failingConnect(denied), launch: LAUNCH, logger: createLogger() });
+      const driver = createAcpDriver({
+         name: 'test', connect: failingConnect(denied), launch: LAUNCH, logger: createLogger(),
+      });
       const error = await failureOf(driver.execute('go'));
       expect(error).toBeInstanceOf(AgentLaunchError);
       expect(error?.message).toContain('"agent-cli"');
       expect(error?.message).toContain('EACCES');
    });
 
-   it('[H] a working directory with shell metacharacters reaches session/new unchanged, and launch takes an argument array', async () => {
+   it('[H] a working directory with shell metacharacters reaches session/new unchanged, '
+      + 'and launch takes an argument array', async () => {
       const weird = '/tmp/a b/\'quoted\';$(touch pwned)/"dq"';
       const spy   = vi.spyOn(process, 'cwd').mockReturnValue(weird);
       try {
@@ -55,7 +60,8 @@ describe('the agent exits before it is set up', () => {
       expect(error?.message).toContain('segmentation fault');
    });
 
-   it('[H] "not logged in" is a provider authentication error that keeps the text, and nothing is authenticated', async () => {
+   it('[H] "not logged in" is a provider authentication error that keeps the text, '
+      + 'and nothing is authenticated', async () => {
       const { error, agent } = await exitDuringInitialize(`${NOT_LOGGED_IN}\n`);
       expect(error).toBeInstanceOf(ProviderAuthError);
       expect(boundaryErrorKind(error)).toBe('provider_auth');
@@ -92,7 +98,8 @@ describe('authentication failures from the agent', () => {
       },
    );
 
-   it('any other error answer is an ordinary actionable error naming the request and the agent\'s message', async () => {
+   it('any other error answer is an ordinary actionable error '
+      + 'naming the request and the agent\'s message', async () => {
       const { driver, agents } = makeDriver();
       agents[0].respond('session/new', rpcError('no capacity', -32603));
       const error = await failureOf(driver.execute('go'));
@@ -124,14 +131,17 @@ describe('secrets in the agent output', () => {
       ['a JWT',            'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dBjftJeZ4CVPmB92K27uhbUJU1p1rwW1gFWFOEjXk',
                            ['eyJzdWIiOiIxMjM0NTY3ODkwIn0']],
       ['an sk- key',       `sk-${'a1B2c3D4e5'.repeat(4)}`,                                ['a1B2c3D4e5a1B2c3D4e5']],
-      ['a private key',    '-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEF\nQUJDREVGR0hJSktMTU5PUFFS\n-----END PRIVATE KEY-----',
+      ['a private key',    '-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEF\nQUJDREVGR0hJSktMTU5PUFFS\n'
+                           + '-----END PRIVATE KEY-----',
                            ['MIIEvQIBADANBgkqhkiG9w0BAQEF', 'QUJDREVGR0hJSktMTU5PUFFS']],
       ['a hex run',        'a3f5c7e9b1d2a3f5c7e9b1d2a3f5c7e9b1d2a3f5',                    ['a3f5c7e9b1d2a3f5c7e9']],
       ['a 32 character hex run', 'a3f5c7e9b1d2a3f5c7e9b1d2a3f5c7e9',                      ['a3f5c7e9b1d2a3f5c7e9']],
-      ['a base64 run',     'dGhpcyBpcyBhIHNlY3JldCBrZXkgdmFsdWUgMTIzNDU2Nzg5MA==',       ['dGhpcyBpcyBhIHNlY3JldCBrZXkgdmFsdWUg']],
+      ['a base64 run',     'dGhpcyBpcyBhIHNlY3JldCBrZXkgdmFsdWUgMTIzNDU2Nzg5MA==',
+                           ['dGhpcyBpcyBhIHNlY3JldCBrZXkgdmFsdWUg']],
    ];
 
-   it.each(lines)('[H] %s stays out of the error and the log, and the rest of the line is kept', async (_label, secretText, secrets) => {
+   it.each(lines)('[H] %s stays out of the error and the log, '
+      + 'and the rest of the line is kept', async (_label, secretText, secrets) => {
       const { error, logger } = await exitDuringInitialize(`startup failed: ${secretText} (while starting)\n`);
       expect(error).toBeInstanceOf(AgentExitedError);
       for (const secret of secrets) {

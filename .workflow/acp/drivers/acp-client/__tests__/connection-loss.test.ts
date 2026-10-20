@@ -11,7 +11,8 @@ beforeEach(() => { vi.useFakeTimers(); });
 afterEach(()  => { vi.useRealTimers(); });
 
 describe('an agent that is gone', () => {
-   it('[H] answering a request of an agent that exited fails the turn with its last words and crashes nothing', async () => {
+   it('[H] answering a request of an agent that exited fails the turn with its last words '
+      + 'and crashes nothing', async () => {
       const decided = deferred<'approve'>();
       const t = await abortableTurn({ onToolCall: () => decided.promise });
       const failure = failureOf(t.turn);

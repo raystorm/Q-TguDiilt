@@ -13,7 +13,9 @@ describe('redaction', () => {
       ['colon, no space', 'token:abc',   `token:${REDACTED}`],
       ['space',           'token abc123', `token ${REDACTED}`],
    ])('every secret word takes %s before its value', (_label, text, expected) => {
-      for (const word of ['token', 'tokens', 'key', 'keys', 'credential', 'credentials', 'security', 'securities', 'KEY', 'Api-Key']) {
+      for (const word of [
+         'token', 'tokens', 'key', 'keys', 'credential', 'credentials', 'security', 'securities', 'KEY', 'Api-Key',
+      ]) {
          expect(redact(text.replace('token', word))).toBe(expected.replace('token', word));
       }
    });
@@ -22,7 +24,8 @@ describe('redaction', () => {
       expect(redact('ssh key abc123')).toBe(`ssh key ${REDACTED}`);
       expect(redact('ssh key abcdef')).toBe('ssh key abcdef');
       expect(redact(`key ${'1'.repeat(SPACED_VALUE_MIN_LENGTH)}`)).toBe(`key ${REDACTED}`);
-      expect(redact(`key ${'1'.repeat(SPACED_VALUE_MIN_LENGTH - 1)}`)).toBe(`key ${'1'.repeat(SPACED_VALUE_MIN_LENGTH - 1)}`);
+      expect(redact(`key ${'1'.repeat(SPACED_VALUE_MIN_LENGTH - 1)}`))
+         .toBe(`key ${'1'.repeat(SPACED_VALUE_MIN_LENGTH - 1)}`);
    });
 
    it.each([
@@ -66,7 +69,8 @@ describe('redaction', () => {
    });
 
    it('a private key block that was cut short is redacted to its end', () => {
-      expect(redact('before\n-----BEGIN RSA PRIVATE KEY-----\nMIIEowIBAAKCAQEA\nQUJDREVGRw')).toBe(`before\n${REDACTED}`);
+      expect(redact('before\n-----BEGIN RSA PRIVATE KEY-----\nMIIEowIBAAKCAQEA\nQUJDREVGRw'))
+         .toBe(`before\n${REDACTED}`);
    });
 
    it('a whole private key block is replaced and the text after it stays', () => {

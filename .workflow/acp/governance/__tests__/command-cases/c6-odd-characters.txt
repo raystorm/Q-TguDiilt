@@ -1,0 +1,8 @@
+esc:ls\u00a0-la
+esc:ls\v-la
+esc:ls\f-la
+esc:ls\u2028rm -rf build
+esc:ls\0; rm -rf build
+esc:ls\u001b[31m
+ls ； rm -rf build
+ｌｓ -la

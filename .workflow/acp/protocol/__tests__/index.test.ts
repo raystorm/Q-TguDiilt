@@ -31,7 +31,9 @@ vi.mock('@agentclientprotocol/sdk', () => {
       methods: {
          agent: {
             initialize: 'initialize',
-            session:    { new: 'session/new', load: 'session/load', prompt: 'session/prompt', cancel: 'session/cancel' },
+            session:    {
+               new: 'session/new', load: 'session/load', prompt: 'session/prompt', cancel: 'session/cancel',
+            },
          },
       },
    };

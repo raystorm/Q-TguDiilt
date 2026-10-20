@@ -13,7 +13,7 @@ interface Driver {
    readonly name: string;
    readonly supportsToolCallGovernance: boolean;
    execute(command: string, options?: ExecuteOptions): Promise<DriverResult>;
-   close?(): Promise<void>;
+   close(): Promise<void>;
 }
 ```
 
@@ -73,8 +73,8 @@ interface ToolCallOutcome {
 - The driver MUST declare `supportsToolCallGovernance: true`.
   `declaresToolCallGovernance(driver)` is true only for an exact `true`
 - `signal` is passed per `execute` call, never at driver construction.
-  Honoring it is optional: a driver that ignores `signal`, `cancelled`
-  and `close` still conforms, but a cancel then leaves its session busy
+  Honoring it is optional: a driver that ignores `signal` and
+  `cancelled` still conforms, but a cancel then leaves its session busy
   until `execute` settles
 - A signal already aborted at entry settles `cancelled: true` without
   doing work, with or without a handler
@@ -89,9 +89,10 @@ interface ToolCallOutcome {
   turn, and aborting one concurrent turn leaves another running
 - `DriverResult.sessionId` may be empty only when cancelled before a
   downstream session existed
-- `close()` releases the downstream agent. A driver that holds one must
-  offer it. It may be called any number of times, also concurrently, and
-  after success it does little more than return
+- `close()` is required. It takes no argument and releases every process
+  the driver started; with none started it resolves at once. It is
+  idempotent and safe to call concurrently: every call resolves and the
+  downstream agent is released once
 - The driver MUST NOT throw on empty `options` — treat it as `{}`
 
 **Protocol layer:** a prompt fails before any work starts, with
@@ -100,10 +101,10 @@ interface ToolCallOutcome {
 
 On a cancel the protocol layer aborts the signal and keeps the session
 busy until `execute` settles. On disconnect it aborts every turn and
-awaits `close()` when present.
+awaits `close()`.
 
 See `__tests__/fake-governed-driver.ts` as a minimal reference
-implementation. It honors the signal and offers `close`.
+implementation. It honors the signal and implements `close`.
 
 ---
 
@@ -137,6 +138,9 @@ export function createMyDriver(): Driver {
          //    run the call only when 'approve' === decision
          // ...collect `text` and `sessionId` from the provider...
          return { text, sessionId, toolCalls };
+      },
+      async close() {
+         // ...release every process this driver started; a no-op if none...
       }
    };
 }
@@ -148,9 +152,8 @@ export function createMyDriver(): Driver {
 3. Route every tool call through `gateToolCall(options, report)` and run
    the call only when it resolves `'approve'`.
 
-4. Honor `options.signal` if the provider can be interrupted, and offer
-   `close()` if the driver holds a downstream agent (see the contract
-   rules above).
+4. Honor `options.signal` if the provider can be interrupted, and
+   implement `close()` (required; see the contract rules above).
 
 5. Prove the driver with the shared contract suite, in a test under
    `drivers/__tests__/`:
@@ -169,8 +172,8 @@ describeGovernedDriverContract('my-driver', () => ({
    `script(reports)` sets the tool calls the driver attempts during its
    next `execute`; `ran()` returns the reports that actually ran;
    `released()` returns how many times `close()` actually released the
-   downstream agent (the suite expects once, however often `close()` is
-   called).
+   downstream agent (the suite expects 0 when nothing was started and 1
+   after a started driver is closed, however often `close()` is called).
 
 ---
 

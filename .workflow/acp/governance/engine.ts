@@ -32,7 +32,10 @@ import {
 
 const ACTIONS: readonly GovernanceAction[] = ['approve', 'deny', 'ask'];
 
-/** Every tool-call kind. The record form makes the compiler flag a kind added to or removed from the driver vocabulary. */
+/**
+ * Every tool-call kind. The record form makes the compiler flag a kind added to or removed from the
+ * driver vocabulary.
+ */
 const KIND_FLAGS: Record<ToolCallKind, true> = {
    read: true, edit: true, delete: true, move: true, search: true,
    execute: true, fetch: true, think: true, other: true,
@@ -48,15 +51,26 @@ const RULE_KEYS = ['action', 'pattern', 'kind', 'path', 'files'];
 const COMMAND_SUBSTITUTION_RE = /\$\(|`/;
 
 /**
- * Newline, carriage return, tab, and `#` (shell comment) — `shell-quote`
- * silently drops these instead of treating them as separators, so a hidden
- * command after one of these characters would otherwise ride along with
- * the visible command's decision. Unsafe to segment.
+ * Any whitespace other than a plain space (newline, carriage return, tab,
+ * vertical tab, form feed, no-break space and the other Unicode spaces), and
+ * `#` (shell comment). `shell-quote` either drops these or splits words on
+ * them, where a shell keeps most of them inside a word, so the engine and the
+ * shell would read different commands, and a hidden command after one of them
+ * would ride along with the visible command's decision. Unsafe to segment.
  */
-const UNPARSEABLE_CHARS_RE = /[\n\r\t#]/;
+const UNPARSEABLE_CHARS_RE = /[^\S ]|#/;
+
+/** The character after a `$` that starts a variable expansion: a name, `{`, a digit or a special parameter. */
+const VARIABLE_START_RE = /[A-Za-z_{0-9@*#?!$-]/;
 
 /** Shell operators that end a segment without starting a new evaluable command. */
 const REDIRECT_OPS = new Set(['>', '>>', '<', '>&', '<&', '<<<']);
+
+/** Operators that open a group; a command follows. */
+const GROUP_OPEN_OPS = new Set(['(', '<(']);
+
+/** Operators that need a command after them; at the end of the input the command is incomplete. */
+const NEEDS_OPERAND_OPS = new Set(['&&', '||', '|', '|&']);
 
 /**
  * Result of splitting a command into segments. `hadRedirect` is true when
@@ -66,7 +80,7 @@ const REDIRECT_OPS = new Set(['>', '>>', '<', '>&', '<&', '<<<']);
  * mere presence must not let the rest of the command silently ride an
  * `approve` decision.
  */
-interface SplitResult {
+export interface SplitResult {
    segments:    string[];
    hadRedirect: boolean;
 }
@@ -79,13 +93,19 @@ interface SplitResult {
  * operators (delegated to `shell-quote`). Returns `null` when the command
  * cannot be safely segmented: command substitution (`$(...)`, backticks),
  * newline/carriage-return/tab/comment characters, unbalanced quotes, or
- * any `shell-quote` parse failure. Callers must treat `null` as fail-closed
+ * a variable expansion outside single quotes (`shell-quote` replaces it with nothing, so the
+ * words the shell puts there would go unseen), an operator with no command before it,
+ * an incomplete trailing `&&`, `||`, `|`
+ * or `|&` (shells reject all of these), or any `shell-quote` parse failure.
+ * A trailing `;` or `&`, and operators after a closing `)`, are valid.
+ * Callers must treat `null` as fail-closed
  * (`ask`), never fall back to whole-string matching.
  */
-function splitCommandSegments(command: string): SplitResult | null {
+export function splitCommandSegments(command: string): SplitResult | null {
    if (COMMAND_SUBSTITUTION_RE.test(command)) { return null; }
    if (UNPARSEABLE_CHARS_RE.test(command)) { return null; }
    if (!hasBalancedQuotes(command)) { return null; }
+   if (hasVariableExpansion(command)) { return null; }
 
    let entries: unknown[];
    try { entries = parseShell(command) as unknown[]; }
@@ -95,9 +115,19 @@ function splitCommandSegments(command: string): SplitResult | null {
    let current: string[] = [];
    let dropNextToken = false;
    let hadRedirect = false;
+   /** True once a command word, or a closing `)`, came since the last operator. */
+   let afterCommand = false;
+   /** True while the last operator still needs a command after it. */
+   let pendingOperand = false;
 
    for (const entry of entries) {
       if (dropNextToken) { dropNextToken = false; continue; }
+
+      if ('object' === typeof entry && null !== entry && 'pattern' in (entry as Record<string, unknown>)) {
+         current.push((entry as { pattern: string }).pattern);
+         afterCommand = true; pendingOperand = false;
+         continue;
+      }
 
       if ('object' === typeof entry && null !== entry && 'op' in (entry as Record<string, unknown>)) {
          const op = (entry as { op: string }).op;
@@ -108,19 +138,25 @@ function splitCommandSegments(command: string): SplitResult | null {
             dropNextToken = true; // the redirect target is a file, not a command
             continue;
          }
-         // Composition operators (&&, ||, ;, |, &, etc.) end the segment.
+         if (GROUP_OPEN_OPS.has(op) || ')' === op) {
+            afterCommand   = ')' === op;
+            pendingOperand = false;
+         }
+         else {
+            // Composition operators (&&, ||, ;, |, &, etc.) need a command before them.
+            if (!afterCommand) { return null; }
+            afterCommand   = false;
+            pendingOperand = NEEDS_OPERAND_OPS.has(op);
+         }
+         // They also end the segment.
          flushSegment(current, segments);
          current = [];
          continue;
       }
 
-      if ('object' === typeof entry && null !== entry && 'pattern' in (entry as Record<string, unknown>)) {
-         current.push((entry as { pattern: string }).pattern);
-         continue;
-      }
-
-      if ('string' === typeof entry) { current.push(entry); }
+      if ('string' === typeof entry) { current.push(entry); afterCommand = true; pendingOperand = false; }
    }
+   if (pendingOperand) { return null; }
    flushSegment(current, segments);
 
    return { segments, hadRedirect };
@@ -141,6 +177,20 @@ function hasBalancedQuotes(command: string): boolean {
       if ('"' === c && !inSingle) { inDouble = !inDouble; continue; }
    }
    return !inSingle && !inDouble;
+}
+
+/** True when a variable is expanded outside single quotes. Escaped `$` and `$` before a quote or space are literal. */
+function hasVariableExpansion(command: string): boolean {
+   let inSingle = false;
+   let inDouble = false;
+   for (let i = 0; i < command.length; i += 1) {
+      const c = command[i];
+      if ('\\' === c && !inSingle) { i += 1; continue; } // skip escaped char outside single quotes
+      if ('\'' === c && !inDouble) { inSingle = !inSingle; continue; }
+      if ('"' === c && !inSingle) { inDouble = !inDouble; continue; }
+      if ('$' === c && !inSingle && VARIABLE_START_RE.test(command[i + 1] ?? '')) { return true; }
+   }
+   return false;
 }
 
 /** Reduces multiple segment decisions to the single most-restrictive action. */
@@ -436,13 +486,25 @@ export function askDetails(report: ToolCallReport): Omit<AskDetails, 'command'> 
    return details;
 }
 
+/** True when an ask would show the user something: a command, paths, a diff, raw input or a title. */
+function hasDetails(report: ToolCallReport, paths: string[]): boolean {
+   const rawInput = report.rawInput;
+   const hasRaw   = undefined !== rawInput && null !== rawInput
+      && ('object' !== typeof rawInput || 0 < Object.keys(rawInput).length);
+   return '' !== (report.command ?? '').trim() || 0 < paths.length || '' !== (report.diff ?? '')
+      || hasRaw || '' !== report.title.trim();
+}
+
 /**
  * Evaluates a driver's tool-call report. Matches on `kind`, `command` and
  * `paths` only. `execute` delegates to `evaluateCommand`. A report missing
  * what its kind needs (an `execute` without a command; an `edit`, `delete`
  * or `move` without usable paths) is a driver defect and is denied outright,
  * even under `default: approve`. Several paths are each matched by first
- * match; the most restrictive result wins (`deny` > `ask` > `approve`).
+ * match; the most restrictive result wins (`deny` > `ask` > `approve`). A
+ * report that would be asked about but has nothing to show the user (no
+ * command, usable paths, diff or raw input, and a blank title) is denied:
+ * an ask nobody can judge is not an ask.
  */
 export function evaluateToolCall(config: GovernanceConfig, report: ToolCallReport): Decision {
    if ('execute' === report.kind) {
@@ -459,6 +521,10 @@ export function evaluateToolCall(config: GovernanceConfig, report: ToolCallRepor
    const results  = subjects.map(path => evaluateSubject(config, report.kind, path));
    const worst    = results.reduce((best, next) =>
       RESTRICTIVENESS[next.action] > RESTRICTIVENESS[best.action] ? next : best);
+
+   if ('ask' === worst.action && !hasDetails(report, paths)) {
+      return { action: 'deny', reason: 'missing_details' };
+   }
 
    const decision: Decision = { action: worst.action };
    if (undefined !== worst.matchedRule) { decision.matchedRule = worst.matchedRule; }

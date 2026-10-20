@@ -1,0 +1,22 @@
+P: sed -ni 's/a/b/p' f
+P: sed -Ei 's/a/b/' f
+S: sed -n 'w out.txt' f
+S: sed 's/a/b/w out.txt' f
+S: sed 'e id' f
+S: awk 'BEGIN{print "x" > "f"}'
+S: awk 'BEGIN{"id" | getline x; print x}'
+S: awk -f prog.awk f
+P: date -us 2020-01-01
+S: git log --output=out.txt
+S: git diff --output=out.txt
+S: git show --output=out.txt
+S: rg --pre ./hook pattern
+S: ag --pager=./hook pattern
+P: sort -o out.txt in.txt
+P: sort --output=out.txt in.txt
+S: sort --compress-program=./hook in.txt
+P: uniq in.txt out.txt
+S: tree -o out.txt
+S: less +!id f
+S: man --html=./hook ls
+S: man -P ./hook ls

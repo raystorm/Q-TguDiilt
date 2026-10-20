@@ -48,7 +48,8 @@ describe('fake ACP agent', () => {
       agent.respond('initialize', () => NEVER);
       const { connection } = connectClient(agent);
       let settled = false;
-      void connection.request(methods.agent.initialize, setup).then(() => { settled = true; }, () => { settled = true; });
+      void connection.request(methods.agent.initialize, setup)
+         .then(() => { settled = true; }, () => { settled = true; });
       await flush();
       expect(agent.methods()).toEqual(['initialize']);
       expect(settled).toBe(false);
@@ -63,7 +64,9 @@ describe('fake ACP agent', () => {
 
    it('a responder that throws an error with a numeric code answers with that code', async () => {
       const agent = createFakeAcpAgent();
-      agent.respond('session/new', () => { throw Object.assign(new Error('Authentication required'), { code: -32000 }); });
+      agent.respond('session/new', () => {
+         throw Object.assign(new Error('Authentication required'), { code: -32000 });
+      });
       const { connection } = connectClient(agent);
       await expect(connection.request(methods.agent.session.new, newArgs)).rejects.toMatchObject({ code: -32000 });
    });

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { evaluateCommand } from '../engine.js';
+import { evaluateCommand, splitCommandSegments } from '../engine.js';
 import type { GovernanceConfig } from '../types.js';
 
 /**
@@ -107,7 +107,8 @@ describe('compound commands — fail-closed on unparseable input', () => {
       expect(decision.action).toBe('ask');
    });
 
-   it('command substitution embedded in an otherwise-denied segment still asks, not silently denies or approves', () => {
+   it('command substitution embedded in an otherwise-denied segment still asks, '
+      + 'not silently denies or approves', () => {
       const decision = evaluateCommand(CONFIG, 'rm -rf $(echo /)');
       expect(decision.action).toBe('ask');
    });
@@ -189,5 +190,72 @@ describe('compound commands — ask enrichment reflects the whole original comma
    it('an ask decision from a compound command carries the full original command string', () => {
       const decision = evaluateCommand(CONFIG, 'cat a.txt && git commit -m x');
       expect(decision.details?.command).toBe('cat a.txt && git commit -m x');
+   });
+});
+
+describe('compound commands — operators without a command', () => {
+   it.each([
+      '&& ls', '|| ls', '| ls', '; ls', 'ls &&', 'ls ||', 'ls |', 'ls |&', 'ls ; ; ls', 'ls && && ls',
+   ])('the incomplete command %j is ask with the full original command', command => {
+      const decision = evaluateCommand(CONFIG, command);
+      expect(decision.action).toBe('ask');
+      expect(decision.matchedRule).toBeUndefined();
+      expect(decision.details?.command).toBe(command);
+   });
+
+   it.each(['ls &', 'ls;', 'ls ;', '(ls) && ls', 'ls & ls'])('the valid command %j is still approved', command => {
+      expect(evaluateCommand(CONFIG, command).action).toBe('approve');
+   });
+});
+
+describe('compound commands — whitespace other than a plain space', () => {
+   it.each([
+      ['no-break space',    'ls\u00a0-la'],
+      ['vertical tab',      'ls\v-la'],
+      ['form feed',         'ls\f-la'],
+      ['line separator',    'ls\u2028rm -rf build'],
+      ['ideographic space', 'ls\u3000-la'],
+   ])('%s is ask with the full original command', (_name, command) => {
+      const decision = evaluateCommand(CONFIG, command);
+      expect(decision.action).toBe('ask');
+      expect(decision.matchedRule).toBeUndefined();
+      expect(decision.details?.command).toBe(command);
+   });
+});
+
+describe('compound commands — variable expansion', () => {
+   it.each([
+      'echo $HOME', 'echo "$HOME"', 'echo ${HOME}', 'ls $1', 'cat $@', 'echo $?', 'ls && cat $F',
+   ])('the expansion in %j is ask with the full original command', command => {
+      const decision = evaluateCommand(CONFIG, command);
+      expect(decision.action).toBe('ask');
+      expect(decision.matchedRule).toBeUndefined();
+      expect(decision.details?.command).toBe(command);
+   });
+
+   it.each(["echo '$HOME'", 'echo "cost\\$5"', 'echo "a$"', 'echo $ x', 'cat \\$F'])(
+      'the literal dollar in %j is still approved', command => {
+         expect(evaluateCommand(CONFIG, command).action).toBe('approve');
+      },
+   );
+});
+
+describe('compound commands — unquoted globs', () => {
+   it.each(['ls *.ts', 'cat src/*.ts'])('the single glob in %j is approved', command => {
+      expect(evaluateCommand(CONFIG, command).action).toBe('approve');
+   });
+
+   it.each([
+      ['ls *.ts | cat',        ['ls *.ts', 'cat']],
+      ['ls src/*.ts src/*.js', ['ls src/*.ts src/*.js']],
+      ['ls *.ts && ls *.js',   ['ls *.ts', 'ls *.js']],
+      ['ls *.ts -la',          ['ls *.ts -la']],
+   ])('a glob does not block approval or segmentation in the approved command %j', (command, segments) => {
+      expect(evaluateCommand(CONFIG, command).action).toBe('approve');
+      expect(splitCommandSegments(command)?.segments).toEqual(segments);
+   });
+
+   it.each(['*.sh', 'ls > *.log'])('%j is ask', command => {
+      expect(evaluateCommand(CONFIG, command).action).toBe('ask');
    });
 });

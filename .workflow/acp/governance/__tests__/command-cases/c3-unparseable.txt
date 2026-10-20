@@ -1,0 +1,15 @@
+echo $(rm -rf build)
+echo `rm -rf build`
+echo $((1+1))
+echo "$(rm -rf build)"
+echo '$(rm -rf build)'
+esc:ls\nrm -rf build
+esc:ls\r\nrm -rf build
+esc:ls\trm -rf build
+ls #; rm -rf build
+echo a#b
+ls "unbalanced
+ls 'unbalanced
+echo $'a\'b'; rm -rf build
+echo \"; rm -rf build; echo \"
+echo '\'; rm -rf build; echo '\'

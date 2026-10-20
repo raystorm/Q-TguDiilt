@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { createCx, makeAgent, newSessionArgs, type Cx, requestsOf, detailsOf, runTurn, textParam } from './agent.helpers.js';
+import {
+   createCx, makeAgent, newSessionArgs, type Cx, requestsOf, detailsOf, runTurn, textParam,
+} from './agent.helpers.js';
 
 // Group 4: Ask — detail before approval -----------------------------------
 

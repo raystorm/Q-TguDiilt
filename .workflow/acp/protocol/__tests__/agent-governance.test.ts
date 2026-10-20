@@ -1,6 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
 import { DriverGovernanceUnsupportedError } from '../errors.js';
-import { type LogEntry, createCx, createDriverSpy, makeAgent, newSessionArgs, readReport, editReport, allow, reject, requestsOf, detailsOf, eventsOf, runTurn, denials, textParam } from './agent.helpers.js';
+import {
+   type LogEntry, createCx, createDriverSpy, makeAgent, newSessionArgs, readReport, editReport, allow, reject,
+   requestsOf, detailsOf, eventsOf, runTurn, denials, textParam,
+} from './agent.helpers.js';
 
 // Group 10: Governed driver interface ---------------------------------------
 

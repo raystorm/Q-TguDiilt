@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { TurnInProgressError, ProviderQuotaError, ProviderAuthError, SessionCollapseError } from '../errors.js';
-import { type LogEntry, createCx, createDriverSpy, createHeldDriver, startTurn, makeAgent, newSessionArgs, textParam } from './agent.helpers.js';
+import {
+   type LogEntry, createCx, createDriverSpy, createHeldDriver, startTurn, makeAgent, newSessionArgs, textParam,
+} from './agent.helpers.js';
 
 // Group 5: Concurrency (reject-with-retry) + cancel ------------------------
 

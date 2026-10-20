@@ -30,7 +30,8 @@ const outcomesSent = (agent: { received: any[] }) =>
    agent.received.filter(message => !('method' in message)).map(message => message.result?.outcome);
 
 describe('governance in front of the Kiro driver', () => {
-   it('[H] the shipped config approves, denies and asks as ruled, and nothing is allowed before the IDE answers', async () => {
+   it('[H] the shipped config approves, denies and asks as ruled, '
+      + 'and nothing is allowed before the IDE answers', async () => {
       const { agents, connect } = fakeAgents(1);
       const agent = agents[0];
       agent.respond('initialize', () => V3);
@@ -43,7 +44,9 @@ describe('governance in front of the Kiro driver', () => {
       const script = scriptFor(agent, []);
       agent.respond('session/prompt', async () => {
          for (const [id, command] of [['c1', 'ls -la'], ['c2', 'git checkout main'], ['c3', 'touch x']]) {
-            await script.call({ toolCallId: id, kind: 'execute', title: command, status: 'pending', rawInput: { command } });
+            await script.call({
+               toolCallId: id, kind: 'execute', title: command, status: 'pending', rawInput: { command },
+            });
             await script.ask({ toolCallId: id, title: command }, KIRO_OPTIONS);
          }
          return { stopReason: 'end_turn' };

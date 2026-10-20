@@ -13,7 +13,9 @@ export const STDERR_TAIL_MAX_BYTES = 5120;
 
 /** A summary and, when the agent printed anything, its last lines. `tail` is already redacted. */
 export function withTail(summary: string, tail: string): string {
-   return '' === tail ? summary : `${summary}\nthe agent printed (last lines, secrets removed, not guaranteed):\n${tail}`;
+   return '' === tail
+      ? summary
+      : `${summary}\nthe agent printed (last lines, secrets removed, not guaranteed):\n${tail}`;
 }
 
 export interface StderrTail {

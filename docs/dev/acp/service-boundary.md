@@ -95,8 +95,9 @@ Lifecycle:
   not free the session (see "Cancel and wind-down"). A cancel with no
   active turn, an unknown session, or a second cancel is an idempotent
   no-op.
-- disconnect / stdin EOF — aborts every active turn, closes the driver,
-  then releases all mappings (`closeAll`), so nothing leaks.
+- disconnect (stdin EOF or a termination signal) — aborts every active
+  turn, closes the driver, then releases all mappings (`closeAll`), so
+  nothing leaks.
 
 ### Concurrency: reject-with-retry
 
@@ -142,12 +143,25 @@ the session busy until `execute` settles.
 
 ### Disconnect
 
-On stdin end the entry point calls `onDisconnect`. In order, it aborts
-every active turn, awaits `driver.close()` when the driver has one,
-releases all session mappings, and logs `disconnect`. It never rejects:
-a `close` that fails is logged as `close_failed` with `failureKind` only,
-the sessions are still released, and there is no retry. Calling it twice
-is harmless.
+Stdin end, SIGTERM, SIGINT or SIGHUP, whichever comes first, runs
+`onDisconnect` once through the shutdown handler
+(`protocol/shutdown.ts`). The service then exits: 0 after a clean
+disconnect, 1 when the disconnect failed or took longer than 10 seconds
+(`DISCONNECT_BOUND_MS`). Signal handling on Windows is best effort and
+untested.
+
+In order, `onDisconnect` aborts every active turn, awaits
+`driver.close()`, releases all session mappings, and logs `disconnect`.
+A `close` that fails is logged as `close_failed` with `failureKind`
+only, the sessions are still released, there is no retry, and
+`onDisconnect` then rethrows that error, which gives the non-zero exit.
+Calling it twice is harmless.
+
+A session has no end event of its own. The client runs one service
+process per chat, so closing the chat is the disconnect, and a session's
+agent runs until then. Stop sends `session/cancel` and ends the turn
+only. If a client ever shares one connection across chats, a
+session-scoped release would be the planned extension.
 
 ### Before-initialize guard
 

@@ -22,7 +22,9 @@ export function createShutdownHandler({ disconnect, exit }: ShutdownDeps): () =>
       if (started) { return; }
       started = true;
       let timer: ReturnType<typeof setTimeout> | undefined;
-      const bound = new Promise<'bound'>(resolve => { timer = setTimeout(() => resolve('bound'), DISCONNECT_BOUND_MS); });
+      const bound = new Promise<'bound'>(resolve => {
+         timer = setTimeout(() => resolve('bound'), DISCONNECT_BOUND_MS);
+      });
       const run   = (async () => disconnect())().then(() => 'done' as const, () => 'failed' as const);
       void Promise.race([run, bound]).then(outcome => {
          clearTimeout(timer);

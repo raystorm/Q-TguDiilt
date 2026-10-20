@@ -4,7 +4,9 @@ import type { ToolCallDecision, ToolCallReport } from '../../governed-driver.js'
 import { answerFor } from '../permissions.js';
 import { NEVER } from './fake-acp-agent.js';
 import { deferred, flush, makeDriver } from './acp-driver.helpers.js';
-import { SESSION, ALLOW, REJECT, CANCELLED, picked, type Decide, approve, deny, runTurn } from './permissions.helpers.js';
+import {
+   SESSION, ALLOW, REJECT, CANCELLED, picked, type Decide, approve, deny, runTurn,
+} from './permissions.helpers.js';
 
 describe('permission requests: options and answers', () => {
    const optionsOf = (kinds: string[]) => kinds.map(kind => ({ optionId: `id-${kind}`, name: kind, kind }));
@@ -179,7 +181,8 @@ describe('permission requests: options and answers', () => {
       });
       expect(scripted.result.outcome).toEqual(CANCELLED);
       expect(reports).toEqual([]);
-      expect(logger.warn).toHaveBeenCalledWith('permission_unknown_session', { agentSessionId: 'other-sess', pid: 4000 });
+      expect(logger.warn)
+         .toHaveBeenCalledWith('permission_unknown_session', { agentSessionId: 'other-sess', pid: 4000 });
       expect(result.text).toBe('ok');
    });
 

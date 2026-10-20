@@ -51,6 +51,19 @@ export interface AcpPolicy {
 }
 
 /**
+ * A setting that makes an agent run tools without asking this service, and that
+ * this client cannot change. The driver names it; the core looks for it.
+ */
+export interface UnsafeSetting {
+   /** What the setting is called in the refusal, the warning and the log. */
+   name:     string;
+   /** The id of the agent's config option that holds it. */
+   optionId: string;
+   /** The option values that make it unsafe. Any other value, or no such option, is safe. */
+   values:   readonly string[];
+}
+
+/**
  * What the ACP-client core needs to drive one kind of agent. A concrete
  * driver (Kiro, Copilot) supplies the launch command line; the rest is
  * shared.
@@ -64,5 +77,7 @@ export interface AcpDriverDeps {
    launch:  { command: string; args: readonly string[] };
    /** Per-agent checks; none when omitted. */
    policy?: AcpPolicy;
+   /** Settings to refuse at session start and to warn about when switched on later; none when omitted. */
+   unsafeSettings?: readonly UnsafeSetting[];
    logger:  Logger;
 }

@@ -7,6 +7,8 @@ export interface GovernedDriverHarness {
    ran():  ToolCallReport[];
    /** How many times close() actually released the downstream agent. */
    released(): number;
+   /** The report a driver is expected to hand over for a scripted one. Absent: the same report. */
+   project?(report: ToolCallReport): ToolCallReport;
 }
 
 const REPORT_KEYS = ['kind', 'title', 'command', 'paths', 'diff', 'rawInput'];
@@ -22,6 +24,9 @@ const exec: ToolCallReport = {
 
 const decisions = (outcomes: { decision: ToolCallDecision }[]) =>
    outcomes.map(o => o.decision);
+
+/** What the driver should report for a scripted report. */
+const expected = (h: GovernedDriverHarness, report: ToolCallReport): ToolCallReport => h.project?.(report) ?? report;
 
 function deferred<T = void>() {
    let resolve!: (value: T) => void;
@@ -60,7 +65,7 @@ export function describeGovernedDriverContract(
          await h.driver.execute('cmd', {
             onToolCall: async report => { seen.push(report); return 'approve'; },
          });
-         expect(seen).toEqual([exec, edit]);
+         expect(seen).toEqual([exec, edit].map(report => expected(h, report)));
          for (const report of seen) {
             expect(typeof report.kind).toBe('string');
             expect(typeof report.title).toBe('string');
@@ -73,7 +78,7 @@ export function describeGovernedDriverContract(
          h.script([edit]);
          const result = await h.driver.execute('cmd', { onToolCall: async () => 'approve' });
          expect(h.ran()).toEqual([edit]);
-         expect(result.toolCalls).toEqual([{ report: edit, decision: 'approve' }]);
+         expect(result.toolCalls).toEqual([{ report: expected(h, edit), decision: 'approve' }]);
       });
 
       it('deny: the call does not run and the result has a deny outcome', async () => {
@@ -81,7 +86,7 @@ export function describeGovernedDriverContract(
          h.script([edit]);
          const result = await h.driver.execute('cmd', { onToolCall: async () => 'deny' });
          expect(h.ran()).toEqual([]);
-         expect(result.toolCalls).toEqual([{ report: edit, decision: 'deny' }]);
+         expect(result.toolCalls).toEqual([{ report: expected(h, edit), decision: 'deny' }]);
       });
 
       it('approve then deny: only the first runs, outcomes are [approve, deny]', async () => {
@@ -243,10 +248,13 @@ export function describeGovernedDriverContract(
             expect(h.ran()).toEqual([read]);
          });
 
-         it('decisions made before the abort stay recorded', async () => {
+         it('decisions made before the abort stay recorded, '
+            + 'and the call being decided at the abort is at most a deny', async () => {
             const h = createHarness();
             const { result } = await abortOnSecondDecision(h);
-            expect(result.toolCalls).toEqual([{ report: read, decision: 'approve' }]);
+            const [first, ...inFlight] = result.toolCalls;
+            expect(first).toEqual({ report: expected(h, read), decision: 'approve' });
+            expect(decisions(inFlight)).not.toContain('approve');
          });
 
          it('[H] a turn whose signal aborted is cancelled although every call was decided', async () => {

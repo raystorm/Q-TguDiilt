@@ -1,7 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import type { ToolCallReport } from '../../drivers/governed-driver.js';
 import { ProviderAuthError } from '../errors.js';
-import { type LogEntry, createCx, createDriverSpy, makeAgent, newSessionArgs, readReport, editReport, eventsOf, runTurn, denials, textParam } from './agent.helpers.js';
+import {
+   type LogEntry, createCx, createDriverSpy, makeAgent, newSessionArgs, readReport, editReport,
+   eventsOf, runTurn, denials, textParam,
+} from './agent.helpers.js';
 
 // Group 9: Operational logging & no secrets --------------------------------
 

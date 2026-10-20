@@ -90,7 +90,8 @@ describe('client surface', () => {
    const WRITE_TARGET = join(tmpdir(), 'acp-core-must-not-exist.txt');
    const unsupported: Array<[string, string, unknown]> = [
       ['fs/read_text_file for /etc/passwd', 'fs/read_text_file',  { sessionId: 'agent-sess-1', path: '/etc/passwd' }],
-      ['fs/write_text_file',                'fs/write_text_file', { sessionId: 'agent-sess-1', path: WRITE_TARGET, content: 'x' }],
+      ['fs/write_text_file',                'fs/write_text_file',
+         { sessionId: 'agent-sess-1', path: WRITE_TARGET, content: 'x' }],
       ['terminal/create',                   'terminal/create',    { sessionId: 'agent-sess-1', command: 'ls' }],
       ['_kiro/terminal/shell_type',         '_kiro/terminal/shell_type', {}],
       ['an unknown extension method',       '_foo/bar',           {}],
@@ -151,7 +152,9 @@ describe('text, continuity and results', () => {
          await update({ sessionUpdate: 'plan', entries: [] });
          await update({ sessionUpdate: 'available_commands_update', availableCommands: [] });
          await update({ sessionUpdate: 'current_mode_update', currentModeId: 'x' });
-         await update({ sessionUpdate: 'agent_message_chunk', content: { type: 'image', data: 'AAAA', mimeType: 'image/png' } });
+         await update({
+            sessionUpdate: 'agent_message_chunk', content: { type: 'image', data: 'AAAA', mimeType: 'image/png' },
+         });
          await agents[0].notify('session/update', chunk(id, 'kept'));
          return { stopReason: 'end_turn' };
       });
@@ -356,7 +359,8 @@ describe('abort before and during setup', () => {
       ['initialize',         'initialize',         ['initialize']],
       ['session/new',        'session/new',        ['initialize', 'session/new']],
       ['after session/new',  'after session/new',  ['initialize', 'session/new']],
-   ] as const)('[H] an abort while %s is pending ends the turn once the step returns', async (_label, hold, methods) => {
+   ] as const)('[H] an abort while %s is pending '
+      + 'ends the turn once the step returns', async (_label, hold, methods) => {
       const { result, ended, methods: sent } = await abortDuring(hold);
       expect(result).toStrictEqual(CANCELLED_RESULT);
       expect(sent).toEqual(methods);
@@ -407,7 +411,9 @@ describe('setup timeout', () => {
       '[H] a %s that never answers fails the turn after the setup timeout, and the next prompt relaunches',
       async step => {
          const late = deferred();
-         const { driver, agents, connect } = makeDriver(2, index => 0 === index && 'connect' === step ? late.promise : undefined);
+         const { driver, agents, connect } = makeDriver(
+            2, index => 0 === index && 'connect' === step ? late.promise : undefined,
+         );
          if ('connect' !== step) { agents[0].respond(step, () => NEVER); }
          const failure = driver.execute('go').then(() => undefined, (err: unknown) => err);
          await vi.advanceTimersByTimeAsync(SETUP_TIMEOUT_MS);

@@ -153,7 +153,8 @@ describe('the result of an aborted turn', () => {
    it.each([
       ['an error answer',               rpcFailure('CANARY-FAILURE', -32603),         'internal'],
       ['an authentication requirement', rpcFailure('Authentication required', -32000), 'provider_auth'],
-   ] as const)('a failure after the abort settles cancelled and is logged by kind only: %s', async (_label, failure, kind) => {
+   ] as const)('a failure after the abort settles cancelled '
+      + 'and is logged by kind only: %s', async (_label, failure, kind) => {
       const t = await abortableTurn();
       t.controller.abort();
       await flush();

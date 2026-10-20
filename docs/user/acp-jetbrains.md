@@ -9,8 +9,9 @@ runs your workflow. No LLM provider needs to speak ACP.
 
 - A JetBrains IDE with ACP client support
 - Node.js available on your PATH
-- The `kiro-cli` executable available on your PATH (the default
-  provider the service dispatches to)
+- The `kiro-cli` executable available on your PATH and logged in (the
+  default provider the service dispatches to); see
+  `docs/user/acp-agents.md`
 - This repository present in your project
 
 ## Configure the connection
@@ -78,8 +79,16 @@ ends the turn as cancelled. The session stays usable.
   when you stop. Answering it afterwards, even with Allow, changes
   nothing and the action does not run.
 - **Nothing is rolled back:** an action that already ran stays done.
-- **Disconnect:** closing the connection stops every running turn, shuts
-  down the provider, and releases all sessions.
+- **Slow to stop:** if the agent does not answer the stop within 5
+  seconds, the service ends that agent. Your next message starts a fresh
+  agent, and the old session is gone (the service says so). Nothing is
+  lost silently.
+- **Disconnect:** closing the chat, or the IDE, ends that chat's service
+  and its agent: every running turn stops, the agent is shut down, and
+  all sessions are released. With Kiro this takes about a second, and the
+  service exits within 10 seconds. A terminate, interrupt or hangup
+  signal does the same. The exit status is 0 after a clean end and 1
+  otherwise.
 
 ## Operational log
 
@@ -107,5 +116,7 @@ This log is transient runtime state; it is not version-controlled.
 - **Provider quota / authentication errors** — these surface as clear,
   actionable errors; resolve the provider issue (quota or re-login) and
   retry the turn.
+- **The agent will not start, or fails the first turn** — see "When
+  something goes wrong" in `docs/user/acp-agents.md`.
 - **Check the log** — `.workflow/work/acp.log` records what the service
   did and any errors encountered.

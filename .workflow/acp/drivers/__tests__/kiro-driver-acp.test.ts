@@ -78,17 +78,21 @@ describe('Kiro launch', () => {
 
 describe('Kiro V3 check', () => {
    it.each([
-      ['extensionMethods array and sessionCapabilities.list',          initializeWith(capabilities(['m'], {})),    true],
-      ['an empty extensionMethods array and sessionCapabilities.list', initializeWith(capabilities([], {})),       true],
-      ['neither (legacy server)',                                      LEGACY,                                     false],
-      ['extensionMethods only',                                        initializeWith({ _meta: { kiro: { extensionMethods: ['m'] } } }), false],
-      ['sessionCapabilities.list only',                                initializeWith({ sessionCapabilities: { list: {} } }),           false],
-      ['sessionCapabilities.list null',                                initializeWith(capabilities(['m'], null)),  false],
-      ['extensionMethods as a string',                                 initializeWith(capabilities('m', {})),      false],
-      ['extensionMethods as an object',                                initializeWith(capabilities({ a: 1 }, {})), false],
-      ['extensionMethods as null',                                     initializeWith(capabilities(null, {})),     false],
-      ['no _meta at all',                                              initializeWith({ sessionCapabilities: { list: {} } }),           false],
-   ] as Array<[string, object, boolean]>)('the session is allowed or refused by the initialize answer: %s', async (_label, answer, allowed) => {
+      ['extensionMethods array and sessionCapabilities.list',
+       initializeWith(capabilities(['m'], {})), true],
+      ['an empty extensionMethods array and sessionCapabilities.list',
+       initializeWith(capabilities([], {})),    true],
+      ['neither (legacy server)',       LEGACY,                                                false],
+      ['extensionMethods only',
+       initializeWith({ _meta: { kiro: { extensionMethods: ['m'] } } }),                       false],
+      ['sessionCapabilities.list only', initializeWith({ sessionCapabilities: { list: {} } }), false],
+      ['sessionCapabilities.list null', initializeWith(capabilities(['m'], null)),             false],
+      ['extensionMethods as a string',  initializeWith(capabilities('m', {})),                 false],
+      ['extensionMethods as an object', initializeWith(capabilities({ a: 1 }, {})),            false],
+      ['extensionMethods as null',      initializeWith(capabilities(null, {})),                false],
+      ['no _meta at all',               initializeWith({ sessionCapabilities: { list: {} } }), false],
+   ] as Array<[string, object, boolean]>)('the session is allowed or refused '
+      + 'by the initialize answer: %s', async (_label, answer, allowed) => {
       const { driver, agents } = makeKiro();
       agents[0].respond('initialize', () => answer);
       if (allowed) { await expect(driver.execute('go')).resolves.toMatchObject({ sessionId: SESSION }); }
@@ -96,7 +100,8 @@ describe('Kiro V3 check', () => {
       agents[0].exit(0);
    });
 
-   it('[H] a refusal says V3 is required and how Kiro is launched, ends the process, and the next prompt launches again', async () => {
+   it('[H] a refusal says V3 is required and how Kiro is launched, '
+      + 'ends the process, and the next prompt launches again', async () => {
       const { driver, agents, connect } = makeKiro(2);
       agents[0].respond('initialize', () => LEGACY);
       const error = await failureOf(driver.execute('go'));
@@ -114,7 +119,8 @@ describe('Kiro V3 check', () => {
 });
 
 describe('Kiro permission requests', () => {
-   it('[H] an approve selects the allow-once option and a deny the reject-once option, never an always option', async () => {
+   it('[H] an approve selects the allow-once option and a deny the reject-once option, '
+      + 'never an always option', async () => {
       const { driver, agents } = makeKiro(2);
       const answers: unknown[] = [];
       for (const agent of agents) {

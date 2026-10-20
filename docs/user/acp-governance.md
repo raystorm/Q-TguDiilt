@@ -182,6 +182,11 @@ An `execute` with no command (or a blank one), or an `edit`, `delete` or
 denied without asking — even under `default: approve`. That is a defect
 in the driver, not something you can judge. The log records the reason.
 
+A request that would be asked about but has nothing to show (no command,
+no usable paths, no diff, no request details, and a blank title) is
+denied too, for the same reason. A title alone is still asked about, for
+example a mode switch.
+
 ## What is never trusted
 
 Rules match only an action's kind, command and paths. The agent's title,
@@ -195,6 +200,20 @@ The shipped config approves `read` and `search` with explicit rules.
 This mirrors what the AI already does: both target agents never ask for
 these kinds, so changing those rules probably has no effect. Everything
 else falls to `ask`, apart from the command rules.
+
+Some approved commands can also change things through their own
+options. The shipped config asks about those forms, like a redirect:
+
+- `sort -o out in`, `sort --output=out in` (also inside a flag cluster
+  such as `-ro`) and `uniq in out` write a file.
+- `sed -i` and `date -s` hidden in a flag cluster (`sed -ni`,
+  `date -us`). `date -s` and `date --set` themselves are denied.
+
+Accepted cost: the patterns match a dash, up to two characters and the
+letter, so a file name such as `my-notes.txt` or `my-fish.ts` can ask,
+and so can options such as `--numeric-sort`. A `uniq` with two or more
+arguments asks, so `uniq -c file` asks too. Bare `uniq`, `uniq -c`,
+`sort -r file` and `sort -n file` do not.
 
 ## Rules that are rejected
 
@@ -237,20 +256,34 @@ Commands are checked this way even when the AI runs them through a shell
 tool instead of an edit tool: `sed -i s/a/b/ f` and `echo x > /proj/a`
 both ask.
 
+An unquoted glob such as `*.ts` or `build/*` is part of its command and
+is matched as written: `ls *.ts | wc -l` is two parts, `ls *.ts` and
+`wc -l`. A glob as the target of a redirect (`ls > *.log`) still asks.
+Limit: governance sees the pattern, the shell sees the file names it
+expands to. A file name that starts with `-` can therefore become an
+option.
+
 ## When a command can't be safely parsed
 
 If a command contains anything that can't be safely taken apart —
 command substitution (`` $(...) ``, backticks), unbalanced quotes, a
-newline, or a `#` comment — it always resolves to `ask`. It is never
-silently approved or denied. Anything ambiguous defaults to asking.
+variable such as `$OPTS` or `${CMD}` outside single quotes, any
+whitespace other than a plain space (a newline or tab, for example), a
+`#` comment, or an operator with no command next to it (`ls &&`,
+`&& ls`) — it always resolves to `ask`. It is never silently approved or
+denied. Anything ambiguous defaults to asking.
+
+A `$` inside single quotes is plain text, so `awk '{ print $1 }'` is
+not affected.
 
 ## Logging
 
 Every decision is logged with its kind, matched rule and action. Shell
 commands are redacted; file paths are logged as given, each cut at 500
 characters. A result that governance forced carries a reason:
-`missing_command`, `missing_paths` or `parent_segment`. Diffs, raw
-requests and the agent's title are never logged.
+`missing_command`, `missing_paths`, `missing_details` or
+`parent_segment`. Diffs, raw requests and the agent's title are never
+logged.
 
 ## Troubleshooting
 

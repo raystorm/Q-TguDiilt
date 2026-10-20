@@ -1,0 +1,13 @@
+ls -la
+ls
+git status
+git log --oneline -5
+npm test
+npx tsc --noEmit
+cat src/a.ts | grep foo
+ls | wc -l
+cd src && ls
+echo "a && b"
+echo 'a; rm x'
+echo "a | b"
+pwd

@@ -1,0 +1,8 @@
+$CMD
+${CMD} -la
+sed $OPTS s/a/b/ f
+cat $F
+ls ${X}
+ls {a,b}
+echo ${IFS}
+ls ~root/..

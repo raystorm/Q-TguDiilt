@@ -1,18 +1,24 @@
 import { describe, it, expect } from 'vitest';
-import { type LogEntry, createCx, createDriverSpy, eventsOf, makeAgent, newSessionArgs, textParam } from './agent.helpers.js';
+import {
+   type LogEntry, createCx, createDriverSpy, eventsOf, makeAgent, newSessionArgs, textParam,
+} from './agent.helpers.js';
 
 describe('session link entry', () => {
    const linked = (logger: { entries: LogEntry[] }) => eventsOf(logger, 'agent_session_linked').map(e => e.data);
 
    it('the first turn logs one entry holding both ids and nothing else', async () => {
-      const { agent, logger } = makeAgent({ driver: createDriverSpy({ text: 'x', sessionId: 'drv-1', toolCalls: [] }) });
+      const { agent, logger } = makeAgent({
+         driver: createDriverSpy({ text: 'x', sessionId: 'drv-1', toolCalls: [] }),
+      });
       const s = await agent.newSession(newSessionArgs());
       await agent.prompt({ sessionId: s.sessionId, ...textParam('q') }, createCx());
       expect(linked(logger)).toEqual([{ sessionId: s.sessionId, agentSessionId: 'drv-1' }]);
    });
 
    it('later turns that return the same id log nothing more', async () => {
-      const { agent, logger } = makeAgent({ driver: createDriverSpy({ text: 'x', sessionId: 'drv-1', toolCalls: [] }) });
+      const { agent, logger } = makeAgent({
+         driver: createDriverSpy({ text: 'x', sessionId: 'drv-1', toolCalls: [] }),
+      });
       const s = await agent.newSession(newSessionArgs());
       await agent.prompt({ sessionId: s.sessionId, ...textParam('one') }, createCx());
       await agent.prompt({ sessionId: s.sessionId, ...textParam('two') }, createCx());

@@ -8,7 +8,7 @@ registry config.
 ## Driver Interface
 
 A driver is an object with a `name`, a `supportsToolCallGovernance` flag,
-an asynchronous `execute` method, and an optional `close` method:
+an asynchronous `execute` method, and an asynchronous `close` method:
 
 ```typescript
 execute(command: string, options?: ExecuteOptions): Promise<DriverResult>
@@ -29,11 +29,10 @@ other driver before doing any work.
 The `signal` aborts the turn when the user stops it or the connection
 ends. A driver that honors it asks nothing new, discards any late answer
 (an approve included, which never runs), and settles with
-`cancelled: true`. A driver may also offer `close()`, which releases the
-downstream agent. The interface marks `signal`, `cancelled` and `close`
+`cancelled: true`. The interface marks `signal` and `cancelled`
 optional, so a driver that ignores them still conforms, but a cancel then
-leaves its session busy until `execute` settles. A driver that holds a
-downstream agent should implement `close()`.
+leaves its session busy until `execute` settles. `close()` is required:
+it releases every process the driver started.
 
 Key rules:
 - Call `validateExecuteArgs(command, options)` at the top of `execute`
@@ -42,14 +41,23 @@ Key rules:
 - Report every tool call through `gateToolCall` before it runs
 - Honor `options.signal` when the provider can be interrupted: settle
   `cancelled: true`, report nothing new, discard late answers
-- If the driver holds a downstream agent (any driver that wraps an ACP
-  agent does), implement `close()`: it releases that agent, and must be
-  safe to call any number of times, also concurrently
+- Implement `close()`: it takes no argument, releases every process the
+  driver started, and must be idempotent and safe to call concurrently
+  (every call resolves, the downstream agent is released once). A driver
+  with nothing to release resolves immediately
 - Prove the driver with the shared contract suite
   (`describeGovernedDriverContract`)
 
 See `.workflow/acp/drivers/EXTENDING.md` for the full interface contract
 and type definitions.
+
+## Driving an ACP agent
+
+The Kiro and Copilot drivers are built on a shared ACP driver core, so
+a driver for an ACP agent is a thin file: it calls `createAcpDriver`
+with its launch command line, and optionally a policy and a list of
+unsafe settings. The core needs no change. See
+`docs/dev/acp/acp-driver-core.md`.
 
 ## Driver Registry
 

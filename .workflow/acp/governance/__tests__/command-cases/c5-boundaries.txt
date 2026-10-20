@@ -1,0 +1,16 @@
+ls  -la
+lsx -la
+ls-la
+LS -la
+env FOO=bar ls
+env -i ls
+hostname evil
+id -u
+pwd -P
+git status -s
+PATH=/tmp ls
+FOO=1 ls
+./ls
+/bin/ls
+npm run testx
+npx tsc --noEmit --project /evil/tsconfig.json

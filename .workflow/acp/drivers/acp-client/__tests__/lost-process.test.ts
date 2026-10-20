@@ -13,7 +13,8 @@ afterEach(() => { vi.useRealTimers(); });
 const SETUP_ANSWER = { protocolVersion: 1, agentCapabilities: {}, authMethods: [] };
 
 describe('a process that is lost', () => {
-   it('[H] a crash in a turn fails it with the exit code and the output, and the old session is a collapse', async () => {
+   it('[H] a crash in a turn fails it with the exit code and the output, '
+      + 'and the old session is a collapse', async () => {
       const { driver, agents, connect, logger } = makeDriver(2);
       agents[1].respond('session/new', () => ({ sessionId: 'agent-sess-2' }));
       const first = await driver.execute('one');
@@ -32,7 +33,8 @@ describe('a process that is lost', () => {
       expect(entries(logger, 'agent_process_ended'))
          .toEqual([{ pid: 4000, agentSessionId: SESSION, reason: 'crash', stage: 'none' }]);
 
-      await expect(driver.execute('three', { sessionId: first.sessionId })).rejects.toBeInstanceOf(SessionCollapseError);
+      await expect(driver.execute('three', { sessionId: first.sessionId }))
+         .rejects.toBeInstanceOf(SessionCollapseError);
       expect(connect).toHaveBeenCalledTimes(1);
 
       const fresh = await driver.execute('four');
@@ -53,10 +55,14 @@ describe('a process that is lost', () => {
    });
 
    it.each([
-      ['session/new answers with a JSON-RPC error',     'session/new', () => { throw new Error('no capacity'); }, [AgentRequestError]],
-      ['initialize answers without a protocolVersion',   'initialize',  () => ({}),                              [AgentProtocolError, AgentRequestError]],
-      ['session/new answers without a sessionId',        'session/new', () => ({}),                              [AgentProtocolError, AgentRequestError]],
-      ['initialize answers with an unsupported version', 'initialize',  () => ({ ...SETUP_ANSWER, protocolVersion: 99 }), [AgentProtocolError]],
+      ['session/new answers with a JSON-RPC error', 'session/new',
+         () => { throw new Error('no capacity'); }, [AgentRequestError]],
+      ['initialize answers without a protocolVersion', 'initialize',
+         () => ({}), [AgentProtocolError, AgentRequestError]],
+      ['session/new answers without a sessionId', 'session/new',
+         () => ({}), [AgentProtocolError, AgentRequestError]],
+      ['initialize answers with an unsupported version', 'initialize',
+         () => ({ ...SETUP_ANSWER, protocolVersion: 99 }), [AgentProtocolError]],
    ] as Array<[string, string, () => unknown, Array<new (...args: any[]) => Error>]>)(
       '[H] when %s the turn fails, not cancelled, and the process is ended',
       async (_label, method, answer, errors) => {
@@ -72,7 +78,8 @@ describe('a process that is lost', () => {
       },
    );
 
-   it('[H] a permission request still open when the connection is declared dead is not answered with an allow', async () => {
+   it('[H] a permission request still open when the connection is declared dead '
+      + 'is not answered with an allow', async () => {
       const { driver, agents } = makeDriver();
       const agent   = agents[0];
       const gate    = deferred<'approve'>();
@@ -164,7 +171,9 @@ describe('setup abort and process end entries', () => {
       ['session/new', 'session_new'],
    ])('an abort seen after %s is logged as step %s, and the end as an abort', async (held, step) => {
       const controller = new AbortController();
-      const { driver, agents, logger } = makeDriver(1, 'launch' === held ? () => { controller.abort(); return undefined; } : undefined);
+      const { driver, agents, logger } = makeDriver(
+         1, 'launch' === held ? () => { controller.abort(); return undefined; } : undefined,
+      );
       if ('initialize' === held) {
          agents[0].respond('initialize', () => { controller.abort(); return SETUP_ANSWER; });
       }
@@ -217,7 +226,8 @@ describe('setup abort and process end entries', () => {
 });
 
 describe('what the core logs', () => {
-   it('[H] no entry holds prompt text, context, agent text, a title, a diff, raw input or the agent output', async () => {
+   it('[H] no entry holds prompt text, context, agent text, a title, a diff, '
+      + 'raw input or the agent output', async () => {
       const { driver, agents, logger } = makeDriver(2);
       const agent = agents[0];
       agent.respond('session/prompt', async () => {
@@ -244,7 +254,9 @@ describe('what the core logs', () => {
          await flush();
          return { stopReason: 'end_turn' };
       });
-      const result = await driver.execute('CANARY-PROMPT', { context: 'CANARY-CONTEXT', onToolCall: async () => 'approve' as const });
+      const result = await driver.execute(
+         'CANARY-PROMPT', { context: 'CANARY-CONTEXT', onToolCall: async () => 'approve' as const },
+      );
       expect(result.text).toBe('CANARY-AGENT-TEXT');
 
       agents[1].respond('initialize', () => NEVER);

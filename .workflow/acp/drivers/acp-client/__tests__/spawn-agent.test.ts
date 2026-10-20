@@ -8,7 +8,9 @@ import { STUB_AGENT, startStub } from './stub-agent.helpers.js';
 
 const launch = (args: string[] = [], cwd = process.cwd()) =>
    ({ command: process.execPath, args: [STUB_AGENT, ...args], cwd });
-const initialize = { jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: 1, clientCapabilities: {} } };
+const initialize = {
+   jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: 1, clientCapabilities: {} },
+};
 const finish = (handle: AgentHandle) => { handle.closeStdin(); return handle.exited; };
 
 let stub: ReturnType<typeof startStub> | undefined;

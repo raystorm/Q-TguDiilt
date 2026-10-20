@@ -31,7 +31,8 @@ import {
 } from './errors.js';
 import { answerFor, cancelledAnswer, createToolCallTable, type ToolCallTable } from './permissions.js';
 import { type StderrTail, createStderrTail } from './stderr-tail.js';
-import type { AcpDriverDeps, AgentHandle } from './types.js';
+import type { AcpDriverDeps, AgentHandle, UnsafeSetting } from './types.js';
+import { prependWarning, refusalFor, unsafeSettingsOn } from './unsafe-settings.js';
 
 /** How long each setup step (connect, initialize, session/new) may take before the agent is ended. */
 export const SETUP_TIMEOUT_MS = 30000;
@@ -101,6 +102,10 @@ interface Proc {
    model:      string | undefined;
    /** The config options the agent offered with `session/new`. */
    options:    readonly SessionConfigOption[];
+   /** The unsafe settings the agent has on now. */
+   unsafeOn:   readonly string[];
+   /** Settings switched on since the last result that the user has not been told about. */
+   warnings:   string[];
    /** What the agent printed on stderr, bounded. */
    stderr:     StderrTail;
    /** True once the connection is dead: nothing is answered on it any more. */
@@ -121,12 +126,14 @@ type ProcState = Omit<Proc, 'connection'>;
  * gets an error response.
  */
 function connectClient(
-   stream: Stream, proc: ProcState, logger: Logger, fail: (err: unknown) => void,
+   stream: Stream, proc: ProcState, unsafe: readonly UnsafeSetting[], logger: Logger, fail: (err: unknown) => void,
 ): ClientConnection {
    return client({ name: 'acp-driver' })
       // Notifications first: handlers are tried in this order, so a tool call
       // reaches the table before a permission request sent right after it.
       .onNotification(methods.client.session.update, ({ params }) => {
+         // An update naming another session is not this turn's. The agent is an untrusted peer.
+         if (params.sessionId !== proc.sessionId) { return; }
          const { update } = params;
          if ('agent_message_chunk' === update.sessionUpdate && 'text' === update.content.type) {
             proc.turn.text += update.content.text;
@@ -141,6 +148,14 @@ function connectClient(
                   ...(0 < unasked.paths.length ? { paths: unasked.paths.map(path => loggedPath(path)) } : {}),
                });
             }
+         }
+         else if ('config_option_update' === update.sessionUpdate) {
+            const switchedOn = unsafeSettingsOn(unsafe, update.configOptions);
+            for (const setting of switchedOn.filter(name => !proc.unsafeOn.includes(name))) {
+               logger.warn('agent_setting_changed', { agentSessionId: proc.sessionId, setting });
+               proc.warnings.push(setting);
+            }
+            proc.unsafeOn = switchedOn;
          }
       })
       .onRequest(methods.client.session.requestPermission, ({ params }) => answerPermission(proc, params, logger, fail))
@@ -233,7 +248,7 @@ async function selectModel(proc: Proc, model: string): Promise<void> {
 }
 
 export function createAcpDriver(deps: AcpDriverDeps): Driver {
-   const { name, connect, launch, policy, logger } = deps;
+   const { name, connect, launch, policy, unsafeSettings = [], logger } = deps;
    const procs    = new Set<Proc>();
    const sessions = new Map<string, Proc>();
    const endings  = new WeakMap<AgentHandle, Promise<EndStage>>();
@@ -311,10 +326,13 @@ export function createAcpDriver(deps: AcpDriverDeps): Driver {
 
       const turn: Turn = { text: '', calls: createToolCallTable(), active: undefined };
       const state: ProcState = {
-         handle, turn, sessionId: '', model: undefined, options: [], stderr, dead: false, failed, reject,
+         handle, turn, sessionId: '', model: undefined, options: [], unsafeOn: [], warnings: [],
+         stderr, dead: false, failed, reject,
       };
       const proc: Proc = Object.assign(state, {
-         connection: connectClient(handle.stream, state, logger, err => failProc(proc, err, 'handler_failure')),
+         connection: connectClient(
+            handle.stream, state, unsafeSettings, logger, err => failProc(proc, err, 'handler_failure'),
+         ),
       });
       procs.add(proc);
       // An exit we did not ask for kills the connection; the message carries the agent's last words.
@@ -325,7 +343,11 @@ export function createAcpDriver(deps: AcpDriverDeps): Driver {
       // The agent's output ended while it still runs: nothing can be answered on it any more.
       void proc.connection.closed.then(async () => {
          if (endings.has(handle) || await exitsWithin(handle, OUTPUT_END_GRACE_MS) || endings.has(handle)) { return; }
-         failProc(proc, new AgentProtocolError('the agent closed its output but did not exit', stderr.tail()), 'protocol_failure');
+         failProc(
+            proc,
+            new AgentProtocolError('the agent closed its output but did not exit', stderr.tail()),
+            'protocol_failure',
+         );
       });
 
       if (stopped()) { return abandon(proc, 'launch'); }
@@ -345,10 +367,13 @@ export function createAcpDriver(deps: AcpDriverDeps): Driver {
          if ('string' !== typeof created.sessionId || '' === created.sessionId) {
             throw new AgentProtocolError('the agent did not name a session', stderr.tail());
          }
+         const offered    = Array.isArray(created.configOptions) ? created.configOptions : [];
+         const switchedOn = unsafeSettingsOn(unsafeSettings, offered);
+         if (0 < switchedOn.length) { throw new AgentRefusedError(refusalFor(switchedOn)); }
          const refusedAfterSession = policy?.verifySession?.(created);
          if (undefined !== refusedAfterSession) { throw new AgentRefusedError(refusedAfterSession); }
          proc.sessionId = created.sessionId;
-         proc.options   = created.configOptions ?? [];
+         proc.options   = offered;
          proc.model     = findModelOption(proc.options)?.currentValue;
       }
       catch (err) {
@@ -415,7 +440,9 @@ export function createAcpDriver(deps: AcpDriverDeps): Driver {
          }, CANCEL_DEADLINE_MS);
       };
       const result = (): DriverResult => ({
-         text: proc.turn.text, sessionId: proc.sessionId, toolCalls: active.outcomes,
+         text:      prependWarning(proc.warnings.splice(0), proc.turn.text),
+         sessionId: proc.sessionId,
+         toolCalls: active.outcomes,
          ...(active.aborted ? { cancelled: true } : {}),
       });
       try {

@@ -148,7 +148,9 @@ describe('the wind-down deadline', () => {
 
 describe('logging around a cancel', () => {
    it('[H] no entry holds prompt text, agent text, titles, raw input, diffs or stderr', async () => {
-      const t = await abortableTurn({ context: 'CANARY-CONTEXT', onToolCall: async () => 'approve' }, 1, 'CANARY-PROMPT');
+      const t = await abortableTurn(
+         { context: 'CANARY-CONTEXT', onToolCall: async () => 'approve' }, 1, 'CANARY-PROMPT',
+      );
       await say(t.agent, 'CANARY-AGENT-TEXT');
       await t.agent.notify('session/update', {
          sessionId: SESSION,

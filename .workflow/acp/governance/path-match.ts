@@ -49,7 +49,7 @@ export function matchesName(name: string, entry: string): boolean {
    return true;
 }
 
-/** True when a path has a `..` segment. Only whole segments count. */
+/** True when a path has a `..` segment, split on `/` and, for Windows paths, `\`. Only whole segments count. */
 export function hasParentSegment(path: string): boolean {
-   return path.split('/').includes('..');
+   return path.split(/[\\/]/).includes('..');
 }

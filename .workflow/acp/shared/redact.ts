@@ -15,7 +15,10 @@ export const SPACED_VALUE_MIN_LENGTH = 6;
 
 export const REDACTED = '[redacted]';
 
-/** Words whose value is a secret: `<word>=value`, `<word>: value` or `<word> value`, in any case. Only the s is optional. */
+/**
+ * Words whose value is a secret: `<word>=value`, `<word>: value` or `<word> value`, in any case.
+ * Only the s is optional.
+ */
 const SECRET_WORDS = '(?:token|key|credential|securit(?:y|ie))s?';
 
 /** One whitespace character that is not a line break: a value never starts on the next line. */

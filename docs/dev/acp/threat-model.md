@@ -22,12 +22,23 @@ against, so rule changes and security reviews share one definition of
 **Primary** failures are plain, recognizable commands. Prefix rules and
 `default: ask` cover them.
 
+Commands that write a file through their own arguments are primary too,
+because an ordinary mistake reaches them: `sort -o out in` and
+`uniq in out` ask, like a `>` redirect. No path rule checks the output
+path of an approved command; the ask is what shows it to the user.
+
 **Secondary** risk scales with how much third-party text the AI reads:
 dependency source, cloned repos, API docs, web-fetch results, user-submitted
 data, production logs, bug reports. An injected instruction can deliberately
 use exec-capable flags in otherwise-safe commands (e.g. `sort
 --compress-program`, `rg --pre`, `man -P`, `sed` `e`/`w`, awk pipes,
 `git diff --output`). Prefix globs cannot catch these reliably.
+The shipped config asks about `sort --compress-program` as a side effect
+of its `sort -o` patterns (`-??o` matches `--co`), not as a deliberate
+rule.
+
+Review findings, with their tier and whether each was fixed or accepted,
+are in `docs/dev/acp/security-review.md`.
 
 ## Out of Scope
 

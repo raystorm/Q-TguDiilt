@@ -51,7 +51,9 @@ function launch(cwd: string, env: NodeJS.ProcessEnv, onMessage?: OnMessage) {
             const answer = onMessage(message);
             if (undefined !== message.id) {
                void Promise.resolve(answer).then(
-                  result => child.stdin.write(`${JSON.stringify({ jsonrpc: '2.0', id: message.id, result: result ?? {} })}\n`),
+                  result => child.stdin.write(
+                     `${JSON.stringify({ jsonrpc: '2.0', id: message.id, result: result ?? {} })}\n`,
+                  ),
                   () => undefined,
                );
             }

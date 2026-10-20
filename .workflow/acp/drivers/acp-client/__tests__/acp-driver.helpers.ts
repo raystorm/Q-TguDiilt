@@ -1,6 +1,6 @@
 import { vi } from 'vitest';
 import { createAcpDriver } from '../acp-driver.js';
-import type { AcpPolicy, LaunchSpec } from '../types.js';
+import type { AcpPolicy, LaunchSpec, UnsafeSetting } from '../types.js';
 import { createFakeAcpAgent } from './fake-acp-agent.js';
 
 export type FakeAgent = ReturnType<typeof createFakeAcpAgent>;
@@ -26,10 +26,11 @@ export function fakeAgents(count = 1, delayConnect?: (index: number) => Promise<
 /** A core driver over fake agents. */
 export function makeDriver(
    count = 1, delayConnect?: (index: number) => Promise<void> | undefined, policy?: AcpPolicy,
+   unsafeSettings?: readonly UnsafeSetting[],
 ) {
    const { agents, connect } = fakeAgents(count, delayConnect);
    const logger = createLogger();
-   const driver = createAcpDriver({ name: 'test', connect, launch: LAUNCH, policy, logger });
+   const driver = createAcpDriver({ name: 'test', connect, launch: LAUNCH, policy, unsafeSettings, logger });
    return { driver, agents, connect, logger };
 }
 

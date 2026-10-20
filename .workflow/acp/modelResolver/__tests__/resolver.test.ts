@@ -207,7 +207,8 @@ describe('Group 2 — registry resolution', () => {
       expect(() => resolveRegistry(config, 'auto')).toThrow(NoDriverAvailableError);
    });
 
-   it('no driver available even for "auto" → error naming the originally-requested model and that auto also failed', () => {
+   it('no driver available even for "auto" → error naming the originally-requested model '
+      + 'and that auto also failed', () => {
       const config: RegistryConfig = {
          drivers: { 'driver-a': { models: ['model-x'] } }, // no "auto"
       };
@@ -370,7 +371,9 @@ describe('Group 4 — configurable fallback behavior', () => {
          preferredModel:  { model: 'claude-sonnet-5', driver: 'solo' },
          fallbackMode:    'fail-fast', // registry says fail-fast...
       };
-      const resolver = createDispatchResolver({ config, logger: createLogger(), fallbackMode: 'fallback-to-default-driver' });
+      const resolver = createDispatchResolver({
+         config, logger: createLogger(), fallbackMode: 'fallback-to-default-driver',
+      });
       // ...but the explicit option overrides it, so registry-default is attempted and succeeds.
       const result = resolver.resolve('Builder');
       expect(result.source).toBe('registry-default');
