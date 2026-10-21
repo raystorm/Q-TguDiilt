@@ -1,5 +1,5 @@
 /**
- * Permission mapping for the ACP-client core: what the agent's stream says
+ * Permission mapping for the ACP driver core: what the agent's stream says
  * about a tool call, the report governance evaluates when the agent asks
  * permission, and the option that answers the request. Nothing here depends
  * on which agent is behind the connection.

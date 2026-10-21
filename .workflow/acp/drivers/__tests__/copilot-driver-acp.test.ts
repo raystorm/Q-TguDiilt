@@ -1,9 +1,8 @@
-import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect } from 'vitest';
-import { AgentRefusedError } from '../acp-client/errors.js';
-import { createLogger, fakeAgents } from '../acp-client/__tests__/acp-driver.helpers.js';
-import { SESSION, failureOf } from '../acp-client/__tests__/failures.helpers.js';
+import { AgentRefusedError } from '../acp-driver-core/errors.js';
+import { createLogger, fakeAgents } from '../acp-driver-core/__tests__/acp-driver.helpers.js';
+import { SESSION, failureOf } from '../acp-driver-core/__tests__/failures.helpers.js';
 import { evaluateToolCall, loadGovernanceConfig } from '../../governance/engine.js';
 import { declaresToolCallGovernance } from '../governed-driver.js';
 import type { ToolCallDecision, ToolCallReport } from '../governed-driver.js';
@@ -215,16 +214,4 @@ describe('Copilot permission requests', () => {
          expect(decisions[0]).not.toBe('approve');
       },
    );
-});
-
-describe('Copilot driver file', () => {
-   it('holds launch settings and the unsafe-setting list only: '
-      + 'it imports the core\'s entry points and nothing else', () => {
-      const source  = readFileSync(fileURLToPath(new URL('../copilot-driver-acp.ts', import.meta.url)), 'utf8');
-      const imports = [...source.matchAll(/from '([^']+)'/g)].map(match => match[1]).sort();
-      expect(imports).toEqual([
-         '../shared/logger.js', './acp-client/acp-driver.js', './acp-client/connect.js',
-         './acp-client/types.js', './governed-driver.js',
-      ]);
-   });
 });

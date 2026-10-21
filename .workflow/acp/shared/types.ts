@@ -9,8 +9,8 @@
  * user before approval: the exact command, affected file path(s), a
  * diff/patch, and any tool parameters.
  *
- * This is a contract between layers: the Governance Engine (A4b) *produces*
- * these details, and the ACP Service Boundary (A4a) *delivers* them as the
+ * This is a contract between layers: the Governance Engine *produces*
+ * these details, and the ACP Service Boundary *delivers* them as the
  * detail message that precedes the approval request.
  */
 export interface AskDetails {

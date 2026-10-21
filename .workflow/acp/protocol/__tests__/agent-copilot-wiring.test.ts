@@ -1,8 +1,8 @@
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it, vi } from 'vitest';
-import { fakeAgents } from '../../drivers/acp-client/__tests__/acp-driver.helpers.js';
-import { scriptFor } from '../../drivers/acp-client/__tests__/permissions.helpers.js';
+import { fakeAgents } from '../../drivers/acp-driver-core/__tests__/acp-driver.helpers.js';
+import { scriptFor } from '../../drivers/acp-driver-core/__tests__/permissions.helpers.js';
 import { createCopilotAcpDriver } from '../../drivers/copilot-driver-acp.js';
 import { createGovernanceEngine } from '../../governance/engine.js';
 import {

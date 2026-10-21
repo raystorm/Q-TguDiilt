@@ -41,7 +41,7 @@ export const ProviderAuthError = defineError(
 /**
  * Session continuity collapsed: the provider session expired AND/OR the
  * context window overflowed. Detected and surfaced; recovery is out of scope
- * (A4a never silently starts a fresh context).
+ * (the ACP Service Boundary never silently starts a fresh context).
  */
 export const SessionCollapseError = defineError(
    'SessionCollapseError',
@@ -50,7 +50,7 @@ export const SessionCollapseError = defineError(
 
 /**
  * The resolved driver does not declare tool-call governance support (flag
- * false, absent, or a legacy-interface driver). Raised before any work
+ * false or absent). Raised before any work
  * starts; there is no warn mode and no setting.
  */
 export const DriverGovernanceUnsupportedError = defineError(

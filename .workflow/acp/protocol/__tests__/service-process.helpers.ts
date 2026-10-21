@@ -3,7 +3,7 @@ import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync } from 'nod
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { realSleep, startStub, stubKiroCliBin } from '../../drivers/acp-client/__tests__/stub-agent.helpers.js';
+import { realSleep, startStub, stubKiroCliBin } from '../../drivers/acp-driver-core/__tests__/stub-agent.helpers.js';
 
 const ACP_ROOT  = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const VITE_NODE = join(ACP_ROOT, 'node_modules', 'vite-node', 'vite-node.mjs');

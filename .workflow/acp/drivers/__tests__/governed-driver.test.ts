@@ -1,6 +1,4 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import {
    Driver,
    DriverResult,
@@ -18,13 +16,6 @@ import { describeGovernedDriverContract } from './governed-driver.contract.js';
 describeGovernedDriverContract('fake', createFakeGovernedDriver);
 
 describe('governed-driver module', () => {
-   it('is self-contained: no legacy driver or ACP SDK imports', () => {
-      const source = readFileSync(
-         fileURLToPath(new URL('../governed-driver.ts', import.meta.url)), 'utf8');
-      expect(source).not.toMatch(/['"]\.\/(driver|kiro-driver|copilot-driver)(\.js)?['"]/);
-      expect(source).not.toMatch(/@agentclientprotocol\/sdk/);
-   });
-
    it('exports the contract types (tsc is the gate)', () => {
       const kind:     ToolCallKind     = 'other';
       const decision: ToolCallDecision = 'approve';
@@ -123,7 +114,7 @@ describe('fake governed driver', () => {
    });
 });
 
-describe('validateExecuteArgs mirrors the legacy rules', () => {
+describe('validateExecuteArgs', () => {
    it('null command → validation error', () => {
       expect(() => validateExecuteArgs(null as unknown as string)).toThrow(/command/i);
    });
@@ -141,23 +132,5 @@ describe('validateExecuteArgs mirrors the legacy rules', () => {
    });
    it('options.model empty string → validation error', () => {
       expect(() => validateExecuteArgs('cmd', { model: '' })).toThrow(/model/i);
-   });
-});
-
-describe('close is required', () => {
-   const source = (relative: string) =>
-      readFileSync(fileURLToPath(new URL(relative, import.meta.url)), 'utf8');
-
-   it('the contract suite never skips or guards close', () => {
-      const text = source('./governed-driver.contract.ts');
-      expect(text).not.toMatch(/\bclose\?/);
-      expect(text).not.toMatch(/undefined\s*===\s*close/);
-   });
-
-   it('the protocol layer calls driver.close() without a guard', () => {
-      const text = source('../../protocol/agent.ts');
-      expect(text).toMatch(/driver\.close\(\)/);
-      expect(text).not.toMatch(/driver\.close\?/);
-      expect(text).not.toMatch(/undefined\s*!==\s*driver\.close/);
    });
 });

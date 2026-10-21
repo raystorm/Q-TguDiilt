@@ -8,8 +8,8 @@ import type { GovernanceConfig } from '../types.js';
  * most-restrictive-wins reduction across segments, and fail-closed (ask)
  * behavior on anything that cannot be safely parsed (command substitution,
  * unbalanced quotes, parser errors). Escalated to TestDesigner for
- * adversarial review after initial implementation — see FEATURE.md A4b
- * Deferred Items.
+ * adversarial review after initial implementation — see the Governance Engine
+ * Deferred Items in FEATURE.md.
  */
 
 const CONFIG: GovernanceConfig = {

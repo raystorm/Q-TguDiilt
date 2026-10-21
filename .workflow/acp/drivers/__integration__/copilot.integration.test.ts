@@ -29,11 +29,11 @@ import {
    createCx, createLogger, detailsOf, eventsOf, makeAgent, newSessionArgs, requestsOf, textParam,
 } from '../../protocol/__tests__/agent.helpers.js';
 import { until } from '../../protocol/__tests__/service-process.helpers.js';
-import { CANCEL_DEADLINE_MS } from '../acp-client/acp-driver.js';
-import { createLogger as createMockLogger } from '../acp-client/__tests__/acp-driver.helpers.js';
-import { realSleep } from '../acp-client/__tests__/stub-agent.helpers.js';
-import { spawnAgent } from '../acp-client/connect.js';
-import { endAgent } from '../acp-client/ending.js';
+import { CANCEL_DEADLINE_MS } from '../acp-driver-core/acp-driver.js';
+import { createLogger as createMockLogger } from '../acp-driver-core/__tests__/acp-driver.helpers.js';
+import { realSleep } from '../acp-driver-core/__tests__/stub-agent.helpers.js';
+import { spawnAgent } from '../acp-driver-core/connect.js';
+import { endAgent } from '../acp-driver-core/ending.js';
 import { COPILOT_ARGS, COPILOT_COMMAND, createCopilotAcpDriver } from '../copilot-driver-acp.js';
 import type { DriverResult } from '../governed-driver.js';
 import { describeAdversarialRun } from './adversarial.js';

@@ -2,8 +2,8 @@
  * Turns the contract suite's `script(reports)` into ACP traffic, so the suite
  * can run against a real driver over fake agents. Not product code.
  */
-import { createLogger, fakeAgents, type FakeAgent } from '../acp-client/__tests__/acp-driver.helpers.js';
-import type { Connect } from '../acp-client/types.js';
+import { createLogger, fakeAgents, type FakeAgent } from '../acp-driver-core/__tests__/acp-driver.helpers.js';
+import type { Connect } from '../acp-driver-core/types.js';
 import type { Logger } from '../../shared/logger.js';
 import type { Driver, ToolCallReport } from '../governed-driver.js';
 import type { GovernedDriverHarness } from './governed-driver.contract.js';

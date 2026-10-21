@@ -1,7 +1,7 @@
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect } from 'vitest';
-import { createToolCallTable } from '../../drivers/acp-client/permissions.js';
+import { createToolCallTable } from '../../drivers/acp-driver-core/permissions.js';
 import type { ToolCallKind } from '../../drivers/governed-driver.js';
 import { evaluateToolCall, loadGovernanceConfig } from '../engine.js';
 import type { GovernanceAction, GovernanceConfig, GovernanceRule } from '../types.js';

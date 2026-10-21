@@ -52,7 +52,7 @@ Each skill lives in its own subdirectory under `.workflow/skills/`:
 
 ## Symlink Targets
 
-Skills are shared across providers via symlinks. The installer (A5) creates
+Skills are shared across providers via symlinks. The installer creates
 these symlinks — they are documented here for reference only.
 
 | Provider | Symlink Target    |

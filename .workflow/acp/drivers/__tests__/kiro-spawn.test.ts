@@ -1,10 +1,10 @@
 import { realpathSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { createLogger } from '../acp-client/__tests__/acp-driver.helpers.js';
-import { failureOf } from '../acp-client/__tests__/failures.helpers.js';
-import { startStub, stubKiroCliBin } from '../acp-client/__tests__/stub-agent.helpers.js';
-import { AgentNotFoundError } from '../acp-client/errors.js';
+import { createLogger } from '../acp-driver-core/__tests__/acp-driver.helpers.js';
+import { failureOf } from '../acp-driver-core/__tests__/failures.helpers.js';
+import { startStub, stubKiroCliBin } from '../acp-driver-core/__tests__/stub-agent.helpers.js';
+import { AgentNotFoundError } from '../acp-driver-core/errors.js';
 import { KIRO_ARGS, KIRO_COMMAND, createKiroAcpDriver } from '../kiro-driver-acp.js';
 
 let bin: string;

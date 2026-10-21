@@ -1,5 +1,5 @@
 import { describe } from 'vitest';
-import { createAcpDriver } from '../acp-client/acp-driver.js';
+import { createAcpDriver } from '../acp-driver-core/acp-driver.js';
 import { createCopilotAcpDriver } from '../copilot-driver-acp.js';
 import { createKiroAcpDriver } from '../kiro-driver-acp.js';
 import { createAcpHarness } from './acp-contract-harness.js';

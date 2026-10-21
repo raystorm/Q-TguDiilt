@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { goneWithin, isAlive } from '../../drivers/acp-client/__tests__/stub-agent.helpers.js';
+import { goneWithin, isAlive } from '../../drivers/acp-driver-core/__tests__/stub-agent.helpers.js';
 import { exitWithin, startService, until } from './service-process.helpers.js';
 
 const INITIALIZE = { protocolVersion: 1, clientCapabilities: {} };

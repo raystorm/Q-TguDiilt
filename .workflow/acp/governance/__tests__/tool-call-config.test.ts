@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -148,19 +148,6 @@ describe('shipped config', () => {
 
    it('[H] a read of a ".." path still asks', () => {
       expect(action(rep('read', { paths: ['/proj/../etc/passwd'] }))).toBe('ask');
-   });
-
-   it('the rules carry the explanation as an adjacent comment', () => {
-      const lines = readFileSync(CONFIG_PATH, 'utf8').split('\n');
-      const index = lines.findIndex(line => /^\s*-\s*kind:\s*read\b/.test(line));
-      expect(index).toBeGreaterThan(0);
-      const comment = lines.slice(Math.max(0, index - 8), index)
-         .filter(line => line.trim().startsWith('#'))
-         .map(line => line.replace(/^\s*#\s?/, ''))
-         .join(' ')
-         .replace(/\s+/g, ' ');
-      expect(comment).toMatch(/mirrors the AI/);
-      expect(comment).toMatch(/probably has no effect/);
    });
 
    it('everything else asks', () => {

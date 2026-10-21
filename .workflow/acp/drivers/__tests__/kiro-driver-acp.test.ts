@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { AgentRefusedError } from '../acp-client/errors.js';
-import { createLogger, fakeAgents, sent } from '../acp-client/__tests__/acp-driver.helpers.js';
-import { SESSION, failureOf } from '../acp-client/__tests__/failures.helpers.js';
+import { AgentRefusedError } from '../acp-driver-core/errors.js';
+import { createLogger, fakeAgents, sent } from '../acp-driver-core/__tests__/acp-driver.helpers.js';
+import { SESSION, failureOf } from '../acp-driver-core/__tests__/failures.helpers.js';
 import { declaresToolCallGovernance } from '../governed-driver.js';
 import type { ToolCallReport } from '../governed-driver.js';
 import { KIRO_ARGS, KIRO_COMMAND, createKiroAcpDriver } from '../kiro-driver-acp.js';

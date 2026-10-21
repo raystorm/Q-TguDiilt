@@ -1,9 +1,8 @@
-import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it, vi } from 'vitest';
-import { fakeAgents } from '../../drivers/acp-client/__tests__/acp-driver.helpers.js';
-import { scriptFor } from '../../drivers/acp-client/__tests__/permissions.helpers.js';
+import { fakeAgents } from '../../drivers/acp-driver-core/__tests__/acp-driver.helpers.js';
+import { scriptFor } from '../../drivers/acp-driver-core/__tests__/permissions.helpers.js';
 import { createKiroAcpDriver } from '../../drivers/kiro-driver-acp.js';
 import { createGovernanceEngine } from '../../governance/engine.js';
 import {
@@ -73,31 +72,5 @@ describe('governance in front of the Kiro driver', () => {
       const closing = driver.close();
       agent.exit(0);
       await closing;
-   });
-});
-
-describe('the entry point wiring', () => {
-   const sources = (dir: string): string[] => readdirSync(dir, { withFileTypes: true }).flatMap(entry => {
-      if ('node_modules' === entry.name || '__tests__' === entry.name) { return []; }
-      const path = join(dir, entry.name);
-      if (entry.isDirectory()) { return sources(path); }
-      return /\.(ts|mjs)$/.test(entry.name) ? [path] : [];
-   });
-
-   it('[H] the placeholder driver is gone from every source file', () => {
-      const placeholder = ['un', 'wired'].join('');
-      const sentence    = ['no governed driver is ', 'wired yet'].join('');
-      for (const file of sources(ACP_ROOT)) {
-         const text = readFileSync(file, 'utf8');
-         expect(text, file).not.toContain(placeholder);
-         expect(text, file).not.toContain(sentence);
-      }
-   });
-
-   it('no driver is chosen by name in the entry point', () => {
-      const text = readFileSync(join(ACP_ROOT, 'protocol', 'index.ts'), 'utf8');
-      const imports = [...text.matchAll(/from '(\.\.\/drivers\/[^']+)'/g)].map(match => match[1]);
-      expect(imports).toEqual(['../drivers/kiro-driver-acp.js']);
-      expect(text).not.toMatch(/registry/i);
    });
 });

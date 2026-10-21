@@ -3,7 +3,7 @@
 The ACP driver core is the shared `Driver` that talks the Agent Client
 Protocol (ACP) to a downstream agent such as Kiro or Copilot. Here the
 service is the ACP client and the agent is the server. The code lives in
-`.workflow/acp/drivers/acp-client/` (the directory keeps its older name).
+`.workflow/acp/drivers/acp-driver-core/`.
 A concrete driver is a thin file: it supplies the agent's launch command
 line and, optionally, checks for that agent. Everything else is shared,
 and the core contains no agent-specific code.

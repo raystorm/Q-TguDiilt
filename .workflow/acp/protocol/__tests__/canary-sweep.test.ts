@@ -1,10 +1,10 @@
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it, vi } from 'vitest';
-import { createAcpDriver } from '../../drivers/acp-client/acp-driver.js';
-import { LAUNCH, fakeAgents } from '../../drivers/acp-client/__tests__/acp-driver.helpers.js';
-import { NEVER } from '../../drivers/acp-client/__tests__/fake-acp-agent.js';
-import { SESSION, scriptFor } from '../../drivers/acp-client/__tests__/permissions.helpers.js';
+import { createAcpDriver } from '../../drivers/acp-driver-core/acp-driver.js';
+import { LAUNCH, fakeAgents } from '../../drivers/acp-driver-core/__tests__/acp-driver.helpers.js';
+import { NEVER } from '../../drivers/acp-driver-core/__tests__/fake-acp-agent.js';
+import { SESSION, scriptFor } from '../../drivers/acp-driver-core/__tests__/permissions.helpers.js';
 import { createGovernanceEngine } from '../../governance/engine.js';
 import {
    createCx, createLogger, makeAgent, newSessionArgs, reject, requestsOf, textParam,

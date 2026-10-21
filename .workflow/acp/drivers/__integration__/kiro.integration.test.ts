@@ -22,9 +22,9 @@ import {
    createCx, createLogger, detailsOf, eventsOf, makeAgent, newSessionArgs, requestsOf, textParam,
 } from '../../protocol/__tests__/agent.helpers.js';
 import { exitWithin, startLiveService, until } from '../../protocol/__tests__/service-process.helpers.js';
-import { CANCEL_DEADLINE_MS } from '../acp-client/acp-driver.js';
-import { createLogger as createMockLogger } from '../acp-client/__tests__/acp-driver.helpers.js';
-import { realSleep } from '../acp-client/__tests__/stub-agent.helpers.js';
+import { CANCEL_DEADLINE_MS } from '../acp-driver-core/acp-driver.js';
+import { createLogger as createMockLogger } from '../acp-driver-core/__tests__/acp-driver.helpers.js';
+import { realSleep } from '../acp-driver-core/__tests__/stub-agent.helpers.js';
 import type { DriverResult } from '../governed-driver.js';
 import { createKiroAcpDriver } from '../kiro-driver-acp.js';
 import { describeAdversarialRun } from './adversarial.js';

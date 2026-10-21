@@ -1,5 +1,5 @@
 /**
- * The shared ACP-client core: a governed `Driver` over any ACP agent.
+ * The shared ACP driver core: a governed `Driver` over any ACP agent.
  * One agent process per downstream session, launched at the first prompt.
  * What differs per agent (how to start it) is passed in.
  */

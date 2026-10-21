@@ -1,12 +1,12 @@
 /**
- * The Copilot driver: the shared ACP-client core, launched as `copilot --acp --stdio`.
+ * The Copilot driver: the shared ACP driver core, launched as `copilot --acp --stdio`.
  * Everything that is specific to Copilot is in this file: the launch command line
  * and the two settings that make it run tools without asking. The core has no Copilot code.
  */
 import type { Logger } from '../shared/logger.js';
-import { createAcpDriver } from './acp-client/acp-driver.js';
-import { spawnAgent } from './acp-client/connect.js';
-import type { Connect, UnsafeSetting } from './acp-client/types.js';
+import { createAcpDriver } from './acp-driver-core/acp-driver.js';
+import { spawnAgent } from './acp-driver-core/connect.js';
+import type { Connect, UnsafeSetting } from './acp-driver-core/types.js';
 import type { Driver } from './governed-driver.js';
 
 /** The Copilot CLI executable, found on PATH. */
