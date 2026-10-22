@@ -16,6 +16,16 @@
 ## Testing Patterns
 - Mock external dependencies properly
 - Test user interactions, not implementation details
+- Tests MUST assert observable results, for example:
+  - return values
+  - side effects
+  - user-facing output
+  - loaded or processed config values
+- Tests MUST assert the effect of the code, NOT how it is written
+- Tests MUST NOT assert implementation details by inspecting source or config
+  text
+- A test that can only be performed by reading text is a review step,
+  NOT a test
 
 ## Coverage
 - Aim for meaningful test coverage

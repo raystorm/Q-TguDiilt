@@ -233,6 +233,9 @@ Before stating, using, or writing any factual information, classify the informat
 - Follow existing patterns in the codebase
 - When adding new features, match the naming style of similar existing features
 
+## Story Identifiers
+- Code, comments, tests and documentation MUST NOT mention story ids
+
 ## Rule File Organization
 - Add new rules to existing rule files when they fit the same category
 - Only create new rule files when the rule doesn't fit any existing category

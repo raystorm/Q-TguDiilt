@@ -2,8 +2,8 @@
 
 The ACP driver layer is designed to be extended. You can bring your
 own drivers — local models, future providers, internal tools — by
-implementing the driver interface and registering them in the driver
-registry config.
+implementing the driver interface, exporting a `createDriver` factory,
+and registering them in the driver registry config.
 
 ## Driver Interface
 
@@ -61,63 +61,98 @@ unsafe settings. The core needs no change. See
 
 ## Driver Registry
 
-The registry is a YAML file that maps driver names to their supported
-models. The ACP Protocol layer reads this file to resolve which driver to
-dispatch to for a given model.
+The registry is a YAML file that maps driver names to the module that
+provides each driver and the models it supports. The ACP Protocol layer
+reads this file to resolve which driver to dispatch to for a given model.
 
 ```yaml
 drivers:
   kiro:
+    module: ./kiro-driver-acp.js
     models:
       - claude-sonnet-5
       - claude-opus-5
 
   copilot:
+    module: ./copilot-driver-acp.js
     models:
       - claude-sonnet-5
       - gpt-5.6-sol
 
   my-local-model:
+    module: ./my-local-model-driver.js
     models:
       - llama-3.2-local
 ```
 
+`module` is required. A relative path is read from the registry file's
+folder, an absolute path also works, and a TypeScript source file is named
+with a `.js` suffix.
+
 Two optional top-level fields control resolution preference:
 
-- `preferredProvider` — when multiple drivers support a model, use
+- `preferredDriver` — when multiple drivers support a model, use
   this driver first
-- `preferredModel` — binds a specific model to a specific driver,
-  overriding `preferredProvider`
+- `preferredModel` — the registry's default (model, driver) pair, used
+  when a profile has no usable entry. There, `preferredDriver` is used if
+  it lists the model; otherwise the bound driver
 
 See `.workflow/acp/drivers/registry.example.yaml` for a complete
-example with Kiro, Copilot, and a custom driver entry.
+example with Kiro, Copilot, and a custom driver entry (shown as a
+comment, because it has no code behind it). The registry in use is your
+own `registry.yaml` in the same folder, not tracked by git: copy the
+example to it once, then edit the copy. A missing `registry.yaml` fails
+to load with an error that points to the example.
 
 ## Registering a Custom Driver
 
-Add an entry to your registry YAML under `drivers:`:
+1. Implement the driver and export `createDriver({ logger })` from its
+   module. The factory returns the driver; its `name` must equal the
+   registry key.
+2. Add an entry to your `registry.yaml` under `drivers:`:
 
 ```yaml
 drivers:
   my-local-model:
+    module: ./my-local-model-driver.js
     models:
       - llama-3.2-local
       - mistral-7b-local
 ```
 
-The installer ships a default registry with Kiro and Copilot entries.
-Place your custom registry at the path the ACP Protocol layer is
-configured to read.
+## Startup Checks
+
+The Driver Catalog loads every driver the registry names and checks it:
+the module imports, exports `createDriver`, the factory returns a driver
+whose name equals the registry key, and the driver declares tool-call
+governance. Models and installed CLIs are not checked.
+
+A driver that fails is logged (entry name, resolved path, failure kind)
+and left out; the others still load. Building the catalog fails when the
+registry lists no drivers, when every driver fails, or when the registry
+defaults cannot select a working driver. A preferred driver that is
+missing from `drivers:` or failed is flagged, logged as a warning, and
+described in a notice naming the driver in use instead.
+
+See `.workflow/acp/drivers/EXTENDING.md` (Driver Catalog) for the details.
 
 ## Model Selection Resolution
 
 When a model is requested, the ACP Protocol layer resolves the driver in
-this order:
+this order (the full algorithm is in `docs/dev/acp/model-dispatch.md`):
 
-1. `preferredModel` binding matches → use that driver
-2. `preferredProvider` supports the model → use preferred driver
-   (emits warning if preferred provider unavailable, then falls back)
-3. First driver in registry order that lists the model
-4. No match → error identifying the model as unregistered
+1. The driver given with the request lists the model → use it (for the
+   registry defaults, `preferredDriver` is the given driver)
+2. `preferredModel` binding matches → use that driver
+3. `preferredDriver` lists the model → use that driver
+4. First driver in registry order that lists the model
+5. No driver lists the model → retry with `auto`; a model nobody lists
+   falls back to `auto` and is not an error
+6. No driver lists `auto` either → "no driver available" error, naming
+   the requested model
+
+A driver that failed to load is not in the registry the resolver sees, so
+these steps skip it.
 
 ---
 

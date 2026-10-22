@@ -48,3 +48,7 @@ export function createCopilotAcpDriver({ connect = spawnAgent, logger }: Copilot
       logger,
    });
 }
+
+/** The registry's entry point: the Copilot driver, built from the logger alone. */
+export function createDriver({ logger }: { logger: Logger }): Driver
+{ return createCopilotAcpDriver({ logger }); }

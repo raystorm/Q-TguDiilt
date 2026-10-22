@@ -47,6 +47,16 @@ returns a `DispatchResolver` with one method: `resolve(profile)` →
 once per dispatch; `source` (`'profile'` or `'registry-default'`)
 is logged alongside the resolved pair.
 
+## Drivers that failed to load
+
+The Driver Catalog (`drivers/driver-catalog.ts`) leaves any driver that
+failed a startup check out of the registry copy it exposes as
+`resolverConfig`. A resolver built on that copy never picks a failed
+driver: a profile or default that names one resolves as if the driver were
+not listed. The catalog also calls `resolveRegistry` with the registry
+defaults and fails the build when they cannot select a working driver. See
+`drivers/EXTENDING.md` (Driver Catalog).
+
 ## Implementing and registering a custom driver
 
 See `drivers/EXTENDING.md` — this content is owned there; model

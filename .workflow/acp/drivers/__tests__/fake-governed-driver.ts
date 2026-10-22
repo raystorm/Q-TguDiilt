@@ -24,7 +24,7 @@ function whenAborted(signal?: AbortSignal): Promise<typeof CANCELLED> {
  * settles cancelled. On close it settles in-flight turns cancelled and
  * discards late answers.
  */
-export function createFakeGovernedDriver() {
+export function createFakeGovernedDriver(name = 'fake') {
    let scripted: ToolCallReport[] = [];
    const ranReports: ToolCallReport[] = [];
    const events: string[] = [];
@@ -36,7 +36,7 @@ export function createFakeGovernedDriver() {
    const closed = new Promise<typeof CANCELLED>(resolve => { closeNow = () => resolve(CANCELLED); });
 
    const driver: Driver = {
-      name:                       'fake',
+      name:                       name,
       supportsToolCallGovernance: true,
       async execute(command, options = {}) {
          validateExecuteArgs(command, options);

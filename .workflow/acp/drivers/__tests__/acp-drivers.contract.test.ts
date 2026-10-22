@@ -1,9 +1,15 @@
-import { describe } from 'vitest';
+import { describe, vi } from 'vitest';
 import { createAcpDriver } from '../acp-driver-core/acp-driver.js';
-import { createCopilotAcpDriver } from '../copilot-driver-acp.js';
-import { createKiroAcpDriver } from '../kiro-driver-acp.js';
-import { createAcpHarness } from './acp-contract-harness.js';
+import { spawnAgent } from '../acp-driver-core/connect.js';
+import { createCopilotAcpDriver, createDriver as createCopilot } from '../copilot-driver-acp.js';
+import { createKiroAcpDriver, createDriver as createKiro } from '../kiro-driver-acp.js';
+import { createAcpHarness, type AcpHarnessOptions } from './acp-contract-harness.js';
 import { describeGovernedDriverContract } from './governed-driver.contract.js';
+
+vi.mock('../acp-driver-core/connect.js', async importOriginal => ({
+   ...(await importOriginal<typeof import('../acp-driver-core/connect.js')>()),
+   spawnAgent: vi.fn(),
+}));
 
 /** What Kiro's V3 server reports at initialize. */
 const KIRO_V3 = {
@@ -27,5 +33,23 @@ describe('the real drivers pass the contract', () => {
          name: 'toy', connect, launch: { command: 'toy-agent', args: [] },
          policy: { verifySession: () => undefined }, logger,
       }),
+   }));
+});
+
+/** `createDriver` starts its agent with `spawnAgent`; the mock hands it the fake agents. */
+const viaSpawnAgent = (create: typeof createKiro): AcpHarnessOptions['make'] =>
+   (connect, logger) => {
+      vi.mocked(spawnAgent).mockImplementation(connect);
+      return create({ logger });
+   };
+
+describe('the registry entry points pass the contract', () => {
+   describeGovernedDriverContract('kiro createDriver', () => createAcpHarness({
+      make:    viaSpawnAgent(createKiro),
+      prepare: agent => agent.respond('initialize', () => KIRO_V3),
+   }));
+
+   describeGovernedDriverContract('copilot createDriver', () => createAcpHarness({
+      make: viaSpawnAgent(createCopilot),
    }));
 });

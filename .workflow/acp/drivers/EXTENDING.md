@@ -111,7 +111,9 @@ implementation. It honors the signal and implements `close`.
 ## How to Implement a Custom Driver
 
 1. Implement `Driver` from `governed-driver.ts`, declaring a `name` and
-   `supportsToolCallGovernance: true`. A sketch, provider specifics
+   `supportsToolCallGovernance: true`, and export a `createDriver`
+   factory. The Driver Catalog loads a driver by importing its module and
+   calling `createDriver({ logger })`. A sketch, provider specifics
    omitted:
 
 ```typescript
@@ -121,8 +123,9 @@ import {
    gateToolCall,
    validateExecuteArgs,
 } from './governed-driver.js';
+import type { Logger } from '../shared/logger.js';
 
-export function createMyDriver(): Driver {
+export function createDriver({ logger }: { logger: Logger }): Driver {
    return {
       name:                       'my-driver',
       supportsToolCallGovernance: true,
@@ -162,7 +165,7 @@ export function createMyDriver(): Driver {
 import { describeGovernedDriverContract } from './governed-driver.contract.js';
 
 describeGovernedDriverContract('my-driver', () => ({
-   driver: createMyDriver(),
+   driver: createDriver({ logger }),
    script: reports => { /* make the driver attempt these tool calls */ },
    ran:    () => [ /* reports whose side effects actually happened */ ],
    released: () => /* times close() released the downstream agent */ 0,
@@ -175,21 +178,29 @@ describeGovernedDriverContract('my-driver', () => ({
    downstream agent (the suite expects 0 when nothing was started and 1
    after a started driver is closed, however often `close()` is called).
 
+6. Add a registry entry for the driver, with its `module` (see Registry
+   Config Format and How to Register a Custom Driver below). The Driver
+   Catalog checks the driver when it is built.
+
 ---
 
 ## Registry Config Format
 
-The registry is a YAML file that maps driver names to their supported
-models, with optional top-level preference fields, a per-profile
-preference section, and a system-level fallback policy.
+The registry is a YAML file that maps driver names to the module that
+provides each driver and the models it supports, with optional top-level
+preference fields, a per-profile preference section, and a system-level
+fallback policy.
 
 ```yaml
 # Optional: preferred driver when multiple drivers support a model.
 # Falls back to registry order if unavailable for the requested model.
 preferredDriver: kiro
 
-# Optional: binds a specific model to a specific driver.
-# Overrides preferredDriver for that model.
+# Optional: registry-level default (model, driver) pair. It is the
+# fallback used when a profile has no `profiles:` entry, or its entry
+# fails to resolve (unless fallbackMode is 'fail-fast'). A profile's own
+# entry is always tried first. In that fallback, preferredDriver is used
+# if it lists the model; otherwise the bound driver, then registry order.
 preferredModel:
   model: claude-sonnet-5
   driver: kiro
@@ -213,6 +224,7 @@ fallbackMode: fallback-to-default-driver
 
 drivers:
   <driver-name>:
+    module: <path-to-driver-module>
     models:
       - <model-name>
       - <model-name>
@@ -220,31 +232,95 @@ drivers:
 
 **Rules:**
 - Each entry key is the driver name (string, required)
+- `module` is the path to the file that provides the driver, and exports
+  a `createDriver` factory (non-empty string, required; a missing or
+  invalid value fails the registry load and names the driver). A relative
+  path is read from the registry file's folder; an absolute path also
+  works, so a driver can live outside the engine's own files. A TypeScript
+  source file is named with a `.js` suffix, as in the source's imports.
 - `models` is a list of model name strings (required, must be non-empty)
 - `preferredDriver`, `preferredModel`, `profiles`, and `fallbackMode`
   are all optional
+- The loader does not check that `preferredDriver`, `preferredModel.driver`
+  or `profiles.*.driver` name a driver under `drivers:`; the Driver
+  Catalog checks the preferred driver
 - Custom driver entries follow the same schema as built-in entries
 
 See `registry.example.yaml` for a complete example with Kiro, Copilot,
-a per-profile `profiles:` block, and a custom driver entry.
+a per-profile `profiles:` block, and a custom driver entry (shown as a
+comment, because it has no code behind it).
+
+**Registry files:** the registry in use is the project's own
+`registry.yaml`, in the same folder as the example and not tracked by git.
+Copy `registry.example.yaml` to `registry.yaml` once, then edit the copy.
+A missing `registry.yaml` fails to load with an error that points to the
+example; the example is never used as a fallback.
 
 ---
 
 ## How to Register a Custom Driver
 
-Add an entry to your registry YAML under `drivers:`:
+Add an entry to your `registry.yaml` under `drivers:`. The key is the
+driver's name and must equal the `name` of the driver the factory returns;
+`module` is the file that exports `createDriver`:
 
 ```yaml
 drivers:
   my-local-model:
+    module: ./my-local-model-driver.js
     models:
       - llama-3.2-local
       - mistral-7b-local
 ```
 
-The installer ships a default registry with Kiro and Copilot entries.
-Place your custom registry at the path the ACP service is configured to
-read.
+The shipped `registry.example.yaml` has the Kiro and Copilot entries.
+Copy it to `registry.yaml` in the same folder and add your entry to the
+copy.
+
+---
+
+## Driver Catalog
+
+A Driver Catalog (`driver-catalog.ts`, `buildDriverCatalog`) is built from
+a loaded registry. For each entry it checks that:
+
+- the module exists and imports
+- it exports `createDriver`
+- the factory does not throw and returns a driver
+- the driver's `name` equals the registry key
+- the driver declares tool-call governance (exactly `true`)
+
+Models and installed CLIs are not checked.
+
+**Failed drivers.** A driver that fails a check is logged once (entry
+name, resolved module path, failure kind) and left out of the catalog and
+out of `resolverConfig`, the registry the dispatch resolver sees. The other
+drivers still load. A driver the factory created and the catalog then
+rejected is closed. The failure kinds are the `DRIVER_FAILURE` constants:
+module not found, import failed, no createDriver, factory failed, not a
+driver, name mismatch, no governance.
+
+**Build failure.** `buildDriverCatalog` rejects with
+`DriverCatalogBuildError` when `drivers:` is empty, when every driver
+fails, or when the registry defaults cannot select a working driver once
+the failed ones are left out. The error lists each failure (name, path,
+kind), the resolver's reason where it applies, and how to fix it. Drivers
+already created are closed first, so the driver in use is always a working
+driver.
+
+**Preferred driver.** It is `preferredModel.driver` if `preferredModel` is
+set, else `preferredDriver`, else the first driver listed; names match
+exactly. When it is not under `drivers:` (failure kind "not in registry",
+for example a typo) or failed a check, the registry still loads. The
+catalog sets `preferred.flagged`, logs one `warn` entry, and supplies
+`notice`, a text naming the preferred driver, the driver in use and the
+kind. The driver in use, `preferred.inUse`, is what the resolver returns
+for the registry defaults over the working drivers.
+
+**Using the catalog.** `get(name)` returns a working driver, or throws
+`DriverNotInCatalogError`. `names()` lists the working drivers in registry
+order. `closeAll()` tries to close every driver, then rethrows the first
+failure; it is safe to call again or at the same time.
 
 ---
 
@@ -257,15 +333,21 @@ combined error, with `auto`-model retry and configurable
 `fallbackMode`).
 
 This section covers only the registry-level step that the resolver
-calls into — matching a `(model, driver)` pair against the registry:
+calls into (`resolveRegistry`) — matching a `(model, driver)` pair
+against the registry:
 
-1. **preferredModel binding matches** — if `preferredModel.model` equals
-   the requested model, use `preferredModel.driver`'s driver.
-2. **preferredDriver supports the model** — if `preferredDriver` is
-   set and its `models` list includes the requested model, use that
+1. **The given driver lists the model** — if a driver came with the
+   request and its `models` list includes the model, use it. For the
+   registry defaults the resolver gives `preferredDriver` here.
+2. **preferredModel binding matches** — if `preferredModel.model` equals
+   the requested model and `preferredModel.driver` lists it, use that
    driver.
-3. **First match in registry order** — use the first driver in the
+3. **preferredDriver lists the model** — use that driver.
+4. **First match in registry order** — use the first driver in the
    registry whose `models` list includes the requested model.
-4. **No match** — retry with `model = "auto"` (keeping whatever driver
-   context is already known), then raise an error if even `auto` has
-   no supporting driver.
+5. **No match** — retry with `model = "auto"`: the given driver, else
+   `preferredDriver`, else the first driver listed, if it lists `auto`;
+   otherwise the first driver that lists `auto`. A named model that no
+   driver lists falls back to `auto`; it is not an error.
+6. **No driver lists `auto`** — the "no driver available" error, which
+   names the requested model. It is the only resolution error.

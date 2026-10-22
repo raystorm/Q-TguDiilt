@@ -372,12 +372,19 @@ adapter to a provider.
 Driver
 : The provider-neutral adapter the Protocol Layer calls to run a turn on a Provider.  
 Supports and integrates with ACP Governance to check tool calls and only runs them on `approve`.
-Releases every process it started when closed. Drivers are listed by name in the Driver Registry.
+Releases every process it started when closed. Drivers are listed by name in the Driver Registry,
+each with a module that exports `createDriver`.
 
 Driver Registry
-: A YAML config mapping driver names to the models they support.  
+: A YAML config mapping driver names to a module and the models they support.  
 Also holds per-profile preferences, the preferred driver and model, and
-the fallback mode. Model Dispatch reads it.
+the fallback mode. Model Dispatch reads it, and the Driver Catalog loads the drivers it names.
+
+Driver Catalog
+: The working drivers built from a Driver Registry.  
+Loads each entry's module and checks it; a driver that fails is logged and left out,
+and the others still load. Hands out drivers by name, flags a missing or failed preferred driver,
+and closes every driver on shutdown.
 
 Model Dispatch
 : Choosing the model and driver for a profile's commands.  

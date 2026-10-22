@@ -17,8 +17,12 @@ import {
    RegistryConfigInvalidError,
 } from './errors.js';
 
-/** A single driver registry entry: the models that driver supports. */
-export interface RegistryDriverEntry { models: string[]; }
+/**
+ * A single driver registry entry: the module that provides the driver
+ * (path as written in the registry file, not resolved here) and the
+ * models that driver supports.
+ */
+export interface RegistryDriverEntry { module: string; models: string[]; }
 
 /** Binds a specific model to a specific driver; overrides `preferredDriver`. */
 export interface PreferredModel {
@@ -80,13 +84,18 @@ function validateConfigShape(filePath: string, doc: unknown): RegistryConfig
    for (const [name, rawEntry] of Object.entries(rawDrivers as Record<string, unknown>)) {
       if (null === rawEntry || 'object' !== typeof rawEntry)
       { throw new RegistryConfigInvalidError(filePath, `driver "${name}" must be an object`); }
-      const { models } = rawEntry as Record<string, unknown>;
+      const { module: modulePath, models } = rawEntry as Record<string, unknown>;
+      if ('string' !== typeof modulePath || '' === modulePath.trim())
+      {
+         throw new RegistryConfigInvalidError(filePath,
+                                              `driver "${name}" must have a non-empty string "module"`);
+      }
       if (!Array.isArray(models) || 0 === models.length)
       {
          throw new RegistryConfigInvalidError(filePath,
                                               `driver "${name}" must have a non-empty "models" list`);
       }
-      drivers[name] = { models: models as string[] };
+      drivers[name] = { module: modulePath, models: models as string[] };
    }
 
    const config: RegistryConfig = { drivers };

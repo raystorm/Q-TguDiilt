@@ -62,3 +62,7 @@ export function createKiroAcpDriver({ connect = spawnAgent, logger }: KiroDriver
       logger,
    });
 }
+
+/** The registry's entry point: the Kiro driver, built from the logger alone. */
+export function createDriver({ logger }: { logger: Logger }): Driver
+{ return createKiroAcpDriver({ logger }); }

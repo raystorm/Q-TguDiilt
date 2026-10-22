@@ -68,6 +68,9 @@ Thumbs.db
 # ACP temp or build Files
 /.workflow/acp/node_modules/
 
+# ACP local driver registry (copy of registry.example.yaml)
+/.workflow/acp/drivers/registry.yaml
+
 # Local scratch/parking-lot files (not for git history; mined into
 # GitHub Projects once that integration lands)
 /scratch/

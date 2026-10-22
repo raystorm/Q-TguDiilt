@@ -17,6 +17,7 @@ import {
    RegistryConfigInvalidError,
 } from '../../drivers/errors.js';
 import { RegistryConfig } from '../../drivers/registry.js';
+import { driverEntry, FIXTURE_MODULE } from '../../drivers/__tests__/registry-fixtures.js';
 
 let dir: string;
 
@@ -52,6 +53,7 @@ describe('Group 1 — registry config parsing', () => {
       const filePath = writeRegistry(`
 drivers:
   kiro:
+    module: ${FIXTURE_MODULE}
     models: [auto, claude-sonnet-5]
 `);
       const config = loadRegistryConfig(filePath);
@@ -66,6 +68,7 @@ preferredModel:
   driver: kiro
 drivers:
   kiro:
+    module: ${FIXTURE_MODULE}
     models: [auto, claude-sonnet-5]
 `);
       const config = loadRegistryConfig(filePath);
@@ -77,6 +80,7 @@ drivers:
       const filePath = writeRegistry(`
 drivers:
   kiro:
+    module: ${FIXTURE_MODULE}
     models: [auto, claude-opus-5, claude-sonnet-5]
 profiles:
   Architect:
@@ -110,6 +114,7 @@ profiles:
       const filePath = writeRegistry(`
 drivers:
   kiro:
+    module: ${FIXTURE_MODULE}
     models: []
 `);
       expect(() => loadRegistryConfig(filePath)).toThrow(RegistryConfigInvalidError);
@@ -120,6 +125,7 @@ drivers:
 fallbackMode: fail-fast
 drivers:
   kiro:
+    module: ${FIXTURE_MODULE}
     models: [auto]
 `);
       const config = loadRegistryConfig(filePath);
@@ -131,6 +137,7 @@ drivers:
 fallbackMode: sometimes
 drivers:
   kiro:
+    module: ${FIXTURE_MODULE}
     models: [auto]
 `);
       expect(() => loadRegistryConfig(filePath)).toThrow(RegistryConfigInvalidError);
@@ -142,8 +149,8 @@ drivers:
 describe('Group 2 — registry resolution', () => {
    const twoDriverConfig: RegistryConfig = {
       drivers: {
-         'driver-a': { models: ['auto', 'model-x', 'model-y'] },
-         'driver-b': { models: ['auto', 'model-y', 'model-z'] },
+         'driver-a': driverEntry(['auto', 'model-x', 'model-y']),
+         'driver-b': driverEntry(['auto', 'model-y', 'model-z']),
       },
    };
 
@@ -202,7 +209,7 @@ describe('Group 2 — registry resolution', () => {
 
    it('"auto" is matched like a normal model — no special-case bypass of model-support checking', () => {
       const config: RegistryConfig = {
-         drivers: { 'driver-a': { models: ['model-x'] } }, // no "auto" listed
+         drivers: { 'driver-a': driverEntry(['model-x']) }, // no "auto" listed
       };
       expect(() => resolveRegistry(config, 'auto')).toThrow(NoDriverAvailableError);
    });
@@ -210,7 +217,7 @@ describe('Group 2 — registry resolution', () => {
    it('no driver available even for "auto" → error naming the originally-requested model '
       + 'and that auto also failed', () => {
       const config: RegistryConfig = {
-         drivers: { 'driver-a': { models: ['model-x'] } }, // no "auto"
+         drivers: { 'driver-a': driverEntry(['model-x']) }, // no "auto"
       };
       let caught: unknown;
       try { resolveRegistry(config, 'nonexistent-model'); }
@@ -232,8 +239,8 @@ describe('Group 3 — dispatch resolver fallback chain', () => {
    function configWith(overrides: Partial<RegistryConfig> = {}): RegistryConfig {
       return {
          drivers: {
-            kiro:    { models: ['auto', 'claude-opus-5', 'claude-sonnet-5'] },
-            copilot: { models: ['auto', 'claude-sonnet-5'] },
+            kiro:    driverEntry(['auto', 'claude-opus-5', 'claude-sonnet-5']),
+            copilot: driverEntry(['auto', 'claude-sonnet-5']),
          },
          ...overrides,
       };
@@ -257,7 +264,7 @@ describe('Group 3 — dispatch resolver fallback chain', () => {
       // driver that does support the model, so the fallback succeeds.
       const config: RegistryConfig = {
          drivers: {
-            solo: { models: ['claude-opus-5'] }, // no "claude-sonnet-5", no "auto"
+            solo: driverEntry(['claude-opus-5']), // no "claude-sonnet-5", no "auto"
          },
          profiles:        { Builder: { model: 'claude-sonnet-5', driver: 'solo' } },
          preferredDriver: 'solo',
@@ -290,7 +297,7 @@ describe('Group 3 — dispatch resolver fallback chain', () => {
 
    it('both profile-entry and registry-default resolution fail → one combined error', () => {
       const config: RegistryConfig = {
-         drivers:  { kiro: { models: ['claude-opus-5'] } }, // no "auto"
+         drivers:  { kiro: driverEntry(['claude-opus-5']) }, // no "auto"
          profiles: { Builder: { model: 'nonexistent-model', driver: 'nonexistent-driver' } },
       };
       const resolver = createDispatchResolver({ config, logger: createLogger() });
@@ -299,7 +306,7 @@ describe('Group 3 — dispatch resolver fallback chain', () => {
 
    it('combined error wraps both underlying resolver errors', () => {
       const config: RegistryConfig = {
-         drivers:  { kiro: { models: ['claude-opus-5'] } },
+         drivers:  { kiro: driverEntry(['claude-opus-5']) },
          profiles: { Builder: { model: 'nonexistent-model' } },
       };
       const resolver = createDispatchResolver({ config, logger: createLogger() });
@@ -317,7 +324,7 @@ describe('Group 3 — dispatch resolver fallback chain', () => {
 describe('Group 4 — configurable fallback behavior', () => {
    it('fail-fast mode: fails immediately, no registry-default fallback attempted', () => {
       const config: RegistryConfig = {
-         drivers:  { kiro: { models: ['claude-opus-5'] } }, // no "auto"
+         drivers:  { kiro: driverEntry(['claude-opus-5']) }, // no "auto"
          profiles: { Builder: { model: 'nonexistent-model' } },
       };
       const logger   = createLogger();
@@ -335,7 +342,7 @@ describe('Group 4 — configurable fallback behavior', () => {
       // via a named-model match (not via auto), so the fallback succeeds.
       const config: RegistryConfig = {
          drivers: {
-            solo: { models: ['claude-sonnet-5'] }, // no "auto"
+            solo: driverEntry(['claude-sonnet-5']), // no "auto"
          },
          profiles:        { Builder: { model: 'nonexistent-model', driver: 'solo' } },
          preferredDriver: 'solo',
@@ -348,7 +355,7 @@ describe('Group 4 — configurable fallback behavior', () => {
 
    it('registry config fallbackMode is used when no explicit option is given', () => {
       const config: RegistryConfig = {
-         drivers:     { kiro: { models: ['claude-opus-5'] } }, // no "auto"
+         drivers:     { kiro: driverEntry(['claude-opus-5']) }, // no "auto"
          profiles:    { Builder: { model: 'nonexistent-model' } },
          fallbackMode: 'fail-fast',
       };
@@ -365,7 +372,7 @@ describe('Group 4 — configurable fallback behavior', () => {
       // model has no auto-retry rescue — it genuinely fails. Registry
       // defaults resolve directly via a named-model match.
       const config: RegistryConfig = {
-         drivers:         { solo: { models: ['claude-sonnet-5'] } }, // no "auto"
+         drivers:         { solo: driverEntry(['claude-sonnet-5']) }, // no "auto"
          profiles:        { Builder: { model: 'nonexistent-model', driver: 'solo' } },
          preferredDriver: 'solo',
          preferredModel:  { model: 'claude-sonnet-5', driver: 'solo' },
@@ -385,7 +392,7 @@ describe('Group 4 — configurable fallback behavior', () => {
 describe('Group 5 — operational logging', () => {
    it('successful dispatch logs profile, resolved model, resolved driver, and source', () => {
       const config: RegistryConfig = {
-         drivers:  { kiro: { models: ['claude-opus-5'] } },
+         drivers:  { kiro: driverEntry(['claude-opus-5']) },
          profiles: { Architect: { model: 'claude-opus-5', driver: 'kiro' } },
       };
       const logger   = createLogger();
@@ -400,7 +407,7 @@ describe('Group 5 — operational logging', () => {
 
    it('failed dispatch logs profile, both attempted (model, driver) pairs, and both failure reasons', () => {
       const config: RegistryConfig = {
-         drivers:  { kiro: { models: ['claude-opus-5'] } },
+         drivers:  { kiro: driverEntry(['claude-opus-5']) },
          profiles: { Builder: { model: 'nonexistent-model', driver: 'nonexistent-driver' } },
       };
       const logger   = createLogger();
@@ -432,6 +439,7 @@ describe('Group 6 — createDispatchResolver construction', () => {
       const filePath = writeRegistry(`
 drivers:
   kiro:
+    module: ${FIXTURE_MODULE}
     models: [claude-opus-5]
 profiles:
   Architect:

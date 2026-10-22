@@ -2,9 +2,11 @@
 # Falls back to registry order if the preferred driver does not support the requested model.
 preferredDriver: kiro
 
-# preferredModel: Binds a specific model with a specific driver,
-# overriding preferredDriver for that model.
-# Takes precedence over all other resolution rules.
+# preferredModel: Registry-level default (model, driver) pair. It is the
+# fallback used when a profile has no `profiles:` entry, or its entry fails
+# to resolve (unless fallbackMode is 'fail-fast'). A profile's own entry is
+# always tried first. In that fallback, preferredDriver is used if it lists
+# the model; otherwise the bound driver, then registry order.
 preferredModel:
   model: claude-sonnet-5.5
   driver: kiro
@@ -42,8 +44,13 @@ profiles:
 # chain.
 fallbackMode: fallback-to-default-driver
 
+# drivers: One entry per driver. `module` is the file that provides the
+# driver (it exports a `createDriver` factory). A relative path is read
+# from this file's folder; an absolute path also works. A TypeScript source
+# file is named with a `.js` suffix, as in the source's imports.
 drivers:
   kiro:
+    module: ./kiro-driver-acp.js
     models:
       - auto
       - claude-opus-5.5
@@ -68,6 +75,7 @@ drivers:
       - qwen3-coder-next
 
   copilot:
+    module: ./copilot-driver-acp.js
     models:
       - auto
       - claude-sonnet-5
@@ -97,9 +105,12 @@ drivers:
       - kimi-k3
       - kimi-k2.7-code
 
-  # Example custom driver — demonstrates extensibility.
-  # Implement the driver interface and register it here.
-  my-local-model:
-    models:
-      - llama-3.2-local
-      - mistral-7b-local
+  # Example custom driver, shown as a comment so it is not loaded.
+  # Implement the driver, export `createDriver`, point `module` at the
+  # file, and uncomment the entry.
+  #
+  # my-local-model:
+  #   module: ./my-local-model-driver.js
+  #   models:
+  #     - llama-3.2-local
+  #     - mistral-7b-local
