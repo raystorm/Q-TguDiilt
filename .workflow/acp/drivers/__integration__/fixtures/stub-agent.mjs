@@ -10,6 +10,9 @@
 //   garbage-stdout          answer initialize with a line that is not JSON
 //   stderr-flood            write STUB_FLOOD_BYTES to stderr before it answers a prompt
 // With STUB_DIR set it writes state.json (pids, arguments, directory) and appends to events.log.
+// With STUB_MODELS (a comma list) set, session/new offers those values as its model option, the
+// first one current, and a model change is noted in events.log as model:<value>. Without it the
+// stub offers no model and answers session/set_config_option as an unknown method.
 import { spawn } from 'node:child_process';
 import { appendFileSync, renameSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -26,6 +29,13 @@ const save = () => {
    renameSync(temporary, join(dir, 'state.json'));
 };
 const reply = (id, result) => process.stdout.write(`${JSON.stringify({ jsonrpc: '2.0', id, result })}\n`);
+
+const models = (process.env.STUB_MODELS ?? '').split(',').filter(Boolean);
+let model    = models[0];
+const modelOptions = () => [{
+   id: 'model', name: 'Model', type: 'select', category: 'model', currentValue: model,
+   options: models.map(value => ({ value, name: value })),
+}];
 
 save();
 
@@ -64,7 +74,9 @@ function handle(message) {
          });
          return;
       case 'session/new':
-         reply(message.id, { sessionId: 'stub-session' });
+         reply(message.id, 0 < models.length
+            ? { sessionId: 'stub-session', configOptions: modelOptions() }
+            : { sessionId: 'stub-session' });
          return;
       case 'session/prompt':
          note('prompt');
@@ -78,6 +90,14 @@ function handle(message) {
          }
          reply(message.id, { stopReason: 'end_turn' });
          return;
+      case 'session/set_config_option':
+         if (0 < models.length) {
+            model = message.params.value;
+            note(`model:${model}`);
+            reply(message.id, { configOptions: modelOptions() });
+            return;
+         }
+         // Without STUB_MODELS the stub knows no such method: fall through to the default.
       default:
          process.stdout.write(`${JSON.stringify({
             jsonrpc: '2.0', id: message.id, error: { code: -32601, message: 'method not found' },

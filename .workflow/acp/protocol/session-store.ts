@@ -11,8 +11,13 @@
 export interface SessionRecord {
    sessionId:        string;
    workflowId:       string;
+   /** The driver and model this session was resolved to. Set when the session opens. */
+   driver?:          string;
+   model?:           string;
    driverSessionId?: string;
    activeTurn:       boolean;
+   /** True once a turn of this session has ended normally. */
+   endedNormally:    boolean;
    abort?:           AbortController;
 }
 
@@ -43,13 +48,16 @@ export function createSessionStore(deps: SessionStoreDeps): SessionStore {
             sessionId,
             workflowId: deps.newWorkflowId(),
             activeTurn: false,
+            endedNormally: false,
          };
          sessions.set(sessionId, record);
          return record;
       },
 
       load(sessionId, workflowId) {
-         const record: SessionRecord = { sessionId, workflowId, activeTurn: false };
+         const record: SessionRecord = {
+            sessionId, workflowId, activeTurn: false, endedNormally: false,
+         };
          sessions.set(sessionId, record);
          return record;
       },

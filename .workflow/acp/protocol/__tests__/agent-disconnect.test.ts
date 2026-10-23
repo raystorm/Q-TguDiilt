@@ -1,5 +1,12 @@
 import { describe, it, expect, vi } from 'vitest';
-import { createDriverSpy, createHeldDriver, startTurn, makeAgent, newSessionArgs, eventsOf } from './agent.helpers.js';
+import {
+   createDriverSpy, createHeldDriver, createLogger, createResolverStub, eventsOf, makeAgent,
+   newSessionArgs, oneDriverCatalog, resolved, startTurn,
+} from './agent.helpers.js';
+import { buildDriverCatalog } from '../../drivers/driver-catalog.js';
+import {
+   FIXTURE_REGISTRY, configOf, importFrom, validSet,
+} from '../../drivers/__tests__/catalog-fixtures.js';
 
 describe('Group 18 — disconnect', () => {
    it('[H] aborts every turn, then closes the driver once, then releases the sessions', async () => {
@@ -74,5 +81,90 @@ describe('Group 18 — disconnect', () => {
       await expect(turn).resolves.toEqual({ stopReason: 'cancelled' });
       expect(sessionStore.get(sessionId)).toBeUndefined();
       expect(eventsOf(logger, 'prompt_failed')).toHaveLength(0);
+   });
+});
+
+describe('disconnect closes the catalog', () => {
+   /** A real catalog over fake drivers. */
+   async function realCatalog(names: string[]) {
+      const { drivers, modules } = validSet(...names);
+      const catalog = await buildDriverCatalog({
+         config: configOf(names), registryPath: FIXTURE_REGISTRY, logger: createLogger(),
+         importModule: importFrom(modules),
+      });
+      return { catalog, drivers };
+   }
+
+   const expectEachClosedOnce = (drivers: Record<string, { close: unknown }>) =>
+      Object.values(drivers).forEach(driver => expect(driver.close).toHaveBeenCalledTimes(1));
+
+   it('[H] aborts the turns, closes the catalog once, then releases the sessions', async () => {
+      const held = createHeldDriver();
+      let ids: string[] = [];
+      let atClose: unknown;
+      const closeAll = vi.fn(async () => {
+         atClose = {
+            aborted:      held.driver.seen.map((call: any) => call.options.signal.aborted),
+            present:      ids.map(id => undefined !== sessionStore.get(id)),
+            disconnected: eventsOf(logger, 'disconnect').length,
+         };
+      });
+      const catalog = Object.assign(oneDriverCatalog(held.driver), { closeAll });
+      const { agent, sessionStore, logger } = makeAgent({ driver: held.driver, catalog });
+      const a = await startTurn(agent);
+      await held.started(0);
+      const b = await startTurn(agent);
+      await held.started(1);
+      ids = [a.sessionId, b.sessionId];
+      await agent.onDisconnect();
+      expect(closeAll).toHaveBeenCalledTimes(1);
+      expect(atClose).toEqual({ aborted: [true, true], present: [true, true], disconnected: 0 });
+      expect(ids.map(id => sessionStore.get(id))).toEqual([undefined, undefined]);
+      expect(eventsOf(logger, 'disconnect')).toHaveLength(1);
+      held.release(0);
+      held.release(1);
+      await Promise.all([a.turn, b.turn]);
+   });
+
+   it('a failing closeAll: sessions released, kind only logged, error last', async () => {
+      const closeAll = vi.fn(async () => { throw new Error('SECRET-CLOSE'); });
+      const driver   = createDriverSpy();
+      const catalog  = Object.assign(oneDriverCatalog(driver), { closeAll });
+      const { agent, sessionStore, logger } = makeAgent({ driver, catalog });
+      const s = await agent.newSession(newSessionArgs());
+      await expect(agent.onDisconnect()).rejects.toThrow('SECRET-CLOSE');
+      expect(closeAll).toHaveBeenCalledTimes(1);
+      expect(sessionStore.get(s.sessionId)).toBeUndefined();
+      expect(eventsOf(logger, 'close_failed')[0].data).toEqual({ failureKind: 'internal' });
+      expect(JSON.stringify(logger.entries)).not.toContain('SECRET');
+      expect(eventsOf(logger, 'disconnect')).toHaveLength(1);
+   });
+
+   it('a real catalog closes every driver and throws the first failure last', async () => {
+      const { catalog, drivers } = await realCatalog(['alpha', 'beta', 'gamma']);
+      drivers.alpha.close.mockRejectedValue(new Error('alpha-close'));
+      const resolver  = createResolverStub(() => resolved('beta'));
+      const { agent } = makeAgent({ catalog, resolver });
+      await agent.newSession(newSessionArgs());
+      await expect(agent.onDisconnect()).rejects.toThrow('alpha-close');
+      expectEachClosedOnce(drivers);
+   });
+
+   it('with no session ever opened the catalog is still closed once', async () => {
+      const closeAll  = vi.fn(async () => {});
+      const driver    = createDriverSpy();
+      const catalog   = Object.assign(oneDriverCatalog(driver), { closeAll });
+      const { agent } = makeAgent({ driver, catalog });
+      await agent.onDisconnect();
+      expect(closeAll).toHaveBeenCalledTimes(1);
+   });
+
+   it('a repeated disconnect closes no driver twice', async () => {
+      const { catalog, drivers } = await realCatalog(['alpha', 'beta']);
+      const resolver  = createResolverStub(() => resolved('alpha'));
+      const { agent } = makeAgent({ catalog, resolver });
+      await agent.onDisconnect();
+      await expect(agent.onDisconnect()).resolves.toBeUndefined();
+      expectEachClosedOnce(drivers);
    });
 });

@@ -10,7 +10,7 @@
  *   when no driver is available even for "auto".
  * - `createDispatchResolver` is the profile-level fallback chain: tries the
  *   active profile's `profiles:` entry first, falls back to the registry's
- *   own `preferredModel`/`preferredDriver` defaults, and raises one
+ *   own `preferred` defaults, and raises one
  *   combined error (wrapping both underlying failures) when both fail.
  *   `fallbackMode: 'fail-fast'` skips the registry-default attempt
  *   entirely and surfaces the profile failure immediately.
@@ -27,9 +27,10 @@ import { NoDriverAvailableError, DispatchResolutionError } from './errors.js';
 /** The implicit fallback model, assumed supported by every driver. */
 export const AUTO_MODEL = 'auto';
 
-/** True when `driver` is given and exists in the registry and supports `model`. */
+/** True when `driver` is given, is listed in the registry (own entries only) and supports `model`. */
 function driverSupports(config: RegistryConfig, driver: string | undefined, model: string): boolean {
-   return undefined !== driver && (config.drivers[driver]?.models.includes(model) ?? false);
+   return undefined !== driver && Object.hasOwn(config.drivers, driver) &&
+      config.drivers[driver].models.includes(model);
 }
 
 /** First driver in registry insertion order that supports `model`, or undefined. */
@@ -53,21 +54,18 @@ export function resolveRegistry(
    model?: string,
    driver?: string,
 ): { model: string; driver: string } {
-   const requestedModel = model;
+   const requestedModel  = model;
+   const preferredDriver = config.preferred?.driver;
 
    if (undefined !== model) {
       // Step 1: (model, driver) given, driver supports model -> use it.
       if (driverSupports(config, driver, model)) { return { model, driver: driver as string }; }
 
-      // Step 2: model given, no driver match (or none given) -> first driver
-      // in registry order that supports it; preferredModel binding wins,
-      // then preferredDriver tie-break.
-      if (undefined !== config.preferredModel && config.preferredModel.model === model &&
-         driverSupports(config, config.preferredModel.driver, model)) {
-         return { model, driver: config.preferredModel.driver };
-      }
-      if (driverSupports(config, config.preferredDriver, model)) {
-         return { model, driver: config.preferredDriver as string };
+      // Step 2: model given, no driver match (or none given) -> the preferred
+      // driver if it supports it, else the first driver in registry order that
+      // does.
+      if (driverSupports(config, preferredDriver, model)) {
+         return { model, driver: preferredDriver as string };
       }
       const firstMatch = firstDriverSupporting(config, model);
       if (undefined !== firstMatch) { return { model, driver: firstMatch }; }
@@ -75,7 +73,7 @@ export function resolveRegistry(
 
    // Step 3: named model not found (or none given) -> retry with "auto",
    // keeping whatever driver context is already known.
-   const autoDriverContext = driver ?? config.preferredDriver ?? firstRegisteredDriver(config);
+   const autoDriverContext = driver ?? preferredDriver ?? firstRegisteredDriver(config);
 
    if (driverSupports(config, autoDriverContext, AUTO_MODEL)) {
       return { model: AUTO_MODEL, driver: autoDriverContext as string };
@@ -88,7 +86,19 @@ export function resolveRegistry(
                                     new Error(`no driver in the registry supports "${AUTO_MODEL}"`));
 }
 
-export interface DispatchResolver { resolve(profile: string): DispatchResult; }
+/**
+ * The (model, driver) pair the registry defaults resolve to: the preferred model
+ * (else "auto") on the preferred driver (else the first one listed), by the same
+ * chain as `resolveRegistry`. Throws `NoDriverAvailableError` when none works.
+ */
+export function resolveRegistryDefaults(config: RegistryConfig): { model: string; driver: string } {
+   return resolveRegistry(config, config.preferred?.model, config.preferred?.driver);
+}
+
+export interface DispatchResolver {
+   /** With no profile, goes straight to the registry defaults. */
+   resolve(profile?: string): DispatchResult;
+}
 
 export interface DispatchResolverOptions {
    /** Pre-loaded config. Mutually exclusive with `configPath`. */
@@ -133,7 +143,10 @@ export function createDispatchResolver(options: DispatchResolverOptions): Dispat
    const fallbackMode = fallbackModeOption ?? config.fallbackMode ?? 'fallback-to-default-driver';
 
    return {
-      resolve(profile: string): DispatchResult {
+      resolve(profile?: string): DispatchResult {
+         if (undefined === profile) {
+            return resolveRegistryDefault(config, logger, undefined, {}, undefined);
+         }
          const profilePref    = config.profiles?.[profile];
          const profileAttempt = { model: profilePref?.model, driver: profilePref?.driver };
 
@@ -164,15 +177,16 @@ export function createDispatchResolver(options: DispatchResolverOptions): Dispat
 function resolveRegistryDefault(
    config:         RegistryConfig,
    logger:         Logger,
-   profile:        string,
+   profile:        string | undefined,
    profileAttempt: { model?: string; driver?: string },
    profileError:   unknown,
 ): DispatchResult {
-   const registryDefaultAttempt = { model: config.preferredModel?.model, driver: config.preferredDriver };
+   const who                    = undefined === profile ? {} : { profile };
+   const registryDefaultAttempt = { model: config.preferred?.model, driver: config.preferred?.driver };
    try {
-      const resolved = resolveRegistry(config, config.preferredModel?.model, config.preferredDriver);
+      const resolved = resolveRegistryDefaults(config);
       logger.info('dispatch_resolved', {
-         profile, model: resolved.model, driver: resolved.driver, source: 'registry-default',
+         ...who, model: resolved.model, driver: resolved.driver, source: 'registry-default',
       });
       return { ...resolved, source: 'registry-default' };
    }
@@ -181,12 +195,12 @@ function resolveRegistryDefault(
          // No profile entry at all (or no model) — registry-default is the
          // only attempt that was made; log and surface its error directly.
          logger.error('dispatch_failed', {
-            profile, registryDefaultAttempt, registryDefaultError: printErrorMessage(registryDefaultError),
+            ...who, registryDefaultAttempt, registryDefaultError: printErrorMessage(registryDefaultError),
          });
          throw registryDefaultError;
       }
       logger.error('dispatch_failed', {
-         profile, profileAttempt, registryDefaultAttempt,
+         ...who, profileAttempt, registryDefaultAttempt,
          profileError:         printErrorMessage(profileError),
          registryDefaultError: printErrorMessage(registryDefaultError),
       });

@@ -107,7 +107,6 @@ describe('Group 2 — ACP <-> driver translation seam', () => {
       const s  = await agent.newSession(newSessionArgs());
       const cx = createCx();
       await agent.prompt({ sessionId: s.sessionId, ...textParam('q') }, cx);
-      expect(driver.seen[0].options.model).toBeUndefined();
       expect(driver.seen[0].options.sessionId).toBeUndefined();
    });
 });

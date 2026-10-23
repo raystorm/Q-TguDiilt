@@ -1,20 +1,32 @@
 import { describe, it, expect } from 'vitest';
 import { join } from 'node:path';
 import { buildDriverCatalog, DRIVER_FAILURE } from '../driver-catalog.js';
-import type { RegistryConfig } from '../registry.js';
+import type { PreferredDefaults, RegistryConfig } from '../registry.js';
 import { createLogger } from '../../protocol/__tests__/agent.helpers.js';
 import {
-   FIXTURE_REGISTRY, configForFiles, copyFixture, entryFor, failureLogs, fakeDriver, importFrom,
-   moduleOf, useTempDir, validSet, writeDriver,
+   FIXTURE_REGISTRY, FakeDriver, configForFiles, copyFixture, entryFor, failureLogs,
+   fakeDriver, importFrom, moduleOf, useTempDir, validSet, writeDriver,
 } from './catalog-fixtures.js';
+import { INHERITED_NAMES, ModelLists, registryOf } from './registry-fixtures.js';
 
 /** The kind reported for a preferred driver that the registry does not list. */
 const NOT_IN_REGISTRY = 'not in registry';
-const MODELS          = ['auto', 'm1'];
-const dirOf           = useTempDir();
+/** "alpha" lists auto and m1; "beta" also lists m3. */
+const MODELS: ModelLists = { alpha: ['auto', 'm1'], beta: ['auto', 'm1', 'm3'] };
+/** As above, but "alpha" has no auto. */
+const ALPHA_WITHOUT_AUTO: ModelLists = { alpha: ['m1'], beta: ['auto', 'm1', 'm3'] };
+const dirOf = useTempDir();
 
 type Logger = ReturnType<typeof createLogger>;
-interface Built { catalog: Awaited<ReturnType<typeof buildDriverCatalog>>; logger: Logger; }
+interface Built
+{
+   catalog: Awaited<ReturnType<typeof buildDriverCatalog>>;
+   logger:  Logger;
+   drivers: Record<string, FakeDriver>;
+}
+type Result = Pick<Built, 'catalog' | 'logger'>;
+/** What the catalog reports about the preferred driver, apart from the flag. */
+interface Expected { name: string; model?: string; inUse: string; inUseModel: string; }
 
 const noCreate   = { other: () => {} };
 const throwing   = { createDriver: () => { throw new Error('boom'); } };
@@ -40,27 +52,18 @@ const FAILING_FILES: Array<[string, () => string]> = [
    [DRIVER_FAILURE.importFailed,   () => copyFixture('throws-on-import.js', badFile())],
 ];
 
-/** preferredDriver is "alpha", but preferredModel binds m1 to "beta". */
-const BETA_BOUND: Partial<RegistryConfig> = {
-   preferredDriver: 'alpha', preferredModel: { model: 'm1', driver: 'beta' },
-};
-
-/** "alpha" then "beta", both listing auto and m1. `failing` swaps in a module for a driver. */
+/** Every driver in `models` is valid, except those with a module in `failing`. Fake import. */
 async function build(
-   extra: Partial<RegistryConfig> = {}, failing: Record<string, unknown> = {},
+   preferred?: PreferredDefaults, failing: Record<string, unknown> = {}, models: ModelLists = MODELS,
 ): Promise<Built>
 {
    const logger = createLogger();
-   const names  = ['alpha', 'beta'];
-   const config: RegistryConfig = {
-      drivers: Object.fromEntries(names.map(name => [name, entryFor(name, MODELS)])), ...extra,
-   };
-   const { modules } = validSet(...names.filter(name => !(name in failing)));
+   const config = registryOf(models, preferred, {}, entryFor);
+   const { drivers, modules } = validSet(...Object.keys(models).filter(name => !(name in failing)));
    const catalog = await buildDriverCatalog({
-      config, registryPath: FIXTURE_REGISTRY, logger,
-      importModule: importFrom({ ...modules, ...failing }),
+      config, registryPath: FIXTURE_REGISTRY, logger, importModule: importFrom({ ...modules, ...failing }),
    });
-   return { catalog, logger };
+   return { catalog, logger, drivers };
 }
 
 const warnings = (logger: Logger) => logger.entries.filter(entry => 'warn' === entry.level);
@@ -68,80 +71,72 @@ const warnings = (logger: Logger) => logger.entries.filter(entry => 'warn' === e
 const expectNotice = (notice: string | undefined, ...parts: string[]) =>
    parts.forEach(part => expect(notice).toContain(part));
 
-function expectUnflagged({ catalog, logger }: Built, name: string, inUse: string)
+function expectUnflagged({ catalog, logger }: Result, expected: Expected)
 {
-   expect(catalog.preferred).toEqual({ name, inUse, flagged: false });
+   expect(catalog.preferred).toEqual({ ...expected, flagged: false });
    expect(catalog.notice).toBeUndefined();
    expect(warnings(logger)).toEqual([]);
 }
 
-function expectFlagged({ catalog, logger }: Built, name: string, inUse: string, kind: string)
+/** Flagged: the report, one warning and the notice all carry the same facts. */
+function expectFlagged({ catalog, logger }: Result, expected: Expected, kind: string)
 {
-   expect(catalog.preferred).toEqual({ name, inUse, flagged: true, kind });
+   expect(catalog.preferred).toEqual({ ...expected, flagged: true, kind });
+   const parts = [expected.name, expected.model, expected.inUse, expected.inUseModel, kind]
+      .filter((part): part is string => undefined !== part);
+   expectNotice(catalog.notice, ...parts);
    const logged = warnings(logger);
    expect(logged).toHaveLength(1);
-   const text = JSON.stringify(logged[0].data);
-   for (const part of [name, inUse, kind]) { expect(text).toContain(part); }
+   for (const part of parts) { expect(JSON.stringify(logged[0].data)).toContain(part); }
 }
 
 describe('catalog — the preferred driver', () => {
-   it('a working preferred driver is not flagged', async () => {
-      expectUnflagged(await build({ preferredDriver: 'alpha' }), 'alpha', 'alpha');
+   it('a working preferred pair is not flagged', async () => {
+      const built = await build({ driver: 'alpha', model: 'm1' });
+      expectUnflagged(built, { name: 'alpha', model: 'm1', inUse: 'alpha', inUseModel: 'm1' });
    });
 
-   it('preferredModel.driver takes precedence over preferredDriver', async () => {
-      const { catalog } = await build(BETA_BOUND);
-      expect(catalog.preferred.name).toBe('beta');
+   it('a driver only: auto on that driver, not flagged', async () => {
+      const built = await build({ driver: 'beta' });
+      expectUnflagged(built, { name: 'beta', inUse: 'beta', inUseModel: 'auto' });
    });
 
-   it('a failed preferredModel.driver is flagged even though preferredDriver works', async () => {
-      const built = await build(BETA_BOUND, { beta: noCreate });
-      expectFlagged(built, 'beta', 'alpha', DRIVER_FAILURE.noCreateDriver);
-   });
-
-   it('a failed preferredDriver that preferredModel overrides is not flagged', async () => {
-      const built = await build(BETA_BOUND, { alpha: noCreate });
-      expect(built.catalog.preferred).toMatchObject({ name: 'beta', flagged: false });
-      expect(warnings(built.logger)).toEqual([]);
-   });
-
-   it('only preferredDriver set: that driver is preferred', async () => {
-      const { catalog } = await build({ preferredDriver: 'beta' });
-      expect(catalog.preferred.name).toBe('beta');
+   it('no preferred model, no model check', async () => {
+      const built = await build({ driver: 'alpha' }, {}, { alpha: ['auto'], beta: MODELS.beta });
+      expectUnflagged(built, { name: 'alpha', inUse: 'alpha', inUseModel: 'auto' });
    });
 
    it.each([['works', {}, false], ['fails', { alpha: noCreate }, true]])(
-      'neither set: the first driver listed is preferred, and it %s',
+      'no preferred: the first driver listed is preferred, and it %s',
       async (_label, failing, flagged) => {
-         const built = await build({}, failing);
+         const built = await build(undefined, failing);
          expect(built.catalog.preferred.name).toBe('alpha');
          expect(built.catalog.preferred.flagged).toBe(flagged);
       },
    );
 
    it('an unlisted preferred driver is flagged and the build still succeeds', async () => {
-      const built = await build({ preferredDriver: 'alpah' });
+      const built = await build({ driver: 'alpah' });
       expect(built.catalog.names()).toEqual(['alpha', 'beta']);
-      expectFlagged(built, 'alpah', 'alpha', NOT_IN_REGISTRY);
-   });
-
-   it('a typo in preferredModel.driver is flagged even if preferredDriver is valid', async () => {
-      const built = await build({
-         preferredDriver: 'alpha', preferredModel: { model: 'm1', driver: 'alpah' },
-      });
-      expectFlagged(built, 'alpah', 'alpha', NOT_IN_REGISTRY);
+      expectFlagged(built, { name: 'alpah', inUse: 'alpha', inUseModel: 'auto' }, NOT_IN_REGISTRY);
    });
 
    it('driver names match exactly', async () => {
-      expectFlagged(await build({ preferredDriver: 'Alpha' }), 'Alpha', 'alpha', NOT_IN_REGISTRY);
+      const built = await build({ driver: 'Alpha' });
+      expectFlagged(built, { name: 'Alpha', inUse: 'alpha', inUseModel: 'auto' }, NOT_IN_REGISTRY);
+   });
+
+   it.each(INHERITED_NAMES)('an inherited name ("%s") as the preferred driver is flagged', async name => {
+      const built = await build({ driver: name });
+      expectFlagged(built, { name, inUse: 'alpha', inUseModel: 'auto' }, NOT_IN_REGISTRY);
    });
 
    it.each(FAILING_MODULES)(
       'a preferred driver that failed (%s) is flagged and the other driver is used',
       async (kind, makeModule) => {
-         const built = await build({ preferredDriver: 'alpha' }, { alpha: makeModule() });
+         const built = await build({ driver: 'alpha', model: 'm1' }, { alpha: makeModule() });
          expect(built.catalog.names()).toEqual(['beta']);
-         expectFlagged(built, 'alpha', 'beta', kind);
+         expectFlagged(built, { name: 'alpha', model: 'm1', inUse: 'beta', inUseModel: 'm1' }, kind);
       },
    );
 
@@ -151,57 +146,104 @@ describe('catalog — the preferred driver', () => {
          const logger       = createLogger();
          const beta         = writeDriver(join(dirOf(), 'beta.js'), 'beta');
          const files        = configForFiles({ alpha: badPath(), beta });
-         const config: RegistryConfig = { ...files, preferredDriver: 'alpha' };
+         const config: RegistryConfig = { ...files, preferred: { driver: 'alpha' } };
          const registryPath = join(dirOf(), 'registry.yaml');
          const catalog      = await buildDriverCatalog({ config, registryPath, logger });
          expect(catalog.names()).toEqual(['beta']);
-         expectFlagged({ catalog, logger }, 'alpha', 'beta', kind);
+         expectFlagged({ catalog, logger }, { name: 'alpha', inUse: 'beta', inUseModel: 'auto' }, kind);
       },
    );
 
-   it('the notice names the preferred driver, the driver in use and the kind', async () => {
-      const typo   = await build({ preferredDriver: 'alpah' });
-      const failed = await build({ preferredDriver: 'alpha' }, { alpha: noCreate });
-      expectNotice(typo.catalog.notice, 'alpah', 'alpha', NOT_IN_REGISTRY);
-      expectNotice(failed.catalog.notice, 'alpha', 'beta', DRIVER_FAILURE.noCreateDriver);
-   });
-
    it('the driver in use is what the defaults pick, not the first one working', async () => {
-      const config: RegistryConfig = {
-         drivers: {
-            a: entryFor('a', MODELS), b: entryFor('b', ['x']), c: entryFor('c', MODELS),
-         },
-         preferredDriver: 'a',
-         preferredModel:  { model: 'm1', driver: 'a' },
-      };
-      const { modules } = validSet('b', 'c');
-      const catalog = await buildDriverCatalog({
-         config, registryPath: FIXTURE_REGISTRY, logger: createLogger(),
-         importModule: importFrom({ ...modules, a: noCreate }),
-      });
+      const models: ModelLists = { a: ['auto', 'm1'], b: ['x'], c: ['auto', 'm1'] };
+      const { catalog } = await build({ driver: 'a', model: 'm1' }, { a: noCreate }, models);
       expect(catalog.names()).toEqual(['b', 'c']);
-      expect(catalog.preferred.inUse).toBe('c');
+      expect(catalog.preferred).toMatchObject({ inUse: 'c', inUseModel: 'm1' });
    });
 
    it('a typo and a failed driver are both reported, each once', async () => {
-      const built = await build({ preferredDriver: 'alpah' }, { beta: noCreate });
+      const built = await build({ driver: 'alpah' }, { beta: noCreate });
       expect(built.catalog.names()).toEqual(['alpha']);
       expect(failureLogs(built.logger, 'beta')).toHaveLength(1);
-      expectFlagged(built, 'alpah', 'alpha', NOT_IN_REGISTRY);
-   });
-
-   it('a missing model on a working preferred driver is not flagged', async () => {
-      const built = await build({ preferredModel: { model: 'm-missing', driver: 'alpha' } });
-      expectUnflagged(built, 'alpha', 'alpha');
+      expectFlagged(built, { name: 'alpah', inUse: 'alpha', inUseModel: 'auto' }, NOT_IN_REGISTRY);
    });
 
    it('the flag and notice are stable, and reading them logs nothing', async () => {
-      const { catalog, logger } = await build({ preferredDriver: 'alpah' });
+      const { catalog, logger } = await build({ driver: 'alpah' });
       const logged = logger.entries.length;
       const read   = () => ({ preferred: { ...catalog.preferred }, notice: catalog.notice });
       const first  = read();
       expect(read()).toEqual(first);
       expect(read()).toEqual(first);
       expect(logger.entries).toHaveLength(logged);
+   });
+
+   it('a flagged catalog still serves and closes its working drivers', async () => {
+      const { catalog, drivers } = await build({ driver: 'alpha', model: 'm9' });
+      expect(catalog.preferred.flagged).toBe(true);
+      expect(catalog.get('alpha')).toBe(drivers.alpha);
+      expect(catalog.get('beta')).toBe(drivers.beta);
+      await catalog.closeAll();
+      expect(drivers.alpha.close).toHaveBeenCalledTimes(1);
+      expect(drivers.beta.close).toHaveBeenCalledTimes(1);
+   });
+});
+
+describe('catalog — the preferred model', () => {
+   const NOT_LISTED = DRIVER_FAILURE.modelNotListed;
+
+   it('a model its driver does not list is flagged; a driver that lists it is used', async () => {
+      const built = await build({ driver: 'alpha', model: 'm3' });
+      expect(built.catalog.names()).toEqual(['alpha', 'beta']);
+      expectFlagged(built, { name: 'alpha', model: 'm3', inUse: 'beta', inUseModel: 'm3' },
+                    NOT_LISTED);
+   });
+
+   it('a model nobody lists is flagged; auto on the preferred driver is used', async () => {
+      const built = await build({ driver: 'alpha', model: 'm9' });
+      expectFlagged(built, { name: 'alpha', model: 'm9', inUse: 'alpha', inUseModel: 'auto' },
+                    NOT_LISTED);
+   });
+
+   it('a model nobody lists and a preferred driver without auto: auto elsewhere', async () => {
+      const built = await build({ driver: 'alpha', model: 'm9' }, {}, ALPHA_WITHOUT_AUTO);
+      expectFlagged(built, { name: 'alpha', model: 'm9', inUse: 'beta', inUseModel: 'auto' },
+                    NOT_LISTED);
+   });
+
+   it('the model rule applies to auto too', async () => {
+      const built = await build({ driver: 'alpha', model: 'auto' }, {}, ALPHA_WITHOUT_AUTO);
+      expectFlagged(built, { name: 'alpha', model: 'auto', inUse: 'beta', inUseModel: 'auto' },
+                    NOT_LISTED);
+   });
+
+   it('a driver problem and a model problem together: the driver kind wins, one warning', async () => {
+      const built = await build({ driver: 'alpha', model: 'm9' }, { alpha: noCreate });
+      expectFlagged(built, { name: 'alpha', model: 'm9', inUse: 'beta', inUseModel: 'auto' },
+                    DRIVER_FAILURE.noCreateDriver);
+   });
+
+   it('a typo in the driver with a model set: the driver kind, the model still resolves', async () => {
+      const built = await build({ driver: 'alpah', model: 'm3' });
+      expectFlagged(built, { name: 'alpah', model: 'm3', inUse: 'beta', inUseModel: 'm3' },
+                    NOT_IN_REGISTRY);
+   });
+
+   it('a failed preferred driver whose model is listed elsewhere', async () => {
+      const built = await build({ driver: 'alpha', model: 'm3' }, { alpha: noCreate });
+      expectFlagged(built, { name: 'alpha', model: 'm3', inUse: 'beta', inUseModel: 'm3' },
+                    DRIVER_FAILURE.noCreateDriver);
+   });
+
+   it('a near-miss model is reported as written, not corrected', async () => {
+      const built = await build({ driver: 'alpha', model: 'M1' });
+      expectFlagged(built, { name: 'alpha', model: 'M1', inUse: 'alpha', inUseModel: 'auto' },
+                    NOT_LISTED);
+   });
+
+   it('a listed model is not flagged whatever the registry order', async () => {
+      const reversed: ModelLists = { beta: MODELS.beta, alpha: MODELS.alpha };
+      const built = await build({ driver: 'alpha', model: 'm1' }, {}, reversed);
+      expectUnflagged(built, { name: 'alpha', model: 'm1', inUse: 'alpha', inUseModel: 'm1' });
    });
 });

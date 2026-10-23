@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
    resolveRegistry,
+   resolveRegistryDefaults,
    createDispatchResolver,
 } from '../resolver.js';
 import {
@@ -17,7 +18,9 @@ import {
    RegistryConfigInvalidError,
 } from '../../drivers/errors.js';
 import { RegistryConfig } from '../../drivers/registry.js';
-import { driverEntry, FIXTURE_MODULE } from '../../drivers/__tests__/registry-fixtures.js';
+import {
+   DEFAULT_CASES, INHERITED_NAMES, TWO_DRIVERS, driverEntry, FIXTURE_MODULE, registryOf,
+} from '../../drivers/__tests__/registry-fixtures.js';
 
 let dir: string;
 
@@ -60,20 +63,18 @@ drivers:
       expect(config.drivers.kiro.models).toEqual(['auto', 'claude-sonnet-5']);
    });
 
-   it('parses preferredDriver and preferredModel.driver fields', () => {
+   it('parses the preferred driver and model', () => {
       const filePath = writeRegistry(`
-preferredDriver: kiro
-preferredModel:
-  model: claude-sonnet-5
+preferred:
   driver: kiro
+  model: claude-sonnet-5
 drivers:
   kiro:
     module: ${FIXTURE_MODULE}
     models: [auto, claude-sonnet-5]
 `);
       const config = loadRegistryConfig(filePath);
-      expect(config.preferredDriver).toBe('kiro');
-      expect(config.preferredModel).toEqual({ model: 'claude-sonnet-5', driver: 'kiro' });
+      expect(config.preferred).toEqual({ driver: 'kiro', model: 'claude-sonnet-5' });
    });
 
    it('parses the profiles: section keyed by profile name', () => {
@@ -106,7 +107,7 @@ profiles:
    });
 
    it('missing drivers: root key throws RegistryConfigInvalidError', () => {
-      const filePath = writeRegistry('preferredDriver: kiro\n');
+      const filePath = writeRegistry('preferred:\n  driver: kiro\n');
       expect(() => loadRegistryConfig(filePath)).toThrow(RegistryConfigInvalidError);
    });
 
@@ -170,20 +171,10 @@ describe('Group 2 — registry resolution', () => {
       expect(result).toEqual({ model: 'model-y', driver: 'driver-a' });
    });
 
-   it('model given, no driver, preferredDriver set → tie-break to preferredDriver', () => {
-      const config: RegistryConfig = { ...twoDriverConfig, preferredDriver: 'driver-b' };
+   it('model given, no driver, preferred driver set → tie-break to the preferred driver', () => {
+      const config: RegistryConfig = { ...twoDriverConfig, preferred: { driver: 'driver-b' } };
       const result = resolveRegistry(config, 'model-y');
       expect(result).toEqual({ model: 'model-y', driver: 'driver-b' });
-   });
-
-   it('model given, no driver, preferredModel binds a driver → preferredModel wins over preferredDriver', () => {
-      const config: RegistryConfig = {
-         ...twoDriverConfig,
-         preferredDriver: 'driver-b',
-         preferredModel:  { model: 'model-y', driver: 'driver-a' },
-      };
-      const result = resolveRegistry(config, 'model-y');
-      expect(result).toEqual({ model: 'model-y', driver: 'driver-a' });
    });
 
    it('named model not found anywhere → retries with model="auto", keeping given driver context', () => {
@@ -191,13 +182,13 @@ describe('Group 2 — registry resolution', () => {
       expect(result).toEqual({ model: 'auto', driver: 'driver-b' });
    });
 
-   it('named model not found, no driver given, preferredDriver set → auto retry uses preferredDriver', () => {
-      const config: RegistryConfig = { ...twoDriverConfig, preferredDriver: 'driver-b' };
+   it('named model not found, no driver given → auto retry uses the preferred driver', () => {
+      const config: RegistryConfig = { ...twoDriverConfig, preferred: { driver: 'driver-b' } };
       const result = resolveRegistry(config, 'nonexistent-model');
       expect(result).toEqual({ model: 'auto', driver: 'driver-b' });
    });
 
-   it('named model not found, no driver, no preferredDriver → auto retry uses first driver in registry order', () => {
+   it('named model not found, no driver, no preferred → auto retry uses first driver in registry order', () => {
       const result = resolveRegistry(twoDriverConfig, 'nonexistent-model');
       expect(result).toEqual({ model: 'auto', driver: 'driver-a' });
    });
@@ -230,6 +221,171 @@ describe('Group 2 — registry resolution', () => {
    it('no drivers configured at all → NoDriverAvailableError', () => {
       const config: RegistryConfig = { drivers: {} };
       expect(() => resolveRegistry(config)).toThrow(NoDriverAvailableError);
+   });
+});
+
+/** The error a call throws; fails the test when it does not throw. */
+function thrown(run: () => unknown): Error
+{
+   try { run(); }
+   catch (err) { return err as Error; }
+   throw new Error('expected the call to throw');
+}
+
+describe('registry defaults', () => {
+   it.each(DEFAULT_CASES)('%s', (_label, preferred, models, expected) => {
+      expect(resolveRegistryDefaults(registryOf(models, preferred))).toEqual(expected);
+   });
+
+   it('nothing resolves: the error names the preferred model', () => {
+      const config = registryOf({ solo: ['m-custom'] }, { driver: 'solo', model: 'm9' });
+      const error  = thrown(() => resolveRegistryDefaults(config));
+      expect(error).toBeInstanceOf(NoDriverAvailableError);
+      expect(error.message).toContain('m9');
+   });
+
+   it('nothing resolves and no model is preferred: the error names no model', () => {
+      const lists = { solo: ['m-custom'] };
+      const error = thrown(() => resolveRegistryDefaults(registryOf(lists, { driver: 'solo' })));
+      expect(error).toBeInstanceOf(NoDriverAvailableError);
+      expect(error.message).toBe(thrown(() => resolveRegistry(registryOf(lists))).message);
+   });
+
+   it.each(['M1', ' m1', 'm1 '])('matching is exact: the preferred model "%s" is not "m1"', model => {
+      const config = registryOf({ kiro: ['auto', 'm1'] }, { driver: 'kiro', model });
+      expect(resolveRegistryDefaults(config)).toEqual({ model: 'auto', driver: 'kiro' });
+   });
+
+   it('matching is exact: the preferred driver "Copilot" is not "copilot"', () => {
+      const lists  = { kiro: ['auto', 'm1'], copilot: ['auto', 'm1'] };
+      const config = registryOf(lists, { driver: 'Copilot', model: 'm1' });
+      expect(resolveRegistryDefaults(config)).toEqual({ model: 'm1', driver: 'kiro' });
+   });
+
+   it('the calculation is pure', () => {
+      const config = registryOf(TWO_DRIVERS, { driver: 'copilot', model: 'm3' });
+      const before = structuredClone(config);
+      expect(resolveRegistryDefaults(config)).toEqual(resolveRegistryDefaults(config));
+      expect(config).toEqual(before);
+   });
+
+   it('profiles and fallbackMode do not change the defaults', () => {
+      const preferred = { driver: 'copilot', model: 'm3' };
+      const extra: Partial<RegistryConfig> = {
+         profiles: { Builder: { model: 'm2', driver: 'kiro' } }, fallbackMode: 'fail-fast',
+      };
+      const plain = resolveRegistryDefaults(registryOf(TWO_DRIVERS, preferred));
+      expect(resolveRegistryDefaults(registryOf(TWO_DRIVERS, preferred, extra))).toEqual(plain);
+   });
+});
+
+describe('a model request with and without a driver', () => {
+   it('the preferred driver does not list the model: another driver does', () => {
+      const config = registryOf(TWO_DRIVERS, { driver: 'kiro' });
+      expect(resolveRegistry(config, 'm3')).toEqual({ model: 'm3', driver: 'copilot' });
+   });
+
+   it('a given driver that lists the model wins over the preferred driver', () => {
+      const config = registryOf(TWO_DRIVERS, { driver: 'copilot' });
+      expect(resolveRegistry(config, 'm1', 'kiro')).toEqual({ model: 'm1', driver: 'kiro' });
+   });
+
+   it('a given driver that lacks the model falls to the preferred driver, then to registry order', () => {
+      const lists   = { a: ['auto', 'm1'], b: ['auto', 'm3'], c: ['auto', 'm3'] };
+      const preferC = registryOf(lists, { driver: 'c' });
+      expect(resolveRegistry(preferC, 'm3', 'a')).toEqual({ model: 'm3', driver: 'c' });
+      expect(resolveRegistry(registryOf(lists), 'm3', 'a')).toEqual({ model: 'm3', driver: 'b' });
+   });
+
+   it('the auto retry keeps a given driver that lists auto, over the preferred driver', () => {
+      const config = registryOf(TWO_DRIVERS, { driver: 'copilot' });
+      expect(resolveRegistry(config, 'nope', 'kiro')).toEqual({ model: 'auto', driver: 'kiro' });
+   });
+
+   it('the auto retry moves to the first driver with auto when the best known one has none', () => {
+      const config = registryOf({ kiro: ['m1'], copilot: ['auto'] });
+      expect(resolveRegistry(config, 'nope')).toEqual({ model: 'auto', driver: 'copilot' });
+   });
+
+   it('no model and no driver: auto on the preferred driver', () => {
+      const config = registryOf(TWO_DRIVERS, { driver: 'copilot' });
+      expect(resolveRegistry(config)).toEqual({ model: 'auto', driver: 'copilot' });
+   });
+});
+
+describe('names every object has', () => {
+   it.each(INHERITED_NAMES)('"%s" as the given driver is skipped, not thrown on', name => {
+      const config = registryOf(TWO_DRIVERS, { driver: 'copilot' });
+      expect(resolveRegistry(config, 'm1', name)).toEqual({ model: 'm1', driver: 'copilot' });
+      expect(resolveRegistry(config, 'nope', name)).toEqual({ model: 'auto', driver: 'kiro' });
+   });
+
+   it.each(INHERITED_NAMES)('"%s" as the preferred driver is skipped, not thrown on', name => {
+      const config = registryOf(TWO_DRIVERS, { driver: name, model: 'm3' });
+      expect(resolveRegistryDefaults(config)).toEqual({ model: 'm3', driver: 'copilot' });
+   });
+
+   it.each(INHERITED_NAMES)('"%s" as a profile driver is skipped, not thrown on', name => {
+      const profiles = { Builder: { model: 'm1', driver: name } };
+      const config   = registryOf(TWO_DRIVERS, undefined, { profiles });
+      const resolver = createDispatchResolver({ config, logger: createLogger() });
+      expect(resolver.resolve('Builder')).toEqual({ model: 'm1', driver: 'kiro', source: 'profile' });
+   });
+});
+
+describe('dispatch resolver without a profile', () => {
+   const configWith = (extra: Partial<RegistryConfig> = {}) =>
+      registryOf(TWO_DRIVERS, { driver: 'copilot', model: 'm3' }, extra);
+
+   const resolveWith = (config: RegistryConfig, profile?: string) =>
+      createDispatchResolver({ config, logger: createLogger() }).resolve(profile);
+
+   it('resolve() with no profile uses the registry defaults', () => {
+      const config = configWith();
+      expect(resolveWith(config)).toEqual({ ...resolveRegistryDefaults(config), source: 'registry-default' });
+   });
+
+   it('profiles in the config are ignored when none is asked for', () => {
+      const config = configWith({ profiles: { Builder: { model: 'm2', driver: 'kiro' } } });
+      expect(resolveWith(config)).toEqual({ model: 'm3', driver: 'copilot', source: 'registry-default' });
+   });
+
+   it('the resolution is logged once, without a profile', () => {
+      const logger = createLogger();
+      createDispatchResolver({ config: configWith(), logger }).resolve();
+      const logged = logger.entries.filter(entry => 'registry-default' === entry.data.source);
+      expect(logged).toHaveLength(1);
+      expect(logged[0].data).toMatchObject({ model: 'm3', driver: 'copilot' });
+      expect(logged[0].data).not.toHaveProperty('profile');
+   });
+
+   it('fail-fast does not change it', () => {
+      const config = configWith({ fallbackMode: 'fail-fast' });
+      expect(resolveWith(config)).toEqual({ model: 'm3', driver: 'copilot', source: 'registry-default' });
+   });
+
+   it('defaults that cannot resolve throw the resolver error, logged without a profile', () => {
+      const config   = registryOf({ solo: ['m-custom'] }, { driver: 'solo', model: 'm9' });
+      const logger   = createLogger();
+      const resolver = createDispatchResolver({ config, logger });
+      const error    = thrown(() => resolver.resolve());
+      expect(error).toBeInstanceOf(NoDriverAvailableError);
+      expect(error).not.toBeInstanceOf(DispatchResolutionError);
+      const failures = logger.entries.filter(entry => 'error' === entry.level);
+      expect(failures).toHaveLength(1);
+      expect(failures[0].data).not.toHaveProperty('profile');
+   });
+
+   it('a profile name that is not under profiles: gets the defaults, logged under that name', () => {
+      const logger   = createLogger();
+      const resolver = createDispatchResolver({ config: configWith(), logger });
+      expect(resolver.resolve('Nobody')).toEqual(resolver.resolve());
+      expect(logger.entries.filter(entry => 'Nobody' === entry.data.profile)).toHaveLength(1);
+   });
+
+   it('a profile with an entry is unchanged', () => {
+      const config = configWith({ profiles: { Builder: { model: 'm2', driver: 'kiro' } } });
+      expect(resolveWith(config, 'Builder')).toEqual({ model: 'm2', driver: 'kiro', source: 'profile' });
    });
 });
 
@@ -267,8 +423,7 @@ describe('Group 3 — dispatch resolver fallback chain', () => {
             solo: driverEntry(['claude-opus-5']), // no "claude-sonnet-5", no "auto"
          },
          profiles:        { Builder: { model: 'claude-sonnet-5', driver: 'solo' } },
-         preferredDriver: 'solo',
-         preferredModel:  { model: 'claude-opus-5', driver: 'solo' },
+         preferred:       { driver: 'solo', model: 'claude-opus-5' },
       };
       const resolver = createDispatchResolver({ config, logger: createLogger() });
       const result   = resolver.resolve('Builder');
@@ -277,8 +432,7 @@ describe('Group 3 — dispatch resolver fallback chain', () => {
 
    it('profile has no profiles: entry at all → uses registry defaults directly', () => {
       const config = configWith({
-         preferredDriver: 'copilot',
-         preferredModel:  { model: 'claude-sonnet-5', driver: 'copilot' },
+         preferred: { driver: 'copilot', model: 'claude-sonnet-5' },
       });
       const resolver = createDispatchResolver({ config, logger: createLogger() });
       const result   = resolver.resolve('UnknownProfile');
@@ -287,8 +441,8 @@ describe('Group 3 — dispatch resolver fallback chain', () => {
 
    it('profile entry has no model field → uses registry defaults directly', () => {
       const config = configWith({
-         profiles:        { Builder: { model: '' } as any },
-         preferredDriver: 'copilot',
+         profiles:  { Builder: { model: '' } as any },
+         preferred: { driver: 'copilot' },
       });
       const resolver = createDispatchResolver({ config, logger: createLogger() });
       const result   = resolver.resolve('Builder');
@@ -345,8 +499,7 @@ describe('Group 4 — configurable fallback behavior', () => {
             solo: driverEntry(['claude-sonnet-5']), // no "auto"
          },
          profiles:        { Builder: { model: 'nonexistent-model', driver: 'solo' } },
-         preferredDriver: 'solo',
-         preferredModel:  { model: 'claude-sonnet-5', driver: 'solo' },
+         preferred:       { driver: 'solo', model: 'claude-sonnet-5' },
       };
       const resolver = createDispatchResolver({ config, logger: createLogger() });
       const result   = resolver.resolve('Builder');
@@ -374,8 +527,7 @@ describe('Group 4 — configurable fallback behavior', () => {
       const config: RegistryConfig = {
          drivers:         { solo: driverEntry(['claude-sonnet-5']) }, // no "auto"
          profiles:        { Builder: { model: 'nonexistent-model', driver: 'solo' } },
-         preferredDriver: 'solo',
-         preferredModel:  { model: 'claude-sonnet-5', driver: 'solo' },
+         preferred:       { driver: 'solo', model: 'claude-sonnet-5' },
          fallbackMode:    'fail-fast', // registry says fail-fast...
       };
       const resolver = createDispatchResolver({

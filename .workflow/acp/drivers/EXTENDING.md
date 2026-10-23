@@ -192,22 +192,20 @@ preference fields, a per-profile preference section, and a system-level
 fallback policy.
 
 ```yaml
-# Optional: preferred driver when multiple drivers support a model.
-# Falls back to registry order if unavailable for the requested model.
-preferredDriver: kiro
-
-# Optional: registry-level default (model, driver) pair. It is the
+# Optional: the registry-level default. `driver` is required, `model` is
+# optional. Without `preferred`, the first driver listed under `drivers:`
+# is preferred and the model is `auto`. The preferred driver also breaks
+# the tie when several drivers list a requested model. The pair is the
 # fallback used when a profile has no `profiles:` entry, or its entry
 # fails to resolve (unless fallbackMode is 'fail-fast'). A profile's own
-# entry is always tried first. In that fallback, preferredDriver is used
-# if it lists the model; otherwise the bound driver, then registry order.
-preferredModel:
-  model: claude-sonnet-5
+# entry is always tried first.
+preferred:
   driver: kiro
+  model: claude-sonnet-5
 
 # Optional: per-profile model/driver preference, keyed by profile name.
 # `driver` is optional; when omitted, resolution falls back to registry
-# order (then preferredDriver/preferredModel tie-break) for that model.
+# order (then the preferred driver as tie-break) for that model.
 profiles:
   Architect:
     model: claude-opus-5
@@ -218,7 +216,7 @@ profiles:
 # Optional: system-level policy (applies to all profiles) for when a
 # profile's own model/driver preference fails to resolve.
 # 'fallback-to-default-driver' (default) falls through to
-# preferredModel/preferredDriver above; 'fail-fast' surfaces the
+# `preferred` above; 'fail-fast' surfaces the
 # profile's resolution failure immediately with no substitution.
 fallbackMode: fallback-to-default-driver
 
@@ -239,11 +237,17 @@ drivers:
   works, so a driver can live outside the engine's own files. A TypeScript
   source file is named with a `.js` suffix, as in the source's imports.
 - `models` is a list of model name strings (required, must be non-empty)
-- `preferredDriver`, `preferredModel`, `profiles`, and `fallbackMode`
-  are all optional
-- The loader does not check that `preferredDriver`, `preferredModel.driver`
-  or `profiles.*.driver` name a driver under `drivers:`; the Driver
-  Catalog checks the preferred driver
+- `preferred`, `profiles`, and `fallbackMode` are all optional.
+  `preferred.driver` is required when `preferred` is present;
+  `preferred.model` is optional
+- Any other top-level key is rejected when the registry loads. The error
+  names the file, every unknown key and the known keys (`drivers`,
+  `preferred`, `profiles`, `fallbackMode`). Keys inside a driver or
+  profile entry are not checked
+- The loader does not check that `preferred.driver` or `profiles.*.driver`
+  name a driver under `drivers:`, or that the preferred driver lists
+  `preferred.model`; the Driver Catalog checks the preferred driver and
+  model
 - Custom driver entries follow the same schema as built-in entries
 
 See `registry.example.yaml` for a complete example with Kiro, Copilot,
@@ -255,6 +259,12 @@ comment, because it has no code behind it).
 Copy `registry.example.yaml` to `registry.yaml` once, then edit the copy.
 A missing `registry.yaml` fails to load with an error that points to the
 example; the example is never used as a fallback.
+The service finds `registry.yaml` from its own files, never from the
+working directory, and has no launch-time setting for its location. It
+loads the file once at startup and does not start without a valid one.
+When the example changes, merge the change into your copy by hand: a
+registry with an unknown top-level key, including a removed field name,
+is rejected.
 
 ---
 
@@ -308,14 +318,19 @@ kind), the resolver's reason where it applies, and how to fix it. Drivers
 already created are closed first, so the driver in use is always a working
 driver.
 
-**Preferred driver.** It is `preferredModel.driver` if `preferredModel` is
-set, else `preferredDriver`, else the first driver listed; names match
-exactly. When it is not under `drivers:` (failure kind "not in registry",
-for example a typo) or failed a check, the registry still loads. The
-catalog sets `preferred.flagged`, logs one `warn` entry, and supplies
-`notice`, a text naming the preferred driver, the driver in use and the
-kind. The driver in use, `preferred.inUse`, is what the resolver returns
-for the registry defaults over the working drivers.
+**Preferred driver and model.** The preferred driver is `preferred.driver`,
+else the first driver listed; the preferred model is `preferred.model`,
+else `auto`. Names and models match exactly. The preference is flagged
+when the driver is not under `drivers:` (kind "not in registry", for
+example a typo), when it failed a check (its failure kind), or when
+`preferred.model` is set and the driver does not list it (kind "model not
+listed", `auto` included). A driver kind wins over the model kind. A flag
+never fails the build: the registry still loads, the catalog sets
+`preferred.flagged`, logs one `warn` entry, and supplies `notice`, a text
+naming the preferred driver and model, the driver and model in use, and
+the kind. The driver and model in use, `preferred.inUse` and
+`preferred.inUseModel`, are what `resolveRegistryDefaults` returns over
+the working drivers.
 
 **Using the catalog.** `get(name)` returns a working driver, or throws
 `DriverNotInCatalogError`. `names()` lists the working drivers in registry
@@ -338,16 +353,21 @@ against the registry:
 
 1. **The given driver lists the model** — if a driver came with the
    request and its `models` list includes the model, use it. For the
-   registry defaults the resolver gives `preferredDriver` here.
-2. **preferredModel binding matches** — if `preferredModel.model` equals
-   the requested model and `preferredModel.driver` lists it, use that
-   driver.
-3. **preferredDriver lists the model** — use that driver.
-4. **First match in registry order** — use the first driver in the
+   registry defaults the resolver gives `preferred.driver` here.
+2. **The preferred driver lists the model** — use that driver.
+3. **First match in registry order** — use the first driver in the
    registry whose `models` list includes the requested model.
-5. **No match** — retry with `model = "auto"`: the given driver, else
-   `preferredDriver`, else the first driver listed, if it lists `auto`;
+4. **No match** — retry with `model = "auto"`: the given driver, else
+   the preferred driver, else the first driver listed, if it lists `auto`;
    otherwise the first driver that lists `auto`. A named model that no
    driver lists falls back to `auto`; it is not an error.
-6. **No driver lists `auto`** — the "no driver available" error, which
+5. **No driver lists `auto`** — the "no driver available" error, which
    names the requested model. It is the only resolution error.
+
+The registry defaults are worked out in one place,
+`resolveRegistryDefaults(config)`: the preferred model (else `auto`) on the
+preferred driver (else the first driver listed), by the steps above. The
+Driver Catalog and the dispatch resolver both call it, so they cannot
+disagree. A driver name the registry does not list, including names every
+object has such as `constructor`, is skipped by these steps and is never
+an error.

@@ -95,3 +95,34 @@ export function writeDriver(file: string, name: string, marker: string = name): 
 /** Copies a fixture file as it is. */
 export function copyFixture(fixture: string, file: string): string
 { return writeFile(file, readFileSync(join(FIXTURES, fixture), 'utf8')); }
+
+/** Where the recording driver template keeps its list (the key is also in the template). */
+const RECORDED_CALLS = '__recordedDriverCalls';
+
+export interface RecordedCall
+{
+   driver:   string;
+   call:     'execute' | 'close';
+   command?: string;
+   model?:   string;
+}
+
+/** Every call the recording drivers received, in order. */
+export function recordedCalls(): RecordedCall[]
+{
+   const store = globalThis as unknown as Record<string, unknown>;
+   return (store[RECORDED_CALLS] ??= []) as RecordedCall[];
+}
+
+/** Empties the list. Recording drivers keep appending to the same list. */
+export function forgetRecordedCalls(): void { recordedCalls().length = 0; }
+
+/** Writes a driver module that records its calls; its driver reports `name`. */
+export function writeRecordingDriver(file: string, name: string, closeFails = false): string
+{
+   const template = readFileSync(join(FIXTURES, 'recording-driver.template.js'), 'utf8');
+   const text     = template
+      .replaceAll('__NAME__', name)
+      .replaceAll('__CLOSE_FAILS__', String(closeFails));
+   return writeFile(file, text);
+}

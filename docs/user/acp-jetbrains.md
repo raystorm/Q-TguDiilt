@@ -9,8 +9,11 @@ runs your workflow. No LLM provider needs to speak ACP.
 
 - A JetBrains IDE with ACP client support
 - Node.js available on your PATH
-- The `kiro-cli` executable available on your PATH and logged in (the
-  default provider the service dispatches to); see
+- A `registry.yaml` in `.workflow/acp/drivers/` (copy
+  `registry.example.yaml` there once); the service does not start without
+  it. See `docs/user/model-dispatch.md`
+- The executable of the agent the registry prefers on your PATH and
+  logged in (`kiro-cli` for the shipped example); see
   `docs/user/acp-agents.md`
 - This repository present in your project
 
@@ -104,6 +107,13 @@ This log is transient runtime state; it is not version-controlled.
 
 - **The IDE cannot start the service** — verify `command`/`args` in
   `~/.jetbrains/acp.json` and that Node.js is on your PATH.
+- **The service stops at start** — the registry is missing or unusable.
+  `.workflow/work/acp.log` has a `registry_startup_failed` entry naming
+  the file and the problem; see `docs/user/model-dispatch.md`.
+- **A reply starts with a notice about the preferred driver or model** —
+  the registry's preference cannot be used, and the notice says what is
+  used instead. See "When the preferred driver or model cannot be used"
+  in `docs/user/model-dispatch.md`.
 - **Prompts fail immediately with "before initialize"** — the IDE sent
   a request before the connection finished initializing; reconnect.
 - **A prompt is rejected as "turn in progress"** — a previous turn is

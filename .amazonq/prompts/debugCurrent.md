@@ -95,51 +95,51 @@ Rule Category Breakdown:
 
 Return only this block, populated with inferred values:
 
-=== Current Context Debug ===
+=== Current Context Debug ===  
 
-Profile: {{profileName or "None"}}
-WorkflowId: {{workflowId}}
+Profile: {{profileName or "None"}}  
+WorkflowId: {{workflowId}}  
 
---- Load Summary ---
-Rules Loaded: {{ruleFileCount}} files
-Rule Categories: {{ruleCategories}}
-Non-Rule Files Loaded: {{nonRuleFileCount}}
+--- Load Summary ---  
+Rules Loaded: {{ruleFileCount}} files  
+Rule Categories: {{ruleCategories}}  
+Non-Rule Files Loaded: {{nonRuleFileCount}}  
 
---- Context Metrics ---
-Context Usage: {{contextPercent}}%
-Context Sources:
-- Rules: {{rulesPercent}}%
-- Rule Category Breakdown:
-  {{ruleCategoryBreakdown}}
-- HANDOFF: {{handoffPercent}}%
-- User Message: {{userPercent}}%
-- System/Profile: {{systemPercent}}%
+--- Context Metrics ---  
+**Context Usage: {{contextPercent}}%**  
+Context Sources:  
+- Rules: {{rulesPercent}}%  
+- Rule Category Breakdown:  
+  {{ruleCategoryBreakdown}}  
+- HANDOFF: {{handoffPercent}}%  
+- User Message: {{userPercent}}%  
+- System/Profile: {{systemPercent}}%  
 
---- Stability Signals ---
-Profile Lane: {{ProfileLaneStatus}}
-Workflow Lineage: {{workflowLineageStatus}}
-Handoff Integrity: {{handoffIntegrityStatus}}
-Rule Density: {{ruleDensityStatus}}
-Governance Value: {{governanceValue}}
-Density/Value Ratio: {{densityValueRatio}}
-Semantic Drift Risk: {{driftRiskStatus}}
+--- Stability Signals ---  
+Profile Lane: {{ProfileLaneStatus}}  
+Workflow Lineage: {{workflowLineageStatus}}  
+Handoff Integrity: {{handoffIntegrityStatus}}  
+Rule Density: {{ruleDensityStatus}}  
+Governance Value: {{governanceValue}}  
+Density/Value Ratio: {{densityValueRatio}}  
+Semantic Drift Risk: {{driftRiskStatus}}  
 
---- System Flags ---
-Unexpected Files: {{unexpectedFiles}}
+--- System Flags ---  
+Unexpected Files: {{unexpectedFiles}}  
 
-=== Rule Index: Discovery (count) ===
-[List every file from .workflow/rules/ in current context]
+=== Rule Index: Discovery (count) ===  
+[List every file from .workflow/rules/ in current context]  
 
-=== Rule Index: Rule‑Eligible (count) ===
-[List every file considered a rule by naming/tag/directory]
+=== Rule Index: Rule‑Eligible (count) ===  
+[List every file considered a rule by naming/tag/directory]  
 
-=== Rule Index: Discovered Rules (count) ===
-[List every file parsed into rule objects]
+=== Rule Index: Discovered Rules (count) ===  
+[List every file parsed into rule objects]  
 
-=== Rule Index: Activated Rules (count) ===
-[List every rule actually active in current context]
+=== Rule Index: Activated Rules (count) ===  
+[List every rule actually active in current context]  
 
-======================
+======================  
 
 Do not add commentary or explanation.
 Return only the block.

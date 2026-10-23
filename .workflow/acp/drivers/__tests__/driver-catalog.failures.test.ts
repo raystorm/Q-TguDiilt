@@ -23,7 +23,7 @@ async function buildBad(bad: unknown, order: string[] = ['bad', 'good']): Promis
 {
    const logger = createLogger();
    const { modules } = validSet('good');
-   const config = configOf(order, { preferredDriver: 'good' });
+   const config = configOf(order, { preferred: { driver: 'good' } });
    const catalog = await buildDriverCatalog({
       config, registryPath: FIXTURE_REGISTRY, logger, importModule: importFrom({ ...modules, bad }),
    });

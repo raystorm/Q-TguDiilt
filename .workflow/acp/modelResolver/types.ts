@@ -2,7 +2,7 @@
  * Model dispatch result types.
  *
  * Registry schema types (`RegistryConfig`, `ProfilePreference`,
- * `PreferredModel`, `FallbackMode`, etc.) live in `../drivers/registry.js`
+ * `PreferredDefaults`, `FallbackMode`, etc.) live in `../drivers/registry.js`
  * — that module owns the registry YAML file and its format. This module
  * only defines types specific to the dispatch resolver itself.
  */

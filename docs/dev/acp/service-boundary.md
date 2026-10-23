@@ -32,11 +32,19 @@ LLM provider (ACP-agnostic)
 ```
 
 Entry point `protocol/index.ts` assembles the SDK stdio transport, the
-translation agent (`createAgent`), a session store, a placeholder driver
-(no governed driver is wired yet), the governance engine, and a file
-logger, then serves the ACP client. The governance config is loaded at
-startup; a missing or malformed config fails closed before any request
-is served.
+translation agent (`createAgent`), a session store, the Driver Catalog
+and dispatch resolver built from the driver registry, the governance
+engine, and a file logger, then serves the ACP client. The governance
+config and the registry are each loaded once at startup, and the catalog
+is built before the server connects. A missing or malformed config, or a
+registry or catalog that fails (missing file, unknown key, entry without
+`module`, empty `drivers:`, every driver failing, defaults that select no
+working driver), fails closed before any request is served. The registry
+failure is logged at error level as `registry_startup_failed` with the
+registry path, and the process exits non-zero. The registry path comes
+from one lookup function (`protocol/registry-location.ts`): `registry.yaml`
+in the drivers folder, found from the service's own files, with no
+launch-time setting.
 
 ## Transport
 
@@ -53,8 +61,11 @@ exactly one `driver.execute(...)`**.
 
 - Inbound ACP prompt content (text blocks) is concatenated into a single
   command string.
-- `driver.execute(command, options)` runs the step. If the session has a
-  prior driver session, its id is passed via `options.sessionId`.
+- `driver.execute(command, options)` runs the step on the session's
+  driver (`catalog.get(record.driver)`), with the session's model in
+  `options.model` (`auto` included). If the session has a prior driver
+  session, its id is passed via `options.sessionId`; a session keeps one
+  driver, so the id is only ever used with the driver that issued it.
 - `DriverResult.text` → ACP response content (streamed as a
   `session/update` chunk before the final response).
 - `DriverResult.sessionId` → stored on the session record for
@@ -81,6 +92,9 @@ exactly one `workflowId`** and tracks:
   distinct workflows.
 - `driverSessionId` — the driver's continuity id, updated after each
   turn.
+- `driver` and `model` — resolved once when the session opens.
+- `endedNormally` — true once a turn of the session has ended with
+  `end_turn`.
 - `activeTurn` — the per-session in-flight flag.
 - `abort` — the abort controller of the in-flight turn; set and cleared
   together with `activeTurn`.
@@ -88,16 +102,19 @@ exactly one `workflowId`** and tracks:
 Lifecycle:
 
 - `initialize` — marks the connection initialized.
-- `session/new` — creates a session record with a fresh `workflowId`.
+- `session/new` — resolves the driver and model (registry defaults, no
+  profile), then creates a session record with a fresh `workflowId`. A
+  resolution failure rejects the call and leaves no record.
 - `session/load` — re-establishes a session bound to a supplied
-  `workflowId` (resume).
+  `workflowId` (resume), resolved the same way as a new one. A loaded
+  session starts with no driver continuity id.
 - `session/cancel` — aborts the active turn; the only interrupt. It does
   not free the session (see "Cancel and wind-down"). A cancel with no
   active turn, an unknown session, or a second cancel is an idempotent
   no-op.
 - disconnect (stdin EOF or a termination signal) — aborts every active
-  turn, closes the driver, then releases all mappings (`closeAll`), so
-  nothing leaks.
+  turn, closes every driver in the catalog, then releases all mappings
+  (`closeAll`), so nothing leaks.
 
 ### Concurrency: reject-with-retry
 
@@ -106,6 +123,21 @@ cancel. A second prompt while a turn is in flight, or still winding down
 after a cancel, throws `TurnInProgressError` (`retryable: true`); the
 in-flight turn is unaffected and the client may retry after it
 completes. A session never runs two turns at once.
+
+### Driver selection and the notice
+
+The session store does not choose the driver. `newSession` and
+`loadSession` call `resolver.resolve()` once, with no profile, before any
+record exists. Prompts do not resolve again, so the answer cannot change
+under a running session. If the catalog has no driver of that name,
+`prompt` rejects before the turn starts and the session stays free.
+
+When the catalog has a notice (the preferred driver or model cannot be
+used), the first `agent_message_chunk` of a turn carries it, before the
+progress update, for new and reopened sessions alike. It repeats on every
+turn until one turn of that session ends normally (`end_turn`). A
+cancelled, failed or rejected turn does not count. Opening a session sends
+nothing. Without a notice the updates are unchanged.
 
 ### Cancel and wind-down
 
@@ -151,10 +183,12 @@ disconnect, 1 when the disconnect failed or took longer than 10 seconds
 untested.
 
 In order, `onDisconnect` aborts every active turn, awaits
-`driver.close()`, releases all session mappings, and logs `disconnect`.
-A `close` that fails is logged as `close_failed` with `failureKind`
-only, the sessions are still released, there is no retry, and
-`onDisconnect` then rethrows that error, which gives the non-zero exit.
+`catalog.closeAll()`, releases all session mappings, and logs
+`disconnect`. `closeAll()` tries every driver, so one failing `close` does
+not stop the others, and it rethrows the first failure. That failure is
+logged as `close_failed` with `failureKind` only, the sessions are still
+released, there is no retry, and `onDisconnect` then rethrows that error,
+which gives the non-zero exit.
 Calling it twice is harmless.
 
 A session has no end event of its own. The client runs one service

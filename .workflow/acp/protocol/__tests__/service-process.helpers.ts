@@ -3,13 +3,25 @@ import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync } from 'nod
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { loadRegistryConfig } from '../../drivers/registry.js';
 import { realSleep, startStub, stubKiroCliBin } from '../../drivers/acp-driver-core/__tests__/stub-agent.helpers.js';
+import { REGISTRY_ENV } from './registry-location.process.js';
 
 const ACP_ROOT  = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const VITE_NODE = join(ACP_ROOT, 'node_modules', 'vite-node', 'vite-node.mjs');
 const ENTRY     = join(ACP_ROOT, 'protocol', 'index.ts');
 
+const TESTS_DIR        = join(ACP_ROOT, 'protocol', '__tests__');
+const VITE_CONFIG      = join(TESTS_DIR, 'service-process.vite.config.ts');
+const EXAMPLE_REGISTRY = join(ACP_ROOT, 'drivers', 'registry.example.yaml');
+
+/** The shipped example, never the local registry.yaml: what the process tests start the service on. */
+export const exampleRegistry = () => loadRegistryConfig(EXAMPLE_REGISTRY);
+
 export interface ServiceExit { code: number | null; signal: string | null }
+
+/** One entry of the service's operational log. */
+export interface ServiceLogEntry { event: string; level: string; filePath?: string }
 
 /** Sees every message the service sends; what it returns answers a request (and is ignored otherwise). */
 type OnMessage = (message: any) => unknown;
@@ -26,7 +38,8 @@ export const exitWithin = (exited: Promise<ServiceExit>, ms: number) =>
 
 /** Runs the entry point as a process in `cwd` and talks ACP to it over its stdio. */
 function launch(cwd: string, env: NodeJS.ProcessEnv, onMessage?: OnMessage) {
-   const child = spawn(process.execPath, [VITE_NODE, '--root', ACP_ROOT, ENTRY], {
+   const args  = [VITE_NODE, '--root', ACP_ROOT, '--config', VITE_CONFIG, ENTRY];
+   const child = spawn(process.execPath, args, {
       cwd, env, stdio: ['pipe', 'pipe', 'pipe'],
    });
    child.stdin.on('error', () => undefined);
@@ -81,7 +94,7 @@ function launch(cwd: string, env: NodeJS.ProcessEnv, onMessage?: OnMessage) {
       child, cwd, exited, request,
       stderr: () => stderr,
       /** The entries of the service's operational log. */
-      log: (): Array<{ event: string }> => existsSync(logPath)
+      log: (): ServiceLogEntry[] => existsSync(logPath)
          ? readFileSync(logPath, 'utf8').split('\n').filter(Boolean).map(line => JSON.parse(line)) : [],
    };
 }
@@ -93,13 +106,16 @@ async function endService({ child, exited }: ReturnType<typeof launch>) {
 
 /**
  * Starts the real service as a process, in a temporary working directory, with a stub `kiro-cli`
- * first on PATH. The test talks ACP to it over its stdio. `stop` ends whatever is left and cleans up.
+ * first on PATH. The test talks ACP to it over its stdio. Its registry is the shipped example
+ * unless `registry` names another file. `stop` ends whatever is left and cleans up.
  */
-export function startService(behaviour = '') {
-   const stub    = startStub(behaviour);
+export function startService(behaviour = '', registry = EXAMPLE_REGISTRY) {
+   // The stub offers the models of the example's kiro driver, so it follows the example.
+   const models  = exampleRegistry().drivers.kiro.models.join(',');
+   const stub    = startStub(behaviour, { STUB_MODELS: models });
    const bin     = stubKiroCliBin();
    const cwd     = mkdtempSync(join(tmpdir(), 'service-cwd-'));
-   const service = launch(cwd, { ...process.env, PATH: bin });
+   const service = launch(cwd, { ...process.env, PATH: bin, [REGISTRY_ENV]: registry });
    return {
       ...service, stub,
       async stop() {
@@ -114,7 +130,8 @@ export function startService(behaviour = '') {
 /** The same with the real PATH, so the real `kiro-cli` is the agent. For live runs only. */
 export function startLiveService(onMessage: OnMessage) {
    const cwd     = realpathSync(mkdtempSync(join(tmpdir(), 'service-live-')));
-   const service = launch(cwd, process.env, onMessage);
+   const env     = { ...process.env, [REGISTRY_ENV]: EXAMPLE_REGISTRY };
+   const service = launch(cwd, env, onMessage);
    return {
       ...service,
       async stop() {

@@ -9,18 +9,19 @@
  * to the user; anything that goes wrong denies),
  * enforces reject-with-retry concurrency, and maps provider / session-collapse
  * outcomes to distinct, actionable ACP error stops. LLM providers stay
- * ACP-agnostic; they are reached only through the injected driver.
+ * ACP-agnostic; they are reached only through the injected driver catalog.
  */
 import {
-   Driver,
    DriverResult,
    ExecuteOptions,
    ToolCallDecision,
    ToolCallReport,
    declaresToolCallGovernance,
 } from '../drivers/governed-driver.js';
+import type { DriverCatalog } from '../drivers/driver-catalog.js';
 import { GovernanceEngine, askDetails } from '../governance/engine.js';
 import { Decision } from '../governance/types.js';
+import type { DispatchResolver } from '../modelResolver/resolver.js';
 import { Logger } from '../shared/logger.js';
 import { AskDetails } from '../shared/types.js';
 import type {
@@ -47,7 +48,8 @@ export interface ClientContext {
 import { SessionRecord, SessionStore } from './session-store.js';
 
 export interface AgentDeps {
-   driver:          Driver;
+   catalog:         DriverCatalog;
+   resolver:        DispatchResolver;
    sessionStore:    SessionStore;
    logger:          Logger;
    governance:      GovernanceEngine;
@@ -75,7 +77,7 @@ function promptText(params: PromptRequest): string {
 }
 
 export function createAgent(deps: AgentDeps) {
-   const { driver, sessionStore, logger, governance, protocolVersion } = deps;
+   const { catalog, resolver, sessionStore, logger, governance, protocolVersion } = deps;
    let sessionSeq = 0;
    let callSeq    = 0;
    let initialized = false;
@@ -247,8 +249,12 @@ export function createAgent(deps: AgentDeps) {
 
       async newSession(_params: NewSessionRequest) {
          requireInitialized();
+         // Resolved first: if this throws, no session id is used and no record exists.
+         const { driver, model } = resolver.resolve();
          const sessionId = newSessionId();
          const record    = sessionStore.create(sessionId);
+         record.driver   = driver;
+         record.model    = model;
          logger.info('session_mapped', {
             sessionId,
             workflowId: record.workflowId,
@@ -257,7 +263,10 @@ export function createAgent(deps: AgentDeps) {
       },
 
       async loadSession(params: { sessionId: string; workflowId: string }) {
+         const { driver, model } = resolver.resolve();
          const record = sessionStore.load(params.sessionId, params.workflowId);
+         record.driver = driver;
+         record.model  = model;
          logger.info('session_mapped', {
             sessionId:  record.sessionId,
             workflowId: record.workflowId,
@@ -283,6 +292,7 @@ export function createAgent(deps: AgentDeps) {
             throw new Error('prompt must contain non-empty text content');
          }
 
+         const driver = catalog.get(record.driver as string);
          if (!declaresToolCallGovernance(driver)) {
             logger.error('driver_governance_unsupported', {
                sessionId: params.sessionId,
@@ -295,6 +305,17 @@ export function createAgent(deps: AgentDeps) {
          const { signal } = controller;
          sessionStore.setActiveTurn(params.sessionId, true, controller);
          try {
+            // Until a turn of this session ends normally, its turns lead with the notice.
+            if (undefined !== catalog.notice && !record.endedNormally) {
+               await cx.notify(SESSION_UPDATE, {
+                  sessionId: params.sessionId,
+                  update: {
+                     sessionUpdate: 'agent_message_chunk',
+                     content: { type: 'text', text: catalog.notice },
+                  },
+               });
+            }
+
             // Stream at least one update before the final response.
             await cx.notify(SESSION_UPDATE, {
                sessionId: params.sessionId,
@@ -306,6 +327,7 @@ export function createAgent(deps: AgentDeps) {
 
             const options: ExecuteOptions = {
                signal,
+               model: record.model,
                onToolCall: report => handleToolCall(params.sessionId, report, cx, signal),
             };
             if (record.driverSessionId) { options.sessionId = record.driverSessionId; }
@@ -347,6 +369,7 @@ export function createAgent(deps: AgentDeps) {
                },
             });
 
+            record.endedNormally = true;
             return { stopReason: 'end_turn' as const };
          }
          catch (err) {
@@ -381,15 +404,15 @@ export function createAgent(deps: AgentDeps) {
       ask,
 
       /**
-       * Abort every turn, release the downstream agent, then release all
-       * session mappings on disconnect / stdin EOF (no leaks). When the driver
-       * could not be released, everything else is still done and the close
-       * error is thrown last.
+       * Abort every turn, close every driver in the catalog, then release all
+       * session mappings on disconnect / stdin EOF (no leaks). When the drivers
+       * could not all be closed, everything else is still done and the first
+       * close error is thrown last.
        */
       async onDisconnect() {
          sessionStore.abortAllTurns();
          let failure: { error: unknown } | undefined;
-         try { await driver.close(); }
+         try { await catalog.closeAll(); }
          catch (err) {
             logger.warn('close_failed', { failureKind: boundaryErrorKind(err) ?? 'internal' });
             failure = { error: err };

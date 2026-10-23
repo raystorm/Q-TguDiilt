@@ -4,9 +4,9 @@
  * out; the others still load. The build fails only when no usable driver is
  * left, so a service never starts without a working one.
  *
- * The registry's preferred driver may be missing or broken. That is not a
- * failure: the catalog flags it, logs one warning and supplies a notice that
- * names the driver the defaults pick instead.
+ * The registry's preferred driver may be missing or broken, or may not list the
+ * preferred model. That is not a failure: the catalog flags it, logs one warning
+ * and supplies a notice that names the driver and model the defaults pick instead.
  *
  * No driver name appears here: everything comes from the registry.
  */
@@ -14,7 +14,7 @@ import { existsSync, statSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { Logger, printErrorMessage } from '../shared/logger.js';
-import { resolveRegistry } from '../modelResolver/resolver.js';
+import { resolveRegistryDefaults } from '../modelResolver/resolver.js';
 import {
    DriverCatalogBuildError,
    DriverFailure,
@@ -25,7 +25,7 @@ import { Driver, declaresToolCallGovernance } from './governed-driver.js';
 import { RegistryConfig } from './registry.js';
 
 /**
- * Why a driver was left out, or why the preferred driver is unavailable.
+ * Why a driver was left out, or why the preferred driver or model is unavailable.
  * Compare against these constants, not their text.
  */
 export const DRIVER_FAILURE = {
@@ -37,6 +37,7 @@ export const DRIVER_FAILURE = {
    nameMismatch:   'name mismatch',
    noGovernance:   'no governance',
    notInRegistry:  'not in registry',
+   modelNotListed: 'model not listed',
 } as const;
 
 /** The working drivers of one registry, and the registry as the resolver should see it. */
@@ -49,17 +50,24 @@ export interface DriverCatalog {
    closeAll(): Promise<void>;
    /** The registry without the drivers that failed. Everything else is unchanged. */
    resolverConfig: RegistryConfig;
-   /** The driver the registry prefers, and the working driver the defaults pick in its place. */
+   /** The driver and model the registry prefers, and what the defaults pick instead. */
    preferred: {
-      name:    string;
+      name:       string;
+      /** The preferred model as the registry says. Absent when it names none. */
+      model?:     string;
       /** The working driver the registry defaults resolve to. */
-      inUse:   string;
-      /** True when the preferred driver is not in the registry, or failed a check. */
-      flagged: boolean;
+      inUse:      string;
+      /** The model the registry defaults resolve to. */
+      inUseModel: string;
+      /**
+       * True when the preferred driver is not in the registry or failed a check,
+       * or does not list the preferred model.
+       */
+      flagged:    boolean;
       /** Why it is flagged (a `DRIVER_FAILURE` kind). Absent when not flagged. */
-      kind?:   string;
+      kind?:      string;
    };
-   /** For the user: the preferred driver, the driver in use and the kind. Only when flagged. */
+   /** For the user: what is preferred, what is used instead, and why. Only when flagged. */
    notice?: string;
 }
 
@@ -88,6 +96,9 @@ async function importDriverModule(path: string): Promise<unknown>
    if (undefined === file) { throw new DriverModuleNotFoundError(path); }
    return import(pathToFileURL(file).href);
 }
+
+/** The (model, driver) pair the registry defaults resolve to. */
+interface InUse { model: string; driver: string; }
 
 interface LoadFailure { kind: string; reason?: string; reportedName?: string; rejected?: unknown; }
 type LoadResult = { driver: Driver } | LoadFailure;
@@ -132,13 +143,36 @@ async function closeQuietly(driver: unknown, name: string, logger: Logger): Prom
    catch (err) { logger.error('driver_close_failed', { name, reason: printErrorMessage(err) }); }
 }
 
-/**
- * The driver the registry prefers: `preferredModel.driver`, else `preferredDriver`,
- * else the first driver listed.
- */
+/** The driver the registry prefers: `preferred.driver`, else the first driver listed. */
 function preferredName(config: RegistryConfig): string
 {
-   return config.preferredModel?.driver ?? config.preferredDriver ?? Object.keys(config.drivers)[0];
+   return config.preferred?.driver ?? Object.keys(config.drivers)[0];
+}
+
+/**
+ * Why the preferred driver or model cannot be used, or undefined when it can:
+ * not in the registry, failed a check, or its driver does not list the model.
+ * A driver problem wins over a model problem.
+ */
+function flagKind(
+   config: RegistryConfig, failures: DriverFailure[], name: string,
+): string | undefined
+{
+   if (!Object.hasOwn(config.drivers, name)) { return DRIVER_FAILURE.notInRegistry; }
+   const failed = failures.find(failure => name === failure.name);
+   if (undefined !== failed) { return failed.kind; }
+   const model = config.preferred?.model;
+   return undefined !== model && !config.drivers[name].models.includes(model)
+      ? DRIVER_FAILURE.modelNotListed
+      : undefined;
+}
+
+/** For the user: what is preferred, why it cannot be used, and what is used instead. */
+function noticeFor(name: string, model: string | undefined, kind: string, inUse: InUse): string
+{
+   const preferred = undefined === model ? `driver "${name}"` : `driver "${name}", model "${model}"`;
+   return `preferred ${preferred} cannot be used (${kind}); `
+        + `using driver "${inUse.driver}", model "${inUse.model}"`;
 }
 
 /**
@@ -187,21 +221,24 @@ export async function buildDriverCatalog(options: BuildDriverCatalogOptions): Pr
       return abort('no driver in the registry could be loaded:',
                    'correct the module paths in the registry, or the driver modules.');
    }
-   const { preferredModel, preferredDriver } = config;
-   let inUse: string;
-   try { inUse = resolveRegistry(resolverConfig, preferredModel?.model, preferredDriver).driver; }
+   let inUse: InUse;
+   try { inUse = resolveRegistryDefaults(resolverConfig); }
    catch (err) {
       return abort(`the registry defaults cannot select a working driver: ${printErrorMessage(err)}`,
                    'list "auto" under a working driver, or correct the registry defaults.',
                    err);
    }
 
-   const name = preferredName(config);
-   const kind = Object.hasOwn(config.drivers, name)
-      ? failures.find(failure => name === failure.name)?.kind
-      : DRIVER_FAILURE.notInRegistry;
+   const name    = preferredName(config);
+   const model   = config.preferred?.model;
+   const kind    = flagKind(config, failures, name);
    const flagged = undefined !== kind;
-   if (flagged) { logger.warn('preferred_driver_unavailable', { preferred: name, inUse, kind }); }
+   if (flagged) {
+      logger.warn('preferred_unavailable', {
+         preferred: name, preferredModel: model,
+         inUse: inUse.driver, inUseModel: inUse.model, kind,
+      });
+   }
 
    let closing: Promise<void> | undefined;
    const closeEvery = async (): Promise<void> => {
@@ -219,9 +256,16 @@ export async function buildDriverCatalog(options: BuildDriverCatalogOptions): Pr
       names:    () => [...working.keys()],
       closeAll: () => (closing ??= closeEvery()),
       resolverConfig,
-      preferred: { name, inUse, flagged, ...(flagged ? { kind } : {}) },
+      preferred: {
+         name,
+         ...(undefined !== model ? { model } : {}),
+         inUse:      inUse.driver,
+         inUseModel: inUse.model,
+         flagged,
+         ...(flagged ? { kind } : {}),
+      },
       ...(flagged
-         ? { notice: `preferred driver "${name}" is unavailable (${kind}); using "${inUse}"` }
+         ? { notice: noticeFor(name, model, kind as string, inUse) }
          : {}),
    };
 }

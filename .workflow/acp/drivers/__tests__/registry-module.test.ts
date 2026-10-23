@@ -84,12 +84,11 @@ drivers:
       expect(invalidMessage(filePath)).toContain('"copilot"');
    });
 
-   it('unknown driver names in the defaults and profiles are accepted unchanged', () => {
+   it('drivers the registry does not list load unchanged in preferred and profiles', () => {
       const config = loadRegistryConfig(writeRegistry(`
-preferredDriver: kriro
-preferredModel:
-  model: auto
+preferred:
   driver: kiroo
+  model: no-such-model
 profiles:
   Builder:
     model: auto
@@ -99,9 +98,13 @@ drivers:
     module: ${FIXTURE_MODULE}
     models: [auto]
 `));
-      expect(config.preferredDriver).toBe('kriro');
-      expect(config.preferredModel?.driver).toBe('kiroo');
+      expect(config.preferred).toEqual({ driver: 'kiroo', model: 'no-such-model' });
       expect(config.profiles?.Builder.driver).toBe('nonesuch');
+   });
+
+   it('a preferred model that its driver does not list loads unchanged', () => {
+      const filePath = writeRegistry(`preferred:\n  driver: kiro\n  model: m9\n${validKiro}`);
+      expect(loadRegistryConfig(filePath).preferred).toEqual({ driver: 'kiro', model: 'm9' });
    });
 
    it('a missing registry file points to the example file and does not use it', () => {
@@ -113,5 +116,111 @@ drivers:
       expect(caught).toBeInstanceOf(RegistryConfigMissingError);
       expect((caught as Error).message).toContain(missingPath);
       expect((caught as Error).message).toContain('registry.example.yaml');
+   });
+});
+
+describe('registry loader — preferred', () => {
+   const load = (top: string) => loadRegistryConfig(writeRegistry(`${top}\n${validKiro}`));
+
+   it('a preferred driver and model load as written', () => {
+      const config = load('preferred:\n  driver: kiro\n  model: m1');
+      expect(config.preferred).toEqual({ driver: 'kiro', model: 'm1' });
+   });
+
+   it('a preferred driver alone has no model', () => {
+      expect(load('preferred:\n  driver: kiro').preferred).toStrictEqual({ driver: 'kiro' });
+   });
+
+   it('without preferred the config has none', () => {
+      expect(loadRegistryConfig(writeRegistry(validKiro)).preferred).toBeUndefined();
+   });
+
+   it.each([
+      ['a string',                  'preferred: kiro'],
+      ['a number',                  'preferred: 3'],
+      ['a list',                    'preferred: [kiro]'],
+      ['empty',                     'preferred:'],
+      ['without a driver',          'preferred:\n  model: m1'],
+      ['with an empty driver',      'preferred:\n  driver: ""'],
+      ['with a numeric driver',     'preferred:\n  driver: 3'],
+      ['with a null driver',        'preferred:\n  driver:'],
+      ['with a list as the driver', 'preferred:\n  driver: [kiro]'],
+      ['with an empty model',       'preferred:\n  driver: kiro\n  model: ""'],
+      ['with a numeric model',      'preferred:\n  driver: kiro\n  model: 3'],
+      ['with a null model',         'preferred:\n  driver: kiro\n  model:'],
+      ['with a list as the model',  'preferred:\n  driver: kiro\n  model: [m1]'],
+   ])('a preferred that is %s throws, naming the file and "preferred"', (_label, yaml) => {
+      const filePath = writeRegistry(`${yaml}\n${validKiro}`);
+      const message  = invalidMessage(filePath);
+      expect(message).toContain(filePath);
+      expect(message).toContain('preferred');
+   });
+
+   it('the old field names are not in the loaded shape', () => {
+      const config = load('preferred:\n  driver: kiro') as unknown as Record<string, unknown>;
+      expect(config.preferredDriver).toBeUndefined();
+      expect(config.preferredModel).toBeUndefined();
+   });
+});
+
+describe('registry loader — top-level keys', () => {
+   const KNOWN        = ['drivers', 'preferred', 'profiles', 'fallbackMode'];
+   const UNKNOWN_KEYS = [
+      'prefered', 'Drivers', 'fallbackmode', 'preferredDriver', 'preferredModel', 'made-up',
+   ];
+
+   it.each(UNKNOWN_KEYS)(
+      'an unknown key "%s" throws, naming the file, the key and the known keys',
+      key => {
+         const filePath = writeRegistry(`${key}: x\n${validKiro}`);
+         const message  = invalidMessage(filePath);
+         expect(message).toContain(filePath);
+         expect(message).toContain(key);
+         for (const known of KNOWN) { expect(message).toContain(known); }
+      },
+   );
+
+   it('the message does not name the old fields unless the file used them', () => {
+      const message = invalidMessage(writeRegistry(`prefered: x\n${validKiro}`));
+      expect(message).not.toContain('preferredDriver');
+      expect(message).not.toContain('preferredModel');
+   });
+
+   it('every unknown key is named', () => {
+      const message = invalidMessage(writeRegistry(`first-extra: 1\nsecond-extra: 2\n${validKiro}`));
+      expect(message).toContain('first-extra');
+      expect(message).toContain('second-extra');
+   });
+
+   it('all four known keys load together', () => {
+      const config = loadRegistryConfig(writeRegistry(`
+preferred:
+  driver: kiro
+  model: auto
+profiles:
+  Builder:
+    model: auto
+fallbackMode: fail-fast
+${validKiro}`));
+      expect(config.preferred).toEqual({ driver: 'kiro', model: 'auto' });
+      expect(config.profiles?.Builder).toEqual({ model: 'auto' });
+      expect(config.fallbackMode).toBe('fail-fast');
+      expect(Object.keys(config.drivers)).toEqual(['kiro']);
+   });
+
+   it('unknown keys inside driver and profile entries are not rejected', () => {
+      const config = loadRegistryConfig(writeRegistry(`
+profiles:
+  Builder:
+    model: auto
+    extra: 1
+drivers:
+  kiro:
+    module: ${FIXTURE_MODULE}
+    models: [auto]
+    notes: hello
+`));
+      expect(config.drivers.kiro).toEqual({ module: FIXTURE_MODULE, models: ['auto'] });
+      expect(config.profiles?.Builder).toEqual({ model: 'auto' });
    });
 });

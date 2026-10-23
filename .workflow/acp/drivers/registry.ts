@@ -1,7 +1,7 @@
 /**
  * Driver registry config: schema and loader for the YAML file that maps
- * driver names to supported models, with optional system-default
- * (`preferredDriver`/`preferredModel`) and per-profile (`profiles:`)
+ * driver names to supported models, with an optional system default
+ * (`preferred`) and per-profile (`profiles:`)
  * preference. See `registry.example.yaml` and `EXTENDING.md` for the
  * documented format.
  *
@@ -24,10 +24,10 @@ import {
  */
 export interface RegistryDriverEntry { module: string; models: string[]; }
 
-/** Binds a specific model to a specific driver; overrides `preferredDriver`. */
-export interface PreferredModel {
-   model:  string;
+/** The registry's system default: a driver, and optionally a model on it. */
+export interface PreferredDefaults {
    driver: string;
+   model?: string;
 }
 
 /** Per-profile model/driver preference under the registry's `profiles:` section. */
@@ -47,12 +47,14 @@ export type FallbackMode = 'fail-fast' | 'fallback-to-default-driver';
 /** Parsed shape of the driver registry YAML config. */
 export interface RegistryConfig {
    drivers:          Record<string, RegistryDriverEntry>;
-   preferredDriver?: string;
-   preferredModel?:  PreferredModel;
+   preferred?:       PreferredDefaults;
    profiles?:        Record<string, ProfilePreference>;
    /** Default: 'fallback-to-default-driver' (see `FallbackMode`). */
    fallbackMode?:    FallbackMode;
 }
+
+/** The top-level keys a registry file may have. Any other key is rejected. */
+const KNOWN_KEYS = ['drivers', 'preferred', 'profiles', 'fallbackMode'];
 
 /** Reads and parses the driver registry YAML config. Fails closed on any error. */
 export function loadRegistryConfig(filePath: string): RegistryConfig
@@ -74,8 +76,16 @@ function validateConfigShape(filePath: string, doc: unknown): RegistryConfig
    if (null === doc || 'object' !== typeof doc || Array.isArray(doc))
    { throw new RegistryConfigInvalidError(filePath, 'root document must be an object'); }
 
-   const { drivers: rawDrivers, preferredDriver, preferredModel, profiles, fallbackMode } =
-      doc as Record<string, unknown>;
+   const unknownKeys = Object.keys(doc).filter(key => !KNOWN_KEYS.includes(key));
+   if (0 !== unknownKeys.length) {
+      throw new RegistryConfigInvalidError(
+         filePath,
+         `unknown top-level key(s) ${unknownKeys.map(key => `"${key}"`).join(', ')}; ` +
+         `known keys: ${KNOWN_KEYS.join(', ')}`,
+      );
+   }
+
+   const { drivers: rawDrivers, preferred, profiles, fallbackMode } = doc as Record<string, unknown>;
 
    if (null === rawDrivers || 'object' !== typeof rawDrivers || Array.isArray(rawDrivers))
    { throw new RegistryConfigInvalidError(filePath, 'missing required "drivers" key'); }
@@ -100,15 +110,7 @@ function validateConfigShape(filePath: string, doc: unknown): RegistryConfig
 
    const config: RegistryConfig = { drivers };
 
-   if (undefined !== preferredDriver)
-   {
-      if ('string' !== typeof preferredDriver || '' === preferredDriver)
-      { throw new RegistryConfigInvalidError(filePath, '"preferredDriver" must be a non-empty string'); }
-      config.preferredDriver = preferredDriver;
-   }
-
-   if (undefined !== preferredModel)
-   { config.preferredModel = validatePreferredModel(filePath, preferredModel); }
+   if (undefined !== preferred) { config.preferred = validatePreferred(filePath, preferred); }
 
    if (undefined !== profiles) { config.profiles = validateProfiles(filePath, profiles); }
 
@@ -125,15 +127,16 @@ function validateConfigShape(filePath: string, doc: unknown): RegistryConfig
    return config;
 }
 
-function validatePreferredModel(filePath: string, raw: unknown): PreferredModel {
-   if (null === raw || 'object' !== typeof raw)
-   { throw new RegistryConfigInvalidError(filePath, '"preferredModel" must be an object'); }
-   const { model, driver } = raw as Record<string, unknown>;
-   if ('string' !== typeof model || '' === model)
-   { throw new RegistryConfigInvalidError(filePath, '"preferredModel.model" must be a non-empty string'); }
+function validatePreferred(filePath: string, raw: unknown): PreferredDefaults {
+   if (null === raw || 'object' !== typeof raw || Array.isArray(raw))
+   { throw new RegistryConfigInvalidError(filePath, '"preferred" must be an object'); }
+   const { driver, model } = raw as Record<string, unknown>;
    if ('string' !== typeof driver || '' === driver)
-   { throw new RegistryConfigInvalidError(filePath, '"preferredModel.driver" must be a non-empty string'); }
-   return { model, driver };
+   { throw new RegistryConfigInvalidError(filePath, '"preferred.driver" must be a non-empty string'); }
+   if (undefined === model) { return { driver }; }
+   if ('string' !== typeof model || '' === model)
+   { throw new RegistryConfigInvalidError(filePath, '"preferred.model" must be a non-empty string'); }
+   return { driver, model };
 }
 
 function validateProfiles(filePath: string, raw: unknown): RegistryConfig['profiles'] {

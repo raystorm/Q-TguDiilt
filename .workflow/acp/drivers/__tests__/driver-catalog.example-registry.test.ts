@@ -32,14 +32,26 @@ const problems = (logger: ReturnType<typeof createLogger>) =>
    logger.entries.filter(entry => ['warn', 'error'].includes(entry.level));
 
 describe('the shipped example registry', () => {
-   it('loads, with a module on every entry and a preferred model', () => {
+   it('loads, with a module on every entry and a preferred driver and model', () => {
       const config = loadRegistryConfig(EXAMPLE);
       expect(Object.keys(config.drivers)).toEqual(expect.arrayContaining(['kiro', 'copilot']));
       expect(config.drivers['my-local-model']).toBeUndefined();
       for (const { module } of Object.values(config.drivers)) {
          expect(module.trim()).not.toBe('');
       }
-      expect(config.preferredModel).toBeDefined();
+      expect(Object.keys(config.drivers)).toContain(config.preferred?.driver);
+      expect(config.preferred?.model).toBeDefined();
+   });
+
+   it('does not use the removed fields', () => {
+      const config = loadRegistryConfig(EXAMPLE) as unknown as Record<string, unknown>;
+      expect(config.preferredDriver).toBeUndefined();
+      expect(config.preferredModel).toBeUndefined();
+   });
+
+   it('its preferred model is listed by its preferred driver', () => {
+      const { drivers, preferred } = loadRegistryConfig(EXAMPLE);
+      expect(drivers[preferred?.driver ?? ''].models).toContain(preferred?.model);
    });
 
    it('builds both built-in drivers through the real import and logs no problem', async () => {
@@ -72,10 +84,12 @@ describe('the shipped example registry', () => {
       const resolver = createDispatchResolver({
          config: catalog.resolverConfig, logger: createLogger(),
       });
-      const result = resolver.resolve('Anyone');
-      const { preferredModel } = loadRegistryConfig(EXAMPLE);
-      expect({ model: result.model, driver: result.driver }).toEqual(preferredModel);
+      const result = resolver.resolve();
+      const { preferred } = loadRegistryConfig(EXAMPLE);
+      expect({ model: result.model, driver: result.driver })
+         .toEqual({ model: preferred?.model, driver: preferred?.driver });
       expect(catalog.preferred.inUse).toBe(result.driver);
+      expect(catalog.preferred.inUseModel).toBe(result.model);
    });
 
    it('a user entry added to the example loads next to the built-ins', async () => {

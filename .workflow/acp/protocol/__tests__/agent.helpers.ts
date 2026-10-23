@@ -2,7 +2,10 @@ import { createAgent } from '../agent.js';
 import { createSessionStore } from '../session-store.js';
 import { createGovernanceEngine } from '../../governance/engine.js';
 import { createFakeGovernedDriver } from '../../drivers/__tests__/fake-governed-driver.js';
+import { DriverNotInCatalogError } from '../../drivers/errors.js';
+import type { DriverCatalog } from '../../drivers/driver-catalog.js';
 import type { ToolCallReport } from '../../drivers/governed-driver.js';
+import type { DispatchResult } from '../../modelResolver/types.js';
 
 export const PROTOCOL_VERSION = 1;
 
@@ -43,12 +46,14 @@ export function createCx(
    };
 }
 
-export function createDriverSpy(result: any = { text: 'ok', sessionId: 'drv-sess' })
+export function createDriverSpy(
+   result: any = { text: 'ok', sessionId: 'drv-sess' }, name = 'fake',
+)
 {
    const seen: Array<{ command: string; options: any }> = [];
    return {
       seen,
-      name:                       'fake',
+      name:                       name,
       supportsToolCallGovernance: true,
       execute: async (command: string, options: any = {}) => {
          seen.push({ command, options });
@@ -68,6 +73,55 @@ export function createLogger()
       info:  (event: string, data: any = {}) => { entries.push({ level: 'info',  event, data }); },
       warn:  (event: string, data: any = {}) => { entries.push({ level: 'warn',  event, data }); },
       error: (event: string, data: any = {}) => { entries.push({ level: 'error', event, data }); },
+   };
+}
+
+/**
+ * A catalog over fake drivers by name. A name it does not hold throws, as the
+ * real one does.
+ */
+export function catalogOf(drivers: Record<string, any>, notice?: string): DriverCatalog
+{
+   const first = Object.keys(drivers)[0];
+   return {
+      get(name) {
+         if (!Object.hasOwn(drivers, name))
+         { throw new DriverNotInCatalogError(name, Object.keys(drivers)); }
+         return drivers[name];
+      },
+      names:    () => Object.keys(drivers),
+      closeAll: async () => {
+         await Promise.all(Object.values(drivers).map(async driver => driver.close()));
+      },
+      resolverConfig: { drivers: {} },
+      preferred:      { name: first, inUse: first, inUseModel: 'auto', flagged: false },
+      ...(undefined !== notice ? { notice } : {}),
+   };
+}
+
+/** A catalog holding the one driver, under its own name. */
+export const oneDriverCatalog = (driver: any, notice?: string) =>
+   catalogOf({ [driver.name]: driver }, notice);
+
+/** The answer a resolver gives: the driver, and a model (default auto). */
+export const resolved = (driver: string, model = 'auto'): DispatchResult =>
+   ({ driver, model, source: 'registry-default' });
+
+/**
+ * A resolver whose answer to the Nth call (0-based) the test scripts: a result,
+ * or an error to throw. It records the profile argument of every call.
+ */
+export function createResolverStub(answer: (call: number) => DispatchResult | Error)
+{
+   const calls: Array<string | undefined> = [];
+   return {
+      calls,
+      resolve(profile?: string): DispatchResult {
+         const made = answer(calls.length);
+         calls.push(profile);
+         if (made instanceof Error) { throw made; }
+         return made;
+      },
    };
 }
 
@@ -137,6 +191,8 @@ export async function startTurn(agent: ReturnType<typeof makeAgent>['agent'], cx
 export function makeAgent(overrides: any = {})
 {
    const driver       = overrides.driver       ?? createDriverSpy();
+   const catalog      = overrides.catalog      ?? oneDriverCatalog(driver);
+   const resolver     = overrides.resolver     ?? createResolverStub(() => resolved(driver.name));
    const logger       = overrides.logger       ?? createLogger();
    const sessionStore = overrides.sessionStore ??
       createSessionStore({ newWorkflowId: (() => { let n = 0; return () => `wf-${++n}`; })() });
@@ -144,12 +200,14 @@ export function makeAgent(overrides: any = {})
       config: { rules: overrides.rules ?? [], default: overrides.defaultAction ?? 'ask' },
       logger,
    });
-   const agent = createAgent({ driver, sessionStore, logger, governance, protocolVersion: PROTOCOL_VERSION });
+   const agent = createAgent({
+      catalog, resolver, sessionStore, logger, governance, protocolVersion: PROTOCOL_VERSION,
+   });
    // Most tests operate on an initialized boundary. `initialize` flips the
    // internal flag synchronously (before its first await), so the guard tests
    // that pass `init: false` reliably observe an un-initialized agent.
    if (false !== overrides.init) { void agent.initialize({ protocolVersion: PROTOCOL_VERSION }); }
-   return { agent, driver, logger, sessionStore, governance };
+   return { agent, driver, catalog, resolver, logger, sessionStore, governance };
 }
 
 export function textParam(text: string)

@@ -65,8 +65,7 @@ export interface UnsafeSetting {
 
 /**
  * What the ACP driver core needs to drive one kind of agent. A concrete
- * driver (Kiro, Copilot) supplies the launch command line; the rest is
- * shared.
+ * driver supplies the launch command line; the rest is shared.
  */
 export interface AcpDriverDeps {
    /** The driver's name, as the protocol layer reports it. */

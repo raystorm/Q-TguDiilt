@@ -89,20 +89,23 @@ drivers:
 folder, an absolute path also works, and a TypeScript source file is named
 with a `.js` suffix.
 
-Two optional top-level fields control resolution preference:
+One optional top-level field sets the registry's default:
 
-- `preferredDriver` — when multiple drivers support a model, use
-  this driver first
-- `preferredModel` — the registry's default (model, driver) pair, used
-  when a profile has no usable entry. There, `preferredDriver` is used if
-  it lists the model; otherwise the bound driver
+- `preferred` — `driver` is required and `model` is optional. Without it,
+  the first driver listed is preferred and the model is `auto`. The
+  preferred driver is used first when several drivers list a model, and
+  the pair is the default used when a profile has no usable entry
+
+Any top-level key other than `drivers`, `preferred`, `profiles` and
+`fallbackMode` is rejected when the registry loads.
 
 See `.workflow/acp/drivers/registry.example.yaml` for a complete
 example with Kiro, Copilot, and a custom driver entry (shown as a
 comment, because it has no code behind it). The registry in use is your
 own `registry.yaml` in the same folder, not tracked by git: copy the
 example to it once, then edit the copy. A missing `registry.yaml` fails
-to load with an error that points to the example.
+to load with an error that points to the example. The service loads it
+once at startup and does not start without a valid one.
 
 ## Registering a Custom Driver
 
@@ -132,7 +135,8 @@ and left out; the others still load. Building the catalog fails when the
 registry lists no drivers, when every driver fails, or when the registry
 defaults cannot select a working driver. A preferred driver that is
 missing from `drivers:` or failed is flagged, logged as a warning, and
-described in a notice naming the driver in use instead.
+described in a notice naming the driver and model in use instead. The same
+goes for a preferred model that its driver does not list.
 
 See `.workflow/acp/drivers/EXTENDING.md` (Driver Catalog) for the details.
 
@@ -142,13 +146,12 @@ When a model is requested, the ACP Protocol layer resolves the driver in
 this order (the full algorithm is in `docs/dev/acp/model-dispatch.md`):
 
 1. The driver given with the request lists the model → use it (for the
-   registry defaults, `preferredDriver` is the given driver)
-2. `preferredModel` binding matches → use that driver
-3. `preferredDriver` lists the model → use that driver
-4. First driver in registry order that lists the model
-5. No driver lists the model → retry with `auto`; a model nobody lists
+   registry defaults, `preferred.driver` is the given driver)
+2. The preferred driver lists the model → use that driver
+3. First driver in registry order that lists the model
+4. No driver lists the model → retry with `auto`; a model nobody lists
    falls back to `auto` and is not an error
-6. No driver lists `auto` either → "no driver available" error, naming
+5. No driver lists `auto` either → "no driver available" error, naming
    the requested model
 
 A driver that failed to load is not in the registry the resolver sees, so

@@ -2,22 +2,25 @@
 /**
  * ACP Service Boundary entry point.
  *
- * Assembles the ACP SDK stdio transport, the translation agent and the Kiro
- * driver, then serves an ACP client (e.g. a JetBrains IDE launching this
- * as a subprocess via ~/.jetbrains/acp.json). The SDK owns JSON-RPC framing,
- * method dispatch, version negotiation, and unknown-method handling; this file
- * only wires our handlers to it.
+ * Assembles the ACP SDK stdio transport, the translation agent and the driver
+ * catalog the registry describes, then serves an ACP client (e.g. a JetBrains
+ * IDE launching this as a subprocess via ~/.jetbrains/acp.json). The SDK owns
+ * JSON-RPC framing, method dispatch, version negotiation, and unknown-method
+ * handling; this file only wires our handlers to it.
  */
 import { Readable, Writable } from 'node:stream';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { agent, methods, ndJsonStream, PROTOCOL_VERSION } from '@agentclientprotocol/sdk';
-import { createKiroAcpDriver } from '../drivers/kiro-driver-acp.js';
+import { buildDriverCatalog, type DriverCatalog } from '../drivers/driver-catalog.js';
+import { loadRegistryConfig } from '../drivers/registry.js';
+import { createDispatchResolver } from '../modelResolver/resolver.js';
 import { createAgent } from './agent.js';
+import { registryPath } from './registry-location.js';
 import { createSessionStore } from './session-store.js';
 import { createShutdownHandler } from './shutdown.js';
 import { createGovernanceEngine } from '../governance/engine.js';
-import { createFileLogger } from '../shared/logger.js';
+import { createFileLogger, printErrorMessage } from '../shared/logger.js';
 
 // Operational log lives with workflow runtime state, mirroring workflow.log.
 // Cleanup at workflow completion is handled by the engine, not this process.
@@ -29,9 +32,6 @@ function newWorkflowId(): string {
    return `wf-acp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-// The default driver. Choosing a driver by name is not built yet.
-const driver = createKiroAcpDriver({ logger });
-
 const sessionStore = createSessionStore({ newWorkflowId });
 
 // Loaded at startup: a missing or malformed governance config throws here,
@@ -41,8 +41,27 @@ const governance = createGovernanceEngine({
    logger,
 });
 
+// Loaded once at startup, like the governance config. A missing or malformed registry, or one
+// that yields no working driver, stops the service here, before it accepts a single request.
+const registryFile = registryPath();
+let catalog: DriverCatalog;
+try {
+   const config = loadRegistryConfig(registryFile);
+   catalog = await buildDriverCatalog({ config, registryPath: registryFile, logger });
+}
+catch (err) {
+   logger.error('registry_startup_failed', {
+      filePath: registryFile, problem: printErrorMessage(err),
+   });
+   throw err;
+}
+
+// The resolver sees the registry as the catalog does: without the drivers that failed.
+const resolver = createDispatchResolver({ config: catalog.resolverConfig, logger });
+
 const service      = createAgent({
-   driver,
+   catalog,
+   resolver,
    sessionStore,
    logger,
    governance,

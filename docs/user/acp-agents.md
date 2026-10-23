@@ -5,11 +5,10 @@ agent itself, one agent process for each chat session, and ends it when
 the chat closes. You do not configure how the agent is launched. You make
 sure it is installed and logged in.
 
-Kiro is the shipped default. Choosing a driver through the driver
-registry (see `docs/user/model-dispatch.md`) is planned but not built
-yet, so for now the service always starts Kiro. A Copilot driver is
-built and tested; the Copilot section below describes how it behaves
-once it can be chosen.
+The driver registry (see `docs/user/model-dispatch.md`) decides which
+agent a chat uses. Its `preferred` entry names the driver and model, and
+the shipped example prefers Kiro. A chat gets its driver when it opens and
+keeps it. To use Copilot, name it in `preferred`.
 
 > [!WARNING]
 > **Secret redaction is not perfect.**

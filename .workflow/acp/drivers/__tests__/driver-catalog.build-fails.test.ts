@@ -98,11 +98,14 @@ describe('catalog — nothing usable, so the build fails', () => {
    it('a named model that is missing but "auto" is listed is not a failure', async () => {
       const { modules } = validSet('solo');
       const config: RegistryConfig = {
-         drivers:        { solo: entryFor('solo') },
-         preferredModel: { model: 'm-missing', driver: 'solo' },
+         drivers:   { solo: entryFor('solo') },
+         preferred: { driver: 'solo', model: 'm-missing' },
       };
       const catalog = await build(config, modules);
       expect(catalog.names()).toEqual(['solo']);
       expect(catalog.preferred.inUse).toBe('solo');
+      expect(catalog.preferred).toMatchObject({
+         inUseModel: 'auto', flagged: true, kind: DRIVER_FAILURE.modelNotListed,
+      });
    });
 });

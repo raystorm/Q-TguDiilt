@@ -29,6 +29,13 @@ Each shipped driver uses the real connect by default; tests pass a fake.
 The core touches an agent process only through one small interface, so a
 fake agent can replace the process entirely.
 
+The service does not build these drivers itself. The Driver Catalog loads
+each driver from the module the driver registry names (`createDriver({
+logger })`), and the protocol layer takes drivers only from the catalog.
+On disconnect the service calls `closeAll()` on the catalog, which closes
+every driver and so ends every agent process it started. One failing
+`close` does not stop the others, and the first failure is rethrown last.
+
 ## Sessions and processes
 
 - One agent process per downstream session. It starts at the first prompt

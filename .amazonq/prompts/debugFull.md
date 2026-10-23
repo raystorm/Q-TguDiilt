@@ -86,50 +86,50 @@ Rule Category Breakdown:
 
 Return only this block, populated with inferred values:
 
-=== Full System Debug ===
+=== Full System Debug ===  
 
-Profile: None (System Scan)
-WorkflowId: N/A
+Profile: None (System Scan)  
+WorkflowId: N/A  
 
---- Load Summary ---
-Rules Loaded: {{ruleFileCount}} files
-Rule Categories: {{ruleCategories}}
-Non-Rule Files Loaded: {{nonRuleFileCount}}
+--- Load Summary ---  
+Rules Loaded: {{ruleFileCount}} files  
+Rule Categories: {{ruleCategories}}  
+Non-Rule Files Loaded: {{nonRuleFileCount}}  
 
---- Context Metrics ---
-Context Usage: {{contextPercent}}%
-Context Sources:
-- Rules: {{rulesPercent}}%
-- Rule Category Breakdown:
-  {{ruleCategoryBreakdown}}
-- User Message: {{userPercent}}%
-- System/Profile: {{systemPercent}}%
+--- Context Metrics ---  
+**Context Usage: {{contextPercent}}%**  
+Context Sources:  
+- Rules: {{rulesPercent}}%  
+- Rule Category Breakdown:  
+  {{ruleCategoryBreakdown}}  
+- User Message: {{userPercent}}%  
+- System/Profile: {{systemPercent}}%  
 
---- Stability Signals ---
-Profile Lane: No Profile Active
-Workflow Lineage: N/A
-Handoff Integrity: N/A
-Rule Density: {{ruleDensityStatus}}
-Governance Value: {{governanceValue}}
-Density/Value Ratio: {{densityValueRatio}}
-Semantic Drift Risk: {{driftRiskStatus}}
+--- Stability Signals ---  
+Profile Lane: No Profile Active  
+Workflow Lineage: N/A  
+Handoff Integrity: N/A  
+Rule Density: {{ruleDensityStatus}}  
+Governance Value: {{governanceValue}}  
+Density/Value Ratio: {{densityValueRatio}}  
+Semantic Drift Risk: {{driftRiskStatus}}  
 
---- System Flags ---
-Unexpected Files: {{unexpectedFiles}}
+--- System Flags ---  
+Unexpected Files: {{unexpectedFiles}}  
 
-=== Rule Index: Discovery (count) ===
-[List every file loaded from .workflow/rules/]
+=== Rule Index: Discovery (count) ===  
+[List every file loaded from .workflow/rules/]  
 
-=== Rule Index: Rule‑Eligible (count) ===
-[List every file considered a rule by naming/tag/directory]
+=== Rule Index: Rule‑Eligible (count) ===  
+[List every file considered a rule by naming/tag/directory]  
 
-=== Rule Index: Discovered Rules (count) ===
-[List every file parsed into rule objects]
+=== Rule Index: Discovered Rules (count) ===  
+[List every file parsed into rule objects]  
 
-=== Rule Index: Activated Rules (count) ===
-[List all discovered rules (no profile filtering)]
+=== Rule Index: Activated Rules (count) ===  
+[List all discovered rules (no profile filtering)]  
 
-======================
+======================  
 
 Do not add commentary or explanation.
 Return only the block.

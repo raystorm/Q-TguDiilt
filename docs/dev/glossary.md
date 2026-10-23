@@ -349,6 +349,8 @@ Session
 : One ACP conversation between an IDE and the service.  
 Maps to exactly one workflow (`workflowId`), carries the driver's
 continuity id from turn to turn, and runs at most one turn at a time.  
+Its driver and model are resolved once, when it opens (new or reopened),
+and stay the same for every turn.  
 With an ACP driver, a session has its own Downstream Agent process. It lasts
 until disconnect, unless the core ends it earlier (cancel deadline, crash,
 timeout).
@@ -377,19 +379,28 @@ each with a module that exports `createDriver`.
 
 Driver Registry
 : A YAML config mapping driver names to a module and the models they support.  
-Also holds per-profile preferences, the preferred driver and model, and
-the fallback mode. Model Dispatch reads it, and the Driver Catalog loads the drivers it names.
+Also holds per-profile preferences, the preferred driver and model
+(`preferred`), and the fallback mode. A top-level key it does not know is
+rejected. Model Dispatch reads it, and the Driver Catalog loads the drivers it names.
 
 Driver Catalog
 : The working drivers built from a Driver Registry.  
 Loads each entry's module and checks it; a driver that fails is logged and left out,
-and the others still load. Hands out drivers by name, flags a missing or failed preferred driver,
+and the others still load. Hands out drivers by name, flags a missing or failed preferred driver
+or a preferred model its driver does not list (and supplies a Notice),
 and closes every driver on shutdown.
+
+Notice
+: The text a chat shows when the preferred driver or model cannot be used.  
+Names what is preferred, what is used instead, and why. It leads the first
+reply of every session, and later replies until one turn ends normally.
 
 Model Dispatch
 : Choosing the model and driver for a profile's commands.  
 Profile preference first, then the registry defaults, then an error.
 The `auto` model is the fallback when a named model does not resolve.
+A session is resolved once, when it opens, from the registry defaults (it has
+no profile yet).
 
 Tool Call
 : An action the AI takes: read, edit, delete, move, search, execute,
