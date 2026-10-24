@@ -1,7 +1,9 @@
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect } from 'vitest';
 import { AgentRefusedError } from '../acp-driver-core/errors.js';
-import { createLogger, fakeAgents } from '../acp-driver-core/__tests__/acp-driver.helpers.js';
+import {
+   createDiagnostics, createLogger, fakeAgents,
+} from '../acp-driver-core/__tests__/acp-driver.helpers.js';
 import { SESSION, failureOf } from '../acp-driver-core/__tests__/failures.helpers.js';
 import { evaluateToolCall, loadGovernanceConfig } from '../../governance/engine.js';
 import { declaresToolCallGovernance } from '../governed-driver.js';
@@ -29,7 +31,9 @@ function makeCopilot(count = 1, configOptions: unknown = SAFE) {
    const { agents, connect } = fakeAgents(count);
    agents.forEach(agent => agent.respond('session/new', () => ({ sessionId: SESSION, configOptions })));
    const logger = createLogger();
-   return { driver: createCopilotAcpDriver({ connect, logger }), agents, connect, logger };
+   const diagnostics = createDiagnostics();
+   const driver      = createCopilotAcpDriver({ connect, logger, diagnostics });
+   return { driver, agents, connect, logger };
 }
 
 describe('Copilot launch', () => {

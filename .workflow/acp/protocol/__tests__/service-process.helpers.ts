@@ -1,5 +1,7 @@
 import { spawn } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs';
+import {
+   existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -21,7 +23,38 @@ export const exampleRegistry = () => loadRegistryConfig(EXAMPLE_REGISTRY);
 export interface ServiceExit { code: number | null; signal: string | null }
 
 /** One entry of the service's operational log. */
-export interface ServiceLogEntry { event: string; level: string; filePath?: string }
+export interface ServiceLogEntry {
+   event:           string;
+   level:           string;
+   filePath?:       string;
+   name?:           string;
+   reason?:         string;
+   path?:           string;
+   pid?:            number;
+   agentSessionId?: string;
+   code?:           string;
+}
+
+/** One line of the diagnostic log. */
+export interface DiagnosticRecord {
+   event:           string;
+   kind:            string;
+   message:         string;
+   driver:          string;
+   pid?:            number;
+   agentSessionId?: string;
+   exitCode?:       number;
+   signal?:         string;
+   tail?:           string;
+}
+
+/** Extra settings for one run of the service. */
+export interface ServiceOptions {
+   /** Environment for the service and the agent it starts (the stub reads STUB_STDERR). */
+   env?:     Record<string, string>;
+   /** Runs in the working directory before the service starts. */
+   prepare?: (cwd: string) => void;
+}
 
 /** Sees every message the service sends; what it returns answers a request (and is ignored otherwise). */
 type OnMessage = (message: any) => unknown;
@@ -89,13 +122,23 @@ function launch(cwd: string, env: NodeJS.ProcessEnv, onMessage?: OnMessage) {
    });
 
    const logPath = join(cwd, '.workflow', 'work', 'acp.log');
+   const diagnosticPath = join(realpathSync(cwd), '.workflow', 'work', 'acp-diagnostic.log');
+   const diagnosticFile = (): string => {
+      const stats = statSync(diagnosticPath, { throwIfNoEntry: false });
+      return stats?.isFile() ? readFileSync(diagnosticPath, 'utf8') : '';
+   };
 
    return {
-      child, cwd, exited, request,
+      child, cwd, exited, request, diagnosticPath,
       stderr: () => stderr,
       /** The entries of the service's operational log. */
       log: (): ServiceLogEntry[] => existsSync(logPath)
          ? readFileSync(logPath, 'utf8').split('\n').filter(Boolean).map(line => JSON.parse(line)) : [],
+      /** The diagnostic log as text; empty when there is no file. */
+      diagnosticText: diagnosticFile,
+      /** The records of the diagnostic log; none when there is no file. */
+      diagnosticLog: (): DiagnosticRecord[] =>
+         diagnosticFile().split('\n').filter(Boolean).map(line => JSON.parse(line)),
    };
 }
 
@@ -109,12 +152,15 @@ async function endService({ child, exited }: ReturnType<typeof launch>) {
  * first on PATH. The test talks ACP to it over its stdio. Its registry is the shipped example
  * unless `registry` names another file. `stop` ends whatever is left and cleans up.
  */
-export function startService(behaviour = '', registry = EXAMPLE_REGISTRY) {
+export function startService(
+   behaviour = '', registry = EXAMPLE_REGISTRY, { env = {}, prepare }: ServiceOptions = {},
+) {
    // The stub offers the models of the example's kiro driver, so it follows the example.
    const models  = exampleRegistry().drivers.kiro.models.join(',');
-   const stub    = startStub(behaviour, { STUB_MODELS: models });
+   const stub    = startStub(behaviour, { STUB_MODELS: models, ...env });
    const bin     = stubKiroCliBin();
    const cwd     = mkdtempSync(join(tmpdir(), 'service-cwd-'));
+   prepare?.(cwd);
    const service = launch(cwd, { ...process.env, PATH: bin, [REGISTRY_ENV]: registry });
    return {
       ...service, stub,
@@ -139,4 +185,20 @@ export function startLiveService(onMessage: OnMessage) {
          rmSync(cwd, { recursive: true, force: true });
       },
    };
+}
+
+type DriverEntry = { module: string; models: string[] };
+
+/** A registry file in a new temp folder (the caller removes it): the example's kiro + `extra`. */
+export function registryWithExtra(extra: Record<string, DriverEntry>): string
+{
+   const example = exampleRegistry();
+   const kiro    = {
+      module: join(ACP_ROOT, 'drivers', 'kiro-driver-acp.js'),
+      models: example.drivers.kiro.models,
+   };
+   const file    = join(mkdtempSync(join(tmpdir(), 'service-registry-')), 'registry.yaml');
+   const text    = JSON.stringify({ preferred: example.preferred, drivers: { kiro, ...extra } });
+   writeFileSync(file, text);
+   return file;
 }

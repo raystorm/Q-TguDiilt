@@ -1,15 +1,15 @@
 import { describe, it, expect } from 'vitest';
-import { buildDriverCatalog } from '../driver-catalog.js';
 import { createLogger } from '../../protocol/__tests__/agent.helpers.js';
 import {
    FIXTURE_REGISTRY, configOf, fakeDriver, failureLogs, importFrom, moduleOf, validSet,
 } from './catalog-fixtures.js';
+import { buildCatalog } from './build-catalog.js';
 
 async function build(names: string[])
 {
    const logger = createLogger();
    const { drivers, modules } = validSet(...names);
-   const catalog = await buildDriverCatalog({
+   const catalog = await buildCatalog({
       config: configOf(names), registryPath: FIXTURE_REGISTRY, logger, importModule: importFrom(modules),
    });
    return { catalog, logger, drivers };
@@ -55,7 +55,7 @@ describe('catalog — closing', () => {
       const logger = createLogger();
       const reject = fakeDriver('other');
       const { modules } = validSet('good');
-      const catalog = await buildDriverCatalog({
+      const catalog = await buildCatalog({
          config: configOf(['bad', 'good']), registryPath: FIXTURE_REGISTRY, logger,
          importModule: importFrom({ ...modules, bad: moduleOf(reject) }),
       });
@@ -68,7 +68,7 @@ describe('catalog — closing', () => {
       const reject = fakeDriver('other');
       reject.close.mockRejectedValue(new Error('close-boom'));
       const { modules } = validSet('good');
-      const catalog = await buildDriverCatalog({
+      const catalog = await buildCatalog({
          config: configOf(['bad', 'good']), registryPath: FIXTURE_REGISTRY, logger,
          importModule: importFrom({ ...modules, bad: moduleOf(reject) }),
       });

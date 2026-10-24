@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { existsSync } from 'node:fs';
-import { dirname, isAbsolute, join } from 'node:path';
+import { existsSync, mkdirSync } from 'node:fs';
+import { basename, dirname, isAbsolute, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Readable, Writable } from 'node:stream';
 import {
@@ -31,6 +31,7 @@ const mocks = vi.hoisted(() => ({
    connect:        vi.fn(),
    logEntries:     [] as Array<{ level: string; event: string; data: any }>,
    order:          [] as string[],
+   logFiles:       [] as string[],
    configOverride: undefined as string | undefined,
    registry:       '',
    service:        undefined as any,
@@ -54,9 +55,12 @@ vi.mock('../../shared/logger.js', async importOriginal => {
    };
    return {
       ...actual,
-      createFileLogger: () => ({
-         debug: record('debug'), info: record('info'), warn: record('warn'), error: record('error'),
-      }),
+      createFileLogger: (options: { filePath: string }) => {
+         mocks.logFiles.push(options.filePath);
+         return {
+            debug: record('debug'), info: record('info'), warn: record('warn'), error: record('error'),
+         };
+      },
    };
 });
 
@@ -95,6 +99,12 @@ vi.mock('../../drivers/driver-catalog.js', async importOriginal => {
    };
 });
 
+// The real sink, observed.
+vi.mock('../../shared/diagnostic-log.js', async importOriginal => {
+   const actual = await importOriginal<typeof import('../../shared/diagnostic-log.js')>();
+   return { ...actual, createDiagnosticLog: vi.fn(actual.createDiagnosticLog) };
+});
+
 // The built-in drivers start their agent with spawnAgent; a test hands them fake agents.
 vi.mock('../../drivers/acp-driver-core/connect.js', async importOriginal => ({
    ...(await importOriginal<typeof import('../../drivers/acp-driver-core/connect.js')>()),
@@ -116,6 +126,7 @@ vi.mock('../agent.js', async importOriginal => {
 });
 
 const HERE             = dirname(fileURLToPath(import.meta.url));
+const START_DIR        = process.cwd();
 const SHIPPED_CONFIG   = join(HERE, '..', '..', 'governance', 'config.yaml');
 const DRIVERS_DIR      = join(HERE, '..', '..', 'drivers');
 const EXAMPLE_REGISTRY = join(DRIVERS_DIR, 'registry.example.yaml');
@@ -248,10 +259,12 @@ function exitWhenInputEnds(agent: FakeAgent)
 
 beforeEach(() => {
    vi.resetModules();
+   process.chdir(dirOf());      // the sink's folder is under the working directory
    mocks.connect.mockReset();
    mocks.connect.mockImplementation(() => { mocks.order.push('connect'); });
    mocks.logEntries.length = 0;
    mocks.order.length      = 0;
+   mocks.logFiles.length   = 0;
    mocks.configOverride    = undefined;
    forgetRecordedCalls();
    mocks.registry = registryFile({ alpha: recording('alpha') });
@@ -264,7 +277,7 @@ beforeEach(() => {
       SIGNALS.includes(event) ? process : realOn(event, listener)) as never);
 });
 
-afterEach(() => { vi.restoreAllMocks(); });
+afterEach(() => { process.chdir(START_DIR); vi.restoreAllMocks(); });
 
 describe('entry point startup — governance config', () => {
    it('[H] loads the shipped config, from the right path, before connecting', async () => {
@@ -418,6 +431,56 @@ describe('entry point startup — driver registry', () => {
       const { catalog } = await agentDeps();
       expect(catalog.names()).toEqual(['kiro', 'copilot']);
       expect(catalog.preferred.flagged).toBe(false);
+   });
+});
+
+describe('entry point startup — diagnostic log', () => {
+   const diagnosticFile = () => join(process.cwd(), '.workflow', 'work', 'acp-diagnostic.log');
+   const catalogOptions = async () => {
+      const { buildDriverCatalog } = await import('../../drivers/driver-catalog.js');
+      return vi.mocked(buildDriverCatalog).mock.calls[0][0];
+   };
+
+   it('[H] sits beside the service log and reaches the catalog', async () => {
+      await import('../index.js');
+      const { diagnostics } = await catalogOptions();
+      const serviceLog = mocks.logFiles.find(file => 'acp.log' === basename(file)) as string;
+      expect(diagnostics?.path).toBe(diagnosticFile());
+      expect(dirname(diagnosticFile())).toBe(dirname(serviceLog));
+   });
+
+   it('logs the path once at start-up', async () => {
+      await import('../index.js');
+      const holding = mocks.logEntries.filter(entry => diagnosticFile() === entry.data.path);
+      expect(holding).toHaveLength(1);
+   });
+
+   it('builds the sink before the catalog, and connects once, after both', async () => {
+      await import('../index.js');
+      const { createDiagnosticLog } = await import('../../shared/diagnostic-log.js');
+      const { buildDriverCatalog }  = await import('../../drivers/driver-catalog.js');
+      expect(createDiagnosticLog).toHaveBeenCalledTimes(1);
+      expect(mocks.connect).toHaveBeenCalledTimes(1);
+      const [sink]      = vi.mocked(createDiagnosticLog).mock.invocationCallOrder;
+      const [built]     = vi.mocked(buildDriverCatalog).mock.invocationCallOrder;
+      const [connected] = mocks.connect.mock.invocationCallOrder;
+      expect(sink).toBeLessThan(built);
+      expect(built).toBeLessThan(connected);
+   });
+
+   it('[H] a diagnostic log that cannot be opened does not stop the service', async () => {
+      mkdirSync(diagnosticFile(), { recursive: true });   // a folder where the file belongs
+      await expect(import('../index.js')).resolves.toBeDefined();
+      expect(mocks.connect).toHaveBeenCalledTimes(1);
+      const { diagnostics } = await catalogOptions();
+      expect(diagnostics).toBeDefined();
+      expect(diagnostics?.path).toBeUndefined();
+      expect(mocks.logEntries.filter(entry => 'warn' === entry.level)).toHaveLength(1);
+   });
+
+   it('a healthy start adds no warning', async () => {
+      await import('../index.js');
+      expect(mocks.logEntries.filter(entry => 'warn' === entry.level)).toEqual([]);
    });
 });
 

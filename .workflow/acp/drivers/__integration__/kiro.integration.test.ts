@@ -23,7 +23,9 @@ import {
 } from '../../protocol/__tests__/agent.helpers.js';
 import { exitWithin, startLiveService, until } from '../../protocol/__tests__/service-process.helpers.js';
 import { CANCEL_DEADLINE_MS } from '../acp-driver-core/acp-driver.js';
-import { createLogger as createMockLogger } from '../acp-driver-core/__tests__/acp-driver.helpers.js';
+import {
+   createDiagnostics, createLogger as createMockLogger,
+} from '../acp-driver-core/__tests__/acp-driver.helpers.js';
 import { realSleep } from '../acp-driver-core/__tests__/stub-agent.helpers.js';
 import type { DriverResult } from '../governed-driver.js';
 import { createKiroAcpDriver } from '../kiro-driver-acp.js';
@@ -54,7 +56,7 @@ afterAll(() => {
 describe('kiro-cli through the ACP driver (live)', () => {
    it('[H] setup and verify pass, and a plain turn returns text and no tool calls', async () => {
       const logger = createMockLogger();
-      const driver = createKiroAcpDriver({ logger });
+      const driver = createKiroAcpDriver({ logger, diagnostics: createDiagnostics() });
       try {
          const result = await driver.execute('Reply with the single word: ok. Do not use any tools.', {
             onToolCall: async () => 'deny',
@@ -78,7 +80,7 @@ describe.skipIf('win32' === process.platform)('governance in front of the real k
    /** One real turn through the real engine; the fake IDE allows only the control command. */
    async function liveTurn(prompt: string) {
       const logger  = createLogger();
-      const real    = createKiroAcpDriver({ logger });
+      const real    = createKiroAcpDriver({ logger, diagnostics: createDiagnostics() });
       const results: DriverResult[] = [];
       const driver  = {
          ...real,
@@ -149,7 +151,7 @@ describe.skipIf('win32' === process.platform)('cancel with the real kiro-cli (li
    /** A real agent service over the real kiro-cli. `decide` answers each permission request. */
    function liveSession(decide: (shown: string) => 'allow' | 'reject' | 'hold') {
       const logger = createLogger();
-      const driver = createKiroAcpDriver({ logger });
+      const driver = createKiroAcpDriver({ logger, diagnostics: createDiagnostics() });
       const shown  = () => JSON.stringify(detailsOf(cx).slice(-1));
       const cx     = createCx({
          respond: () => {
@@ -319,5 +321,7 @@ describe.skipIf('linux' !== process.platform)('the whole service over the real k
 
 describeAdversarialRun({
    agent: 'kiro',
-   make:  () => createKiroAcpDriver({ logger: createMockLogger() }),
+   make:  () => createKiroAcpDriver({
+      logger: createMockLogger(), diagnostics: createDiagnostics(),
+   }),
 });

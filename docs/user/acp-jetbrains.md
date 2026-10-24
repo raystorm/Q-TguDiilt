@@ -93,15 +93,38 @@ ends the turn as cancelled. The session stays usable.
   signal does the same. The exit status is 0 after a clean end and 1
   otherwise.
 
-## Operational log
+## Logs
 
-The service writes an operational log to `.workflow/work/acp.log`
-(JSONL). It records connection lifecycle events (connect, disconnect,
-session mapping), stops (`cancel_requested`, `turn_cancelled`) and errors
-with context. No secrets or raw prompt text
-are written to the log.
+The service writes two logs in `.workflow/work/`, both JSONL. Neither is
+version-controlled.
 
-This log is transient runtime state; it is not version-controlled.
+- **`acp.log`** is the operational log. It records connection lifecycle
+  events (connect, disconnect, session mapping), stops (`cancel_requested`,
+  `turn_cancelled`) and errors with context. It can hold text from the
+  service itself, such as start-up and configuration messages. It never
+  holds text from an agent or a provider, or your prompts, replies, titles,
+  diffs or tool input.
+- **`acp-diagnostic.log`** is the diagnostic log. When an agent fails, the
+  service writes one record about it: why it failed, the exit code or
+  signal, and the last lines the agent printed. A failure is an agent that
+  exits or crashes, breaks the protocol, answers a request with an error,
+  needs a login, times out while starting, or cannot be started. The error
+  in the chat ends with `full record: <path>`, naming this file.
+
+The diagnostic log is always on and has no setting. It can contain output
+from the agent, so read it before you share it. The service removes text
+that looks like a secret, but this is a safeguard, not a guarantee. A
+secret stored alone as a whole value, such as a message that is exactly
+`key=secret`, is not caught.
+
+Only the user can read the file (not enforced on Windows). It is capped at
+1 MiB: when the next record would pass the cap, the file is renamed to
+`acp-diagnostic.log.1`, replacing the earlier copy, and a new file starts.
+To clear the log, delete both files.
+
+If the diagnostic log cannot be opened when the service starts, the service
+still runs. `acp.log` gets one warning, and no records and no
+`full record:` line are written.
 
 ## Troubleshooting
 
@@ -128,5 +151,6 @@ This log is transient runtime state; it is not version-controlled.
   retry the turn.
 - **The agent will not start, or fails the first turn** — see "When
   something goes wrong" in `docs/user/acp-agents.md`.
-- **Check the log** — `.workflow/work/acp.log` records what the service
-  did and any errors encountered.
+- **Check the logs** — `.workflow/work/acp.log` records what the service
+  did and any errors encountered. `.workflow/work/acp-diagnostic.log`
+  records why an agent failed; the chat error names it.

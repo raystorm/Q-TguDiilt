@@ -1,7 +1,9 @@
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it, vi } from 'vitest';
-import { fakeAgents } from '../../drivers/acp-driver-core/__tests__/acp-driver.helpers.js';
+import {
+   createDiagnostics, fakeAgents,
+} from '../../drivers/acp-driver-core/__tests__/acp-driver.helpers.js';
 import { scriptFor } from '../../drivers/acp-driver-core/__tests__/permissions.helpers.js';
 import { createCopilotAcpDriver } from '../../drivers/copilot-driver-acp.js';
 import { createGovernanceEngine } from '../../governance/engine.js';
@@ -28,7 +30,8 @@ describe('governance in front of the Copilot driver', () => {
       const agent = agents[0];
       const logger     = createLogger();
       const governance = createGovernanceEngine({ configPath: join(ACP_ROOT, 'governance', 'config.yaml'), logger });
-      const driver     = createCopilotAcpDriver({ connect, logger });
+      const diagnostics = createDiagnostics();
+      const driver     = createCopilotAcpDriver({ connect, logger, diagnostics });
       const ide        = deferred<{ outcome: typeof allow }>();
       const cx         = createCx({ respond: () => ide.promise });
 

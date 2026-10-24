@@ -1,9 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { buildDriverCatalog, type DriverCatalog } from '../driver-catalog.js';
+import type { DriverCatalog } from '../driver-catalog.js';
 import type { RegistryConfig } from '../registry.js';
 import { createDispatchResolver, resolveRegistryDefaults } from '../../modelResolver/resolver.js';
 import { createLogger } from '../../protocol/__tests__/agent.helpers.js';
 import { FIXTURE_REGISTRY, entryFor, fixturePath, importFrom, validSet } from './catalog-fixtures.js';
+import { buildCatalog } from './build-catalog.js';
 import { DEFAULT_CASES, registryOf } from './registry-fixtures.js';
 
 function configWith(extra: Partial<RegistryConfig> = {}): RegistryConfig
@@ -23,7 +24,7 @@ async function build(extra: Partial<RegistryConfig> = {}, badFails = true)
 {
    const config = configWith(extra);
    const { modules } = validSet('good', 'other', ...(badFails ? [] : ['bad']));
-   const catalog = await buildDriverCatalog({
+   const catalog = await buildCatalog({
       config, registryPath: FIXTURE_REGISTRY, logger: createLogger(),
       importModule: importFrom(badFails ? { ...modules, bad: { other: () => {} } } : modules),
    });
@@ -39,7 +40,7 @@ describe('catalog — what the dispatch resolver sees', () => {
    it('does not mutate the original config', async () => {
       const original = configWith({ preferred: { driver: 'good' } });
       const copy     = structuredClone(original);
-      const catalog  = await buildDriverCatalog({
+      const catalog  = await buildCatalog({
          config: original, registryPath: FIXTURE_REGISTRY, logger: createLogger(),
          importModule: importFrom({ ...validSet('good', 'other').modules, bad: { other: () => {} } }),
       });
@@ -90,7 +91,7 @@ describe('catalog — what the dispatch resolver sees', () => {
       'the catalog and the resolver agree on the defaults: %s',
       async (_label, preferred, models, pair) => {
          const config  = registryOf(models, preferred, {}, entryFor);
-         const catalog = await buildDriverCatalog({
+         const catalog = await buildCatalog({
             config, registryPath: FIXTURE_REGISTRY, logger: createLogger(),
             importModule: importFrom(validSet(...Object.keys(models)).modules),
          });

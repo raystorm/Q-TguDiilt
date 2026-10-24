@@ -1,5 +1,6 @@
 import type { InitializeResponse, NewSessionResponse, Stream } from '@agentclientprotocol/sdk';
 import type { Logger } from '../../shared/logger.js';
+import type { Diagnostics } from '../../shared/diagnostic-log.js';
 
 /** How to start one downstream agent. */
 export interface LaunchSpec {
@@ -79,4 +80,6 @@ export interface AcpDriverDeps {
    /** Settings to refuse at session start and to warn about when switched on later; none when omitted. */
    unsafeSettings?: readonly UnsafeSetting[];
    logger:  Logger;
+   /** Where failures of the agent are recorded. */
+   diagnostics: Diagnostics;
 }

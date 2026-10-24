@@ -2,7 +2,9 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it, vi } from 'vitest';
 import { createAcpDriver } from '../../drivers/acp-driver-core/acp-driver.js';
-import { LAUNCH, fakeAgents } from '../../drivers/acp-driver-core/__tests__/acp-driver.helpers.js';
+import {
+   LAUNCH, createDiagnostics, fakeAgents,
+} from '../../drivers/acp-driver-core/__tests__/acp-driver.helpers.js';
 import { NEVER } from '../../drivers/acp-driver-core/__tests__/fake-acp-agent.js';
 import { SESSION, scriptFor } from '../../drivers/acp-driver-core/__tests__/permissions.helpers.js';
 import { createGovernanceEngine } from '../../governance/engine.js';
@@ -34,8 +36,9 @@ async function runTurn(ending: Ending) {
    const closeStdin = downstream.handle.closeStdin;
    downstream.handle.closeStdin = () => { closeStdin(); downstream.exit(0); };
 
+   const diagnostics = createDiagnostics();
    const logger     = createLogger();
-   const driver     = createAcpDriver({ name: 'test', connect, launch: LAUNCH, logger });
+   const driver     = createAcpDriver({ name: 'test', connect, launch: LAUNCH, logger, diagnostics });
    const governance = createGovernanceEngine({ configPath: CONFIG_PATH, logger });
    const script     = scriptFor(downstream, []);
    const command    = 'denied-by-rule' === ending ? 'git checkout main' : 'touch x';
@@ -79,9 +82,10 @@ async function runTurn(ending: Ending) {
    if ('disconnect' !== ending) { await driver.close(); }
 
    return {
-      logs:  JSON.stringify(logger.entries),
-      ide:   JSON.stringify(cx.calls),
-      error: error?.message ?? '',
+      logs:    JSON.stringify(logger.entries),
+      ide:     JSON.stringify(cx.calls),
+      error:   error?.message ?? '',
+      records: diagnostics.records,
    };
 }
 
@@ -103,6 +107,21 @@ describe.each(ENDINGS)('the canary sweep: a turn that ends as %s', ending => {
    it('[H] no error message carries a canary except the agent\'s last words', async () => {
       const { error } = await runTurn(ending);
       for (const canary of ALL.filter(each => CANARY.stderr !== each)) { expect(error, canary).not.toContain(canary); }
+   });
+
+   it('[H] no canary reaches a diagnostic record except the agent\'s last words', async () => {
+      const { records } = await runTurn(ending);
+      const text        = JSON.stringify(records);
+      for (const canary of ALL.filter(each => CANARY.stderr !== each)) {
+         expect(text, canary).not.toContain(canary);
+      }
+   });
+
+   it('only a crash gives a record, and it holds the last words once', async () => {
+      const { records } = await runTurn(ending);
+      expect(records).toHaveLength('crash' === ending ? 1 : 0);
+      expect(JSON.stringify(records).split(CANARY.stderr))
+         .toHaveLength('crash' === ending ? 2 : 1);
    });
 });
 

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildDriverCatalog, DRIVER_FAILURE } from '../driver-catalog.js';
+import { DRIVER_FAILURE } from '../driver-catalog.js';
 import { DriverCatalogBuildError } from '../errors.js';
 import type { RegistryConfig } from '../registry.js';
 import { resolveRegistry } from '../../modelResolver/resolver.js';
@@ -7,12 +7,13 @@ import { createLogger } from '../../protocol/__tests__/agent.helpers.js';
 import {
    FIXTURE_REGISTRY, configOf, entryFor, failureLogs, fixturePath, importFrom, validSet,
 } from './catalog-fixtures.js';
+import { buildCatalog } from './build-catalog.js';
 
 const noCreate = { other: () => {} };
 const throwing = { createDriver: () => { throw new Error('boom'); } };
 
 function build(config: RegistryConfig, modules: Record<string, unknown>, logger = createLogger())
-{ return buildDriverCatalog({ config, registryPath: FIXTURE_REGISTRY, logger, importModule: importFrom(modules) }); }
+{ return buildCatalog({ config, registryPath: FIXTURE_REGISTRY, logger, importModule: importFrom(modules) }); }
 
 async function rejection(promise: Promise<unknown>): Promise<DriverCatalogBuildError>
 {

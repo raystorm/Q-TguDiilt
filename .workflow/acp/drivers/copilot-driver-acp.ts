@@ -3,6 +3,7 @@
  * Everything that is specific to Copilot is in this file: the launch command line
  * and the two settings that make it run tools without asking. The core has no Copilot code.
  */
+import type { Diagnostics } from '../shared/diagnostic-log.js';
 import type { Logger } from '../shared/logger.js';
 import { createAcpDriver } from './acp-driver-core/acp-driver.js';
 import { spawnAgent } from './acp-driver-core/connect.js';
@@ -31,24 +32,34 @@ const UNSAFE_SETTINGS: readonly UnsafeSetting[] = [
    { name: 'autopilot', optionId: 'mode',      values: [`${SESSION_MODES}#autopilot`, 'autopilot'] },
 ];
 
-/** What the Copilot driver needs from its caller: where to log, and optionally how to start the process. */
+/**
+ * What the Copilot driver needs from its caller: where to log and record failures, and
+ * optionally how to start the process.
+ */
 export interface CopilotDriverDeps {
    /** Starts the `copilot` process. A real child process unless a test passes a fake. */
-   connect?: Connect;
-   logger:  Logger;
+   connect?:    Connect;
+   logger:      Logger;
+   /** Where failures of the agent are recorded. */
+   diagnostics: Diagnostics;
 }
 
 /** A governed driver over `copilot` as an ACP server. Its name is `copilot`. */
-export function createCopilotAcpDriver({ connect = spawnAgent, logger }: CopilotDriverDeps): Driver {
+export function createCopilotAcpDriver(
+   { connect = spawnAgent, logger, diagnostics }: CopilotDriverDeps,
+): Driver {
    return createAcpDriver({
       name:           'copilot',
       connect,
       launch:         { command: COPILOT_COMMAND, args: COPILOT_ARGS },
       unsafeSettings: UNSAFE_SETTINGS,
       logger,
+      diagnostics,
    });
 }
 
-/** The registry's entry point: the Copilot driver, built from the logger alone. */
-export function createDriver({ logger }: { logger: Logger }): Driver
-{ return createCopilotAcpDriver({ logger }); }
+/** The registry's entry point: the Copilot driver, built from the logger and the diagnostic log. */
+export function createDriver(
+   { logger, diagnostics }: { logger: Logger; diagnostics: Diagnostics },
+): Driver
+{ return createCopilotAcpDriver({ logger, diagnostics }); }

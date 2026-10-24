@@ -113,8 +113,8 @@ implementation. It honors the signal and implements `close`.
 1. Implement `Driver` from `governed-driver.ts`, declaring a `name` and
    `supportsToolCallGovernance: true`, and export a `createDriver`
    factory. The Driver Catalog loads a driver by importing its module and
-   calling `createDriver({ logger })`. A sketch, provider specifics
-   omitted:
+   calling `createDriver({ logger, diagnostics })` (see Diagnostic Log
+   below). A sketch, provider specifics omitted:
 
 ```typescript
 import {
@@ -181,6 +181,36 @@ describeGovernedDriverContract('my-driver', () => ({
 6. Add a registry entry for the driver, with its `module` (see Registry
    Config Format and How to Register a Custom Driver below). The Driver
    Catalog checks the driver when it is built.
+
+---
+
+## Diagnostic Log
+
+The service keeps a diagnostic log of the failures of downstream agents
+(`.workflow/work/acp-diagnostic.log`, beside the service log). The entry
+point creates it and the Driver Catalog hands it to every factory as
+`diagnostics`, the second field of the argument, which is always there:
+
+```typescript
+import type { Diagnostics } from '../shared/diagnostic-log.js';
+
+export function createDriver(
+   { logger, diagnostics }: { logger: Logger; diagnostics: Diagnostics },
+): Driver {
+   return createAcpDriver({ name: 'my-driver', /* ... */ logger, diagnostics });
+}
+```
+
+`Diagnostics` is defined in `shared/diagnostic-log.ts`.
+
+- A driver built on the ACP driver core passes it to `createAcpDriver`.
+  The core then writes one record for each failed agent process, and adds
+  the line `full record: <path>` to the errors that carry it.
+- A driver that does not use the core may ignore it, or call
+  `diagnostics.record(...)` itself. A factory that reads only `logger`
+  still loads and serves.
+- When the file could not be opened at start-up, `diagnostics` has no
+  `path`: nothing is recorded and no `full record:` line is added.
 
 ---
 
@@ -331,6 +361,9 @@ naming the preferred driver and model, the driver and model in use, and
 the kind. The driver and model in use, `preferred.inUse` and
 `preferred.inUseModel`, are what `resolveRegistryDefaults` returns over
 the working drivers.
+
+**Diagnostics.** `buildDriverCatalog` requires `diagnostics` and passes it,
+unchanged, to every `createDriver`.
 
 **Using the catalog.** `get(name)` returns a working driver, or throws
 `DriverNotInCatalogError`. `names()` lists the working drivers in registry

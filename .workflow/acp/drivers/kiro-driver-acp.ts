@@ -4,6 +4,7 @@
  * command line and the check that the server is V3. The core has no Kiro code.
  */
 import type { InitializeResponse } from '@agentclientprotocol/sdk';
+import type { Diagnostics } from '../shared/diagnostic-log.js';
 import type { Logger } from '../shared/logger.js';
 import { createAcpDriver } from './acp-driver-core/acp-driver.js';
 import { spawnAgent } from './acp-driver-core/connect.js';
@@ -45,24 +46,34 @@ export function verifyKiroV3(response: InitializeResponse): string | undefined {
 /** What this driver checks on the agent: that it is the V3 server, before any session is created. */
 export const kiroPolicy: AcpPolicy = { verifyInitialize: verifyKiroV3 };
 
-/** What the Kiro driver needs from its caller: where to log, and optionally how to start the process. */
+/**
+ * What the Kiro driver needs from its caller: where to log and record failures, and
+ * optionally how to start the process.
+ */
 export interface KiroDriverDeps {
    /** Starts the `kiro-cli` process. A real child process unless a test passes a fake. */
-   connect?: Connect;
-   logger:  Logger;
+   connect?:    Connect;
+   logger:      Logger;
+   /** Where failures of the agent are recorded. */
+   diagnostics: Diagnostics;
 }
 
 /** A governed driver over `kiro-cli` as Kiro's V3 ACP server. Its name is `kiro`. */
-export function createKiroAcpDriver({ connect = spawnAgent, logger }: KiroDriverDeps): Driver {
+export function createKiroAcpDriver(
+   { connect = spawnAgent, logger, diagnostics }: KiroDriverDeps,
+): Driver {
    return createAcpDriver({
       name:   'kiro',
       connect,
       launch: { command: KIRO_COMMAND, args: KIRO_ARGS },
       policy: kiroPolicy,
       logger,
+      diagnostics,
    });
 }
 
-/** The registry's entry point: the Kiro driver, built from the logger alone. */
-export function createDriver({ logger }: { logger: Logger }): Driver
-{ return createKiroAcpDriver({ logger }); }
+/** The registry's entry point: the Kiro driver, built from the logger and the diagnostic log. */
+export function createDriver(
+   { logger, diagnostics }: { logger: Logger; diagnostics: Diagnostics },
+): Driver
+{ return createKiroAcpDriver({ logger, diagnostics }); }

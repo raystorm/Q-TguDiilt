@@ -3,7 +3,7 @@ import {
    createDriverSpy, createHeldDriver, createLogger, createResolverStub, eventsOf, makeAgent,
    newSessionArgs, oneDriverCatalog, resolved, startTurn,
 } from './agent.helpers.js';
-import { buildDriverCatalog } from '../../drivers/driver-catalog.js';
+import { buildCatalog } from '../../drivers/__tests__/build-catalog.js';
 import {
    FIXTURE_REGISTRY, configOf, importFrom, validSet,
 } from '../../drivers/__tests__/catalog-fixtures.js';
@@ -88,7 +88,7 @@ describe('disconnect closes the catalog', () => {
    /** A real catalog over fake drivers. */
    async function realCatalog(names: string[]) {
       const { drivers, modules } = validSet(...names);
-      const catalog = await buildDriverCatalog({
+      const catalog = await buildCatalog({
          config: configOf(names), registryPath: FIXTURE_REGISTRY, logger: createLogger(),
          importModule: importFrom(modules),
       });

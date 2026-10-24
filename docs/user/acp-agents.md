@@ -87,6 +87,10 @@ fails with an error naming the model; fix the name in the registry.
 - **The agent writes something that is not JSON, or closes its output
   while still running** — the turn fails with a message and the agent is
   ended.
+- **You want the cause of a failure** — the error in the chat ends with
+  `full record: <path>`. Open that file; see "Logs" in
+  `docs/user/acp-jetbrains.md`. It can contain the agent's output, so read
+  it before you share it.
 
 ## Limits
 

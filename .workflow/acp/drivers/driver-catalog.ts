@@ -13,6 +13,7 @@
 import { existsSync, statSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import type { Diagnostics } from '../shared/diagnostic-log.js';
 import { Logger, printErrorMessage } from '../shared/logger.js';
 import { resolveRegistryDefaults } from '../modelResolver/resolver.js';
 import {
@@ -76,6 +77,8 @@ export interface BuildDriverCatalogOptions {
    /** Where the registry file is; relative module paths are read from its folder. */
    registryPath:  string;
    logger:        Logger;
+   /** Where drivers record failures of their agents. Passed to every `createDriver`. */
+   diagnostics:   Diagnostics;
    /** Loads the module at an absolute path. Default: a real dynamic import. */
    importModule?: (path: string) => Promise<unknown>;
 }
@@ -108,6 +111,7 @@ async function loadDriver(
    name:         string,
    path:         string,
    logger:       Logger,
+   diagnostics:  Diagnostics,
    importModule: (path: string) => Promise<unknown>,
 ): Promise<LoadResult>
 {
@@ -123,7 +127,7 @@ async function loadDriver(
    if ('function' !== typeof create) { return { kind: DRIVER_FAILURE.noCreateDriver }; }
 
    let made: unknown;
-   try { made = await create({ logger }); }
+   try { made = await create({ logger, diagnostics }); }
    catch (err) { return { kind: DRIVER_FAILURE.factoryFailed, reason: printErrorMessage(err) }; }
    if (null === made || 'object' !== typeof made) { return { kind: DRIVER_FAILURE.notADriver }; }
 
@@ -183,14 +187,14 @@ function noticeFor(name: string, model: string | undefined, kind: string, inUse:
  */
 export async function buildDriverCatalog(options: BuildDriverCatalogOptions): Promise<DriverCatalog>
 {
-   const { config, registryPath, logger, importModule = importDriverModule } = options;
+   const { config, registryPath, logger, diagnostics, importModule = importDriverModule } = options;
    const registryDir = dirname(resolve(registryPath));
    const working     = new Map<string, Driver>();
    const failures: DriverFailure[] = [];
 
    for (const [name, entry] of Object.entries(config.drivers)) {
       const path   = resolve(registryDir, entry.module);
-      const result = await loadDriver(name, path, logger, importModule);
+      const result = await loadDriver(name, path, logger, diagnostics, importModule);
       if (!('kind' in result)) {
          working.set(name, result.driver);
          logger.debug('driver_loaded', { name, path });

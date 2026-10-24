@@ -27,6 +27,7 @@ each finding, its tier, and whether it was fixed or accepted.
 | Agent-side approvals (Kiro rules, autopilot)             |           | Accepted            |
 | An agent changing a command after approval               |           | Accepted            |
 | Redaction is not guaranteed                              |           | Accepted            |
+| Agent output persists in the diagnostic log              |           | Accepted            |
 | The service killed with SIGKILL                          |           | Accepted            |
 | Processes outside the agent's process group              |           | Accepted            |
 | SDK prints agent messages to stderr                      |           | Accepted            |
@@ -127,6 +128,15 @@ preset, which is backlogged.
   after it was approved.
 - **Redaction.** Error text goes through a pattern-based redaction. It is
   a safeguard, not a guarantee (see `docs/user/acp-agents.md`).
+- **Diagnostic log.** Output from an agent and error text from a provider
+  persist in `.workflow/work/acp-diagnostic.log`. A secret that matches no
+  redaction pattern, and a secret stored alone as a whole field value, are
+  kept. The file is local, ignored by git, owner-only (`0600`; not checked
+  on Windows) and capped at 1 MiB plus one rotated copy. No tier applies:
+  the tiers in `threat-model.md` rank paths to `approve` for a tool call,
+  and this finding is about stored text, as with "Redaction". Outcome:
+  accepted; users are told to read the file before sharing it. The live
+  runs will read the file as a leak check.
 - **SIGKILL.** If the service is killed with SIGKILL it cannot end its
   agent. Kiro and its children exited by themselves about 5.5 seconds
   later (kiro-cli 2.22.0).

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { join } from 'node:path';
-import { buildDriverCatalog, DRIVER_FAILURE } from '../driver-catalog.js';
+import { DRIVER_FAILURE } from '../driver-catalog.js';
 import { DriverNotInCatalogError } from '../errors.js';
 import type { RegistryConfig } from '../registry.js';
 import { createLogger } from '../../protocol/__tests__/agent.helpers.js';
@@ -8,12 +8,13 @@ import {
    FIXTURE_REGISTRY, configForFiles, configOf, copyFixture, entryFor, failureLogs, fakeDriver,
    fixturePath, importFrom, moduleOf, useTempDir, validSet, writeDriver,
 } from './catalog-fixtures.js';
+import { buildCatalog } from './build-catalog.js';
 
 const dirOf = useTempDir();
 
 interface Built
 {
-   catalog: Awaited<ReturnType<typeof buildDriverCatalog>>;
+   catalog: Awaited<ReturnType<typeof buildCatalog>>;
    logger:  ReturnType<typeof createLogger>;
    config:  RegistryConfig;
 }
@@ -24,7 +25,7 @@ async function buildBad(bad: unknown, order: string[] = ['bad', 'good']): Promis
    const logger = createLogger();
    const { modules } = validSet('good');
    const config = configOf(order, { preferred: { driver: 'good' } });
-   const catalog = await buildDriverCatalog({
+   const catalog = await buildCatalog({
       config, registryPath: FIXTURE_REGISTRY, logger, importModule: importFrom({ ...modules, bad }),
    });
    return { catalog, logger, config };
@@ -35,7 +36,7 @@ async function buildFiles(modules: Record<string, string>): Promise<Built>
 {
    const logger = createLogger();
    const config = configForFiles(modules);
-   const catalog = await buildDriverCatalog({ config, registryPath: join(dirOf(), 'registry.yaml'), logger });
+   const catalog = await buildCatalog({ config, registryPath: join(dirOf(), 'registry.yaml'), logger });
    return { catalog, logger, config };
 }
 
@@ -113,7 +114,7 @@ describe('catalog — a driver fails a check', () => {
       const config: RegistryConfig = {
          drivers: { alpha: { ...entryFor('alpha'), models: ['auto', 'no-real-agent-offers-this'] } },
       };
-      const catalog = await buildDriverCatalog({
+      const catalog = await buildCatalog({
          config, registryPath: FIXTURE_REGISTRY, logger: createLogger(),
          importModule: importFrom({ alpha: moduleOf(alpha) }),
       });
@@ -124,7 +125,7 @@ describe('catalog — a driver fails a check', () => {
    it('two failing drivers are each logged once, with their own path and kind', async () => {
       const logger = createLogger();
       const { modules } = validSet('good');
-      const catalog = await buildDriverCatalog({
+      const catalog = await buildCatalog({
          config: configOf(['bad1', 'bad2', 'good']), registryPath: FIXTURE_REGISTRY, logger,
          importModule: importFrom({
             ...modules,

@@ -109,9 +109,12 @@ once at startup and does not start without a valid one.
 
 ## Registering a Custom Driver
 
-1. Implement the driver and export `createDriver({ logger })` from its
-   module. The factory returns the driver; its `name` must equal the
-   registry key.
+1. Implement the driver and export `createDriver({ logger, diagnostics })`
+   from its module. The factory returns the driver; its `name` must equal
+   the registry key. `diagnostics` is where failures of the agent are
+   recorded (see "Diagnostic Log" in `drivers/EXTENDING.md`): a driver built
+   on the ACP driver core passes it to `createAcpDriver`, and a driver that
+   does not use the core may ignore it.
 2. Add an entry to your `registry.yaml` under `drivers:`:
 
 ```yaml

@@ -1,5 +1,6 @@
 import { describe, vi } from 'vitest';
 import { createAcpDriver } from '../acp-driver-core/acp-driver.js';
+import { createDiagnostics } from '../acp-driver-core/__tests__/acp-driver.helpers.js';
 import { spawnAgent } from '../acp-driver-core/connect.js';
 import { createCopilotAcpDriver, createDriver as createCopilot } from '../copilot-driver-acp.js';
 import { createKiroAcpDriver, createDriver as createKiro } from '../kiro-driver-acp.js';
@@ -19,19 +20,23 @@ const KIRO_V3 = {
 
 describe('the real drivers pass the contract', () => {
    describeGovernedDriverContract('kiro', () => createAcpHarness({
-      make:    (connect, logger) => createKiroAcpDriver({ connect, logger }),
+      make:    (connect, logger) => createKiroAcpDriver({
+         connect, logger, diagnostics: createDiagnostics(),
+      }),
       prepare: agent => agent.respond('initialize', () => KIRO_V3),
    }));
 
    describeGovernedDriverContract('copilot', () => createAcpHarness({
-      make: (connect, logger) => createCopilotAcpDriver({ connect, logger }),
+      make: (connect, logger) => createCopilotAcpDriver({
+         connect, logger, diagnostics: createDiagnostics(),
+      }),
    }));
 
    // A third driver is a launch command and nothing else: no core change makes it pass.
    describeGovernedDriverContract('a third driver', () => createAcpHarness({
       make: (connect, logger) => createAcpDriver({
          name: 'toy', connect, launch: { command: 'toy-agent', args: [] },
-         policy: { verifySession: () => undefined }, logger,
+         policy: { verifySession: () => undefined }, logger, diagnostics: createDiagnostics(),
       }),
    }));
 });
@@ -40,7 +45,7 @@ describe('the real drivers pass the contract', () => {
 const viaSpawnAgent = (create: typeof createKiro): AcpHarnessOptions['make'] =>
    (connect, logger) => {
       vi.mocked(spawnAgent).mockImplementation(connect);
-      return create({ logger });
+      return create({ logger, diagnostics: createDiagnostics() });
    };
 
 describe('the registry entry points pass the contract', () => {

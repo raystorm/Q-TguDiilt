@@ -1,4 +1,5 @@
 import { vi } from 'vitest';
+import type { Diagnostics } from '../../../shared/diagnostic-log.js';
 import { NEVER } from './fake-acp-agent.js';
 import { createLogger, flush, makeDriver } from './acp-driver.helpers.js';
 
@@ -22,8 +23,8 @@ export const logged = (logger: Logger) =>
    JSON.stringify([logger.debug, logger.info, logger.warn, logger.error].map(fn => fn.mock.calls));
 
 /** The agent prints `text` and exits with `code` while `initialize` is unanswered. */
-export async function exitDuringInitialize(text: string, code = 1) {
-   const made = makeDriver();
+export async function exitDuringInitialize(text: string, code = 1, diagnostics?: Diagnostics) {
+   const made = makeDriver(1, undefined, undefined, undefined, diagnostics);
    const agent = made.agents[0];
    agent.respond('initialize', () => NEVER);
    const failure = failureOf(made.driver.execute('go'));

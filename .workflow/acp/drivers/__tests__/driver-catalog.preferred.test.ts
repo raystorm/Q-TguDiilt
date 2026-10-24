@@ -1,12 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import { join } from 'node:path';
-import { buildDriverCatalog, DRIVER_FAILURE } from '../driver-catalog.js';
+import { DRIVER_FAILURE } from '../driver-catalog.js';
 import type { PreferredDefaults, RegistryConfig } from '../registry.js';
 import { createLogger } from '../../protocol/__tests__/agent.helpers.js';
 import {
    FIXTURE_REGISTRY, FakeDriver, configForFiles, copyFixture, entryFor, failureLogs,
    fakeDriver, importFrom, moduleOf, useTempDir, validSet, writeDriver,
 } from './catalog-fixtures.js';
+import { buildCatalog } from './build-catalog.js';
 import { INHERITED_NAMES, ModelLists, registryOf } from './registry-fixtures.js';
 
 /** The kind reported for a preferred driver that the registry does not list. */
@@ -20,7 +21,7 @@ const dirOf = useTempDir();
 type Logger = ReturnType<typeof createLogger>;
 interface Built
 {
-   catalog: Awaited<ReturnType<typeof buildDriverCatalog>>;
+   catalog: Awaited<ReturnType<typeof buildCatalog>>;
    logger:  Logger;
    drivers: Record<string, FakeDriver>;
 }
@@ -60,7 +61,7 @@ async function build(
    const logger = createLogger();
    const config = registryOf(models, preferred, {}, entryFor);
    const { drivers, modules } = validSet(...Object.keys(models).filter(name => !(name in failing)));
-   const catalog = await buildDriverCatalog({
+   const catalog = await buildCatalog({
       config, registryPath: FIXTURE_REGISTRY, logger, importModule: importFrom({ ...modules, ...failing }),
    });
    return { catalog, logger, drivers };
@@ -148,7 +149,7 @@ describe('catalog — the preferred driver', () => {
          const files        = configForFiles({ alpha: badPath(), beta });
          const config: RegistryConfig = { ...files, preferred: { driver: 'alpha' } };
          const registryPath = join(dirOf(), 'registry.yaml');
-         const catalog      = await buildDriverCatalog({ config, registryPath, logger });
+         const catalog      = await buildCatalog({ config, registryPath, logger });
          expect(catalog.names()).toEqual(['beta']);
          expectFlagged({ catalog, logger }, { name: 'alpha', inUse: 'beta', inUseModel: 'auto' }, kind);
       },

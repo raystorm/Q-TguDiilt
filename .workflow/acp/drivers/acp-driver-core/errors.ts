@@ -2,7 +2,7 @@ import { RequestError } from '@agentclientprotocol/sdk';
 import { ProviderAuthError } from '../../protocol/errors.js';
 import { defineError } from '../../shared/errors.js';
 import { redact } from '../../shared/redact.js';
-import { withTail } from './stderr-tail.js';
+import { TAIL_HEADER, withTail } from './stderr-tail.js';
 import type { AgentExit } from './types.js';
 
 /** The agent does not offer the model the dispatcher resolved for this driver. */
@@ -115,4 +115,56 @@ export function exitFailure(exit: AgentExit, tail: string): AgentExitedError | P
 export function requestFailure(method: string, err: unknown, tail: string): AgentRequestError | ProviderAuth {
    if (err instanceof RequestError && AUTH_REQUIRED_CODE === err.code) { return loginRequired(tail); }
    return new AgentRequestError(method, messageOf(err), tail);
+}
+
+/** What kind of failure a record is. Each kind agrees with the error the user gets. */
+export const AGENT_FAILURE_KIND = {
+   exited:           'exited',
+   protocol:         'protocol',
+   requestError:     'requestError',
+   authRequired:     'authRequired',
+   setupTimeout:     'setupTimeout',
+   notStarted:       'notStarted',
+   refused:          'refused',
+   modelUnavailable: 'modelUnavailable',
+   handlerFailed:    'handlerFailed',
+   cancelTimeout:    'cancelTimeout',
+} as const;
+export type AgentFailureKind = typeof AGENT_FAILURE_KIND[keyof typeof AGENT_FAILURE_KIND];
+
+const KIND_OF: Array<[abstract new (...args: any[]) => Error, AgentFailureKind]> = [
+   [AgentExitedError,        AGENT_FAILURE_KIND.exited],
+   [AgentProtocolError,      AGENT_FAILURE_KIND.protocol],
+   [AgentRequestError,       AGENT_FAILURE_KIND.requestError],
+   [ProviderAuthError,       AGENT_FAILURE_KIND.authRequired],
+   [AgentSetupTimeoutError,  AGENT_FAILURE_KIND.setupTimeout],
+   [AgentNotFoundError,      AGENT_FAILURE_KIND.notStarted],
+   [AgentLaunchError,        AGENT_FAILURE_KIND.notStarted],
+   [AgentRefusedError,       AGENT_FAILURE_KIND.refused],
+   [ModelUnavailableError,   AGENT_FAILURE_KIND.modelUnavailable],
+   [AgentCancelTimeoutError, AGENT_FAILURE_KIND.cancelTimeout],
+];
+
+/** The kind of a failure, by its error class; undefined for any other error. */
+export function failureKind(err: unknown): AgentFailureKind | undefined {
+   return KIND_OF.find(([type]) => err instanceof type)?.[1];
+}
+
+/** The part of an error message before the agent's output: what a record calls its message. */
+export function summaryOf(message: string): string {
+   const at = message.indexOf(`\n${TAIL_HEADER}\n`);
+   return -1 === at ? message : message.slice(0, at);
+}
+
+/** The errors whose message ends with the line that names the diagnostic log. */
+const WITH_RECORD_LINE = [
+   AgentExitedError, AgentRequestError, AgentProtocolError, ProviderAuthError,
+   AgentSetupTimeoutError, AgentNotFoundError, AgentLaunchError,
+];
+
+/** Ends the message with `full record: <path>`, for the errors that have it. */
+export function withRecordLine(err: unknown, path: string): void {
+   if (err instanceof Error && WITH_RECORD_LINE.some(type => err instanceof type)) {
+      err.message = `${err.message}\nfull record: ${path}`;
+   }
 }

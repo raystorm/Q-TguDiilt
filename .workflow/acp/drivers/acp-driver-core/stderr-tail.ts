@@ -11,11 +11,14 @@ export const STDERR_TAIL_MAX_LINES = 200;
 /** At most this many of the last bytes are kept. */
 export const STDERR_TAIL_MAX_BYTES = 5120;
 
+/** The line that introduces the agent's output in an error message. */
+export const TAIL_HEADER = 'the agent printed (last lines, secrets removed, not guaranteed):';
+
 /** A summary and, when the agent printed anything, its last lines. `tail` is already redacted. */
 export function withTail(summary: string, tail: string): string {
    return '' === tail
       ? summary
-      : `${summary}\nthe agent printed (last lines, secrets removed, not guaranteed):\n${tail}`;
+      : `${summary}\n${TAIL_HEADER}\n${tail}`;
 }
 
 export interface StderrTail {

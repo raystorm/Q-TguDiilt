@@ -1,13 +1,17 @@
-import { existsSync } from 'node:fs';
+import { existsSync, mkdirSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
+import { AGENT_FAILURE_KIND } from '../../drivers/acp-driver-core/errors.js';
 import { goneWithin, isAlive } from '../../drivers/acp-driver-core/__tests__/stub-agent.helpers.js';
 import {
    exampleRegistry,
    exitWithin,
+   registryWithExtra,
    startService,
    until,
+   type DiagnosticRecord,
    type ServiceExit,
 } from './service-process.helpers.js';
 
@@ -89,5 +93,103 @@ describe.skipIf('win32' === process.platform)('the real service', () => {
       expect(running.stderr()).toContain('registry.example.yaml');
       const logged = running.log().some(entry => 'error' === entry.level && absent === entry.filePath);
       expect(logged).toBe(true);
+   }, SLOW_START);
+});
+
+const FIXTURES = join(
+   dirname(fileURLToPath(import.meta.url)), '..', '..', 'drivers', '__tests__', 'fixtures',
+   'driver-modules',
+);
+const THROWS_SECRET = join(FIXTURES, 'throws-secret-on-import.js');
+const SECRET        = 'abc123def';
+const CANARY        = 'CANARY-STDERR-9z';
+
+const isFailure = (record: DiagnosticRecord) => 'agent_failure' === record.event;
+const blockDiagnosticLog = (cwd: string) =>
+   mkdirSync(join(cwd, '.workflow', 'work', 'acp-diagnostic.log'), { recursive: true });
+
+/** Initializes, opens a session and prompts once; the answer to the prompt. */
+async function promptOnce(running: Service) {
+   await running.request('initialize', INITIALIZE);
+   const created = await running.request('session/new', { cwd: running.cwd, mcpServers: [] });
+   return running.request('session/prompt', promptOf(created.result.sessionId));
+}
+
+/** The text of the error a failed prompt answers with. */
+const errorText = (answer: any): string => answer.error.data.details;
+
+describe.skipIf('win32' === process.platform)('the real service — diagnostic log', () => {
+   const registryDirs: string[] = [];
+   afterEach(() => {
+      for (const dir of registryDirs.splice(0)) { rmSync(dir, { recursive: true, force: true }); }
+   });
+
+   it('[H] a failure before initialize leaves a complete record the chat error names', async () => {
+      const running = service = startService('exit-before-initialize', undefined, {
+         env: { STUB_STDERR: `starting failed token=${SECRET} ${CANARY}\n` },
+      });
+      const text = errorText(await promptOnce(running));
+      expect(text.split('\n').pop()).toBe(`full record: ${running.diagnosticPath}`);
+      const records = running.diagnosticLog().filter(isFailure);
+      expect(records).toHaveLength(1);
+      expect(records[0]).toMatchObject({ kind: AGENT_FAILURE_KIND.exited });
+      const file = running.diagnosticText();
+      expect(file.split(CANARY)).toHaveLength(2);
+      expect(file).toContain('token=[redacted]');
+      expect(file).not.toContain(SECRET);
+      expect(statSync(running.diagnosticPath).mode & 0o777).toBe(0o600);
+      const serviceLog = JSON.stringify(running.log());
+      expect(serviceLog).not.toContain(CANARY);
+      expect(serviceLog).not.toContain(SECRET);
+   }, SLOW_START);
+
+   it('[H] a crash in a turn joins to the service log by pid and agent session', async () => {
+      const running = service = startService('crash-on-prompt');
+      await promptOnce(running);
+      const [record] = running.diagnosticLog().filter(isFailure);
+      expect(record).toMatchObject({
+         signal: 'SIGKILL', agentSessionId: 'stub-session', pid: running.stub.state().pid,
+      });
+      expect(record).not.toHaveProperty('exitCode');
+      const ended = () => running.log().filter(entry => 'agent_process_ended' === entry.event);
+      expect(await until(() => 0 < ended().length)).toBe(true);
+      expect(ended()).toMatchObject([{ pid: record.pid, agentSessionId: 'stub-session' }]);
+   }, SLOW_START);
+
+   it('[H] an unusable diagnostic file does not stop the service', async () => {
+      const running = service = startService('crash-on-prompt', undefined, {
+         prepare: blockDiagnosticLog,
+      });
+      const init     = await running.request('initialize', INITIALIZE);
+      const created  = await running.request('session/new', { cwd: running.cwd, mcpServers: [] });
+      const prompted = await running.request('session/prompt', promptOf(created.result.sessionId));
+      expect(typeof init.result.protocolVersion).toBe('number');
+      expect(typeof created.result.sessionId).toBe('string');
+      const warnings = running.log()
+         .filter(entry => 'warn' === entry.level && undefined !== entry.code);
+      expect(warnings).toHaveLength(1);
+      expect(warnings[0].path).toBeUndefined();
+      expect(errorText(prompted)).not.toContain('full record:');
+      expect(running.stderr()).not.toContain('acp-diagnostic');
+   }, SLOW_START);
+
+   it('a healthy turn leaves no record, and the service log names the file once', async () => {
+      const running = service = startService();
+      expect((await promptOnce(running)).result).toEqual({ stopReason: 'end_turn' });
+      expect(running.diagnosticLog().filter(isFailure)).toEqual([]);
+      const naming = running.log().filter(entry => running.diagnosticPath === entry.path);
+      expect(naming).toHaveLength(1);
+   }, SLOW_START);
+
+   it('[H] free text in the service log is redacted', async () => {
+      const registry = registryWithExtra({ secret: { module: THROWS_SECRET, models: ['auto'] } });
+      registryDirs.push(dirname(registry));
+      const running = service = startService('', registry);
+      await running.request('initialize', INITIALIZE);
+      const failed = running.log()
+         .filter(entry => 'secret' === entry.name && undefined !== entry.reason);
+      expect(failed).toHaveLength(1);
+      expect(failed[0].reason).toContain('token=[redacted]');
+      expect(JSON.stringify(running.log())).not.toContain(SECRET);
    }, SLOW_START);
 });

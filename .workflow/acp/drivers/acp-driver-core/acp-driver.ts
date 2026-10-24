@@ -23,15 +23,16 @@ import { loggedPath } from '../../governance/engine.js';
 import { AUTO_MODEL } from '../../modelResolver/resolver.js';
 import { SessionCollapseError, boundaryErrorKind } from '../../protocol/errors.js';
 import { TguDiiltError } from '../../shared/errors.js';
-import type { Logger } from '../../shared/logger.js';
+import { type Logger, printErrorMessage } from '../../shared/logger.js';
 import { type EndStage, endAgent, exitsWithin } from './ending.js';
 import {
    AgentCancelTimeoutError, AgentProtocolError, AgentRefusedError, AgentSetupTimeoutError, ModelUnavailableError,
-   exitFailure, launchFailure, requestFailure,
+   AGENT_FAILURE_KIND, type AgentFailureKind,
+   exitFailure, failureKind, launchFailure, requestFailure, summaryOf, withRecordLine,
 } from './errors.js';
 import { answerFor, cancelledAnswer, createToolCallTable, type ToolCallTable } from './permissions.js';
 import { type StderrTail, createStderrTail } from './stderr-tail.js';
-import type { AcpDriverDeps, AgentHandle, UnsafeSetting } from './types.js';
+import type { AcpDriverDeps, AgentExit, AgentHandle, UnsafeSetting } from './types.js';
 import { prependWarning, refusalFor, unsafeSettingsOn } from './unsafe-settings.js';
 
 /** How long each setup step (connect, initialize, session/new) may take before the agent is ended. */
@@ -114,10 +115,28 @@ interface Proc {
    failed:     Promise<never>;
    /** Kills the connection: `failed` rejects with `err`. */
    reject:     (err: unknown) => void;
+   /** How the process exited; undefined while it runs. */
+   exit:       AgentExit | undefined;
+   /** True once a failure of this process has been recorded. */
+   reported:   boolean;
+   /** Records a failure of this process, unless the driver caused it. At most one per process. */
+   report:     (err: unknown, kind?: AgentFailureKind) => void;
 }
 
 /** A `Proc` before its connection exists: what the connection's handlers read. */
 type ProcState = Omit<Proc, 'connection'>;
+
+/** The fields of a record that come from the process. A field that does not apply is left out. */
+function processFields(proc: ProcState) {
+   const { exit } = proc;
+   return {
+      pid: proc.handle.pid,
+      ...('' === proc.sessionId ? {} : { agentSessionId: proc.sessionId }),
+      ...(undefined === exit || null === exit.code ? {} : { exitCode: exit.code }),
+      ...(undefined === exit || null === exit.signal ? {} : { signal: exit.signal }),
+      ...(undefined === proc.model ? {} : { model: proc.model }),
+   };
+}
 
 /**
  * The client side of one agent connection. It collects message text, records
@@ -214,7 +233,11 @@ async function explain(proc: ProcState, method: string, err: unknown): Promise<u
 
 /** Awaits a request to the agent. Its failure is explained, and the connection dying ends the wait. */
 function call<T>(proc: ProcState, method: string, request: Promise<T>): Promise<T> {
-   const explained = request.catch(async (err: unknown) => { throw await explain(proc, method, err); });
+   const explained = request.catch(async (err: unknown) => {
+      const failure = await explain(proc, method, err);
+      proc.report(failure);
+      throw failure;
+   });
    return Promise.race([explained, proc.failed]);
 }
 
@@ -248,7 +271,7 @@ async function selectModel(proc: Proc, model: string): Promise<void> {
 }
 
 export function createAcpDriver(deps: AcpDriverDeps): Driver {
-   const { name, connect, launch, policy, unsafeSettings = [], logger } = deps;
+   const { name, connect, launch, policy, unsafeSettings = [], logger, diagnostics } = deps;
    const procs    = new Set<Proc>();
    const sessions = new Map<string, Proc>();
    const endings  = new WeakMap<AgentHandle, Promise<EndStage>>();
@@ -276,6 +299,30 @@ export function createAcpDriver(deps: AcpDriverDeps): Driver {
    }
 
    /**
+    * Records a failure of the agent in the diagnostic log and ends the error's message with the
+    * line that names the file. One record per process; a failure the driver caused (a process it
+    * is already ending) is not one. The record is written before the failure is thrown. Nothing
+    * here may change the failure itself.
+    */
+   function reportFailure(proc: ProcState | undefined, err: unknown, kind = failureKind(err)): void {
+      if (undefined === kind) { return; }
+      if (undefined !== proc) {
+         if (proc.reported || endings.has(proc.handle)) { return; }
+         proc.reported = true;
+      }
+      try {
+         const tail = proc?.stderr.tail() ?? '';
+         diagnostics.record({
+            kind, message: summaryOf(printErrorMessage(err)), driver: name,
+            ...(undefined === proc ? {} : processFields(proc)),
+            ...('' === tail ? {} : { tail }),
+         });
+         if (undefined !== diagnostics.path) { withRecordLine(err, diagnostics.path); }
+      }
+      catch { /* a record must never change the failure it describes */ }
+   }
+
+   /**
     * The connection is dead: whatever waits on the agent fails with `err`, the
     * session is gone (a later prompt on it is a session collapse) and the
     * process is ended.
@@ -284,6 +331,7 @@ export function createAcpDriver(deps: AcpDriverDeps): Driver {
       if (proc.dead) { return; }
       proc.dead = true;
       sessions.delete(proc.sessionId);
+      proc.report(err, 'handler_failure' === reason ? AGENT_FAILURE_KIND.handlerFailed : undefined);
       proc.reject(err);
       void end(proc.handle, reason, proc.sessionId);
    }
@@ -309,7 +357,9 @@ export function createAcpDriver(deps: AcpDriverDeps): Driver {
          // A launch that completes after its timeout must not leave a process behind.
          void launched.then(late => end(late, 'setup_timeout'), () => undefined);
          lost = err instanceof AgentSetupTimeoutError ? 'setup_timeout' : 'launch_failure';
-         throw launchFailure(launch.command, err);
+         const failure = launchFailure(launch.command, err);
+         reportFailure(undefined, failure);
+         throw failure;
       }
       // The driver was closed while this agent was starting: end it at once.
       if (undefined !== closing) { void end(handle, 'disconnect'); return undefined; }
@@ -327,7 +377,8 @@ export function createAcpDriver(deps: AcpDriverDeps): Driver {
       const turn: Turn = { text: '', calls: createToolCallTable(), active: undefined };
       const state: ProcState = {
          handle, turn, sessionId: '', model: undefined, options: [], unsafeOn: [], warnings: [],
-         stderr, dead: false, failed, reject,
+         stderr, dead: false, failed, reject, exit: undefined, reported: false,
+         report: (err, kind) => reportFailure(proc, err, kind),
       };
       const proc: Proc = Object.assign(state, {
          connection: connectClient(
@@ -337,6 +388,7 @@ export function createAcpDriver(deps: AcpDriverDeps): Driver {
       procs.add(proc);
       // An exit we did not ask for kills the connection; the message carries the agent's last words.
       void handle.exited.then(exit => {
+         proc.exit = exit;
          if (endings.has(handle)) { return; }
          failProc(proc, exitFailure(exit, stderr.tail()), '' === proc.sessionId ? 'launch_failure' : 'crash');
       });
@@ -377,6 +429,7 @@ export function createAcpDriver(deps: AcpDriverDeps): Driver {
          proc.model     = findModelOption(proc.options)?.currentValue;
       }
       catch (err) {
+         proc.report(err);
          void end(handle, err instanceof AgentSetupTimeoutError ? 'setup_timeout'
             : err instanceof AgentRefusedError ? 'verify_refused' : 'protocol_failure');
          throw err;

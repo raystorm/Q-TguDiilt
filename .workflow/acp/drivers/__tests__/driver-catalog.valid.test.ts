@@ -1,14 +1,14 @@
 import { describe, it, expect } from 'vitest';
-import { buildDriverCatalog } from '../driver-catalog.js';
 import { DriverNotInCatalogError } from '../errors.js';
 import { createLogger } from '../../protocol/__tests__/agent.helpers.js';
 import { FIXTURE_REGISTRY, configOf, importFrom, validSet } from './catalog-fixtures.js';
+import { buildCatalog } from './build-catalog.js';
 
 async function build(names: string[])
 {
    const logger = createLogger();
    const { drivers, modules } = validSet(...names);
-   const catalog = await buildDriverCatalog({
+   const catalog = await buildCatalog({
       config: configOf(names), registryPath: FIXTURE_REGISTRY, logger, importModule: importFrom(modules),
    });
    return { catalog, logger, drivers, modules };
@@ -26,11 +26,12 @@ describe('catalog — every driver valid', () => {
       expect(catalog.notice).toBeUndefined();
    });
 
-   it('calls each factory once, with the logger', async () => {
+   it('calls each factory once, with the logger and the diagnostics', async () => {
       const { logger, modules } = await build(['alpha', 'beta']);
       for (const name of ['alpha', 'beta']) {
          expect(modules[name].createDriver).toHaveBeenCalledTimes(1);
-         expect(modules[name].createDriver).toHaveBeenCalledWith({ logger });
+         expect(modules[name].createDriver)
+            .toHaveBeenCalledWith({ logger, diagnostics: expect.anything() });
       }
    });
 

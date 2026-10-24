@@ -5,7 +5,10 @@ import {
 } from '../errors.js';
 import { STDERR_TAIL_MAX_BYTES, STDERR_TAIL_MAX_LINES } from '../stderr-tail.js';
 import { ProviderAuthError, boundaryErrorKind } from '../../../protocol/errors.js';
-import { LAUNCH, createLogger, makeDriver, sent } from './acp-driver.helpers.js';
+import { SECRET_LINES } from '../../../shared/__tests__/redaction.helpers.js';
+import {
+   LAUNCH, createDiagnostics, createLogger, makeDriver, sent,
+} from './acp-driver.helpers.js';
 import {
    NOT_LOGGED_IN, exitDuringInitialize, failingConnect, failureOf, logged, rpcError,
 } from './failures.helpers.js';
@@ -18,6 +21,7 @@ describe('a command that cannot start', () => {
       const missing = Object.assign(new Error('spawn agent-cli ENOENT'), { code: 'ENOENT' });
       const driver  = createAcpDriver({
          name: 'test', connect: failingConnect(missing), launch: LAUNCH, logger: createLogger(),
+         diagnostics: createDiagnostics(),
       });
       const error = await failureOf(driver.execute('go'));
       expect(error).toBeInstanceOf(AgentNotFoundError);
@@ -30,6 +34,7 @@ describe('a command that cannot start', () => {
       const denied = Object.assign(new Error('spawn agent-cli EACCES'), { code: 'EACCES' });
       const driver = createAcpDriver({
          name: 'test', connect: failingConnect(denied), launch: LAUNCH, logger: createLogger(),
+         diagnostics: createDiagnostics(),
       });
       const error = await failureOf(driver.execute('go'));
       expect(error).toBeInstanceOf(AgentLaunchError);
@@ -120,27 +125,7 @@ describe('authentication failures from the agent', () => {
 });
 
 describe('secrets in the agent output', () => {
-   const lines: Array<[string, string, string[]]> = [
-      ['a bearer header',  'Authorization: Bearer abc123def456',                          ['abc123def456']],
-      ['token words',      'access_token=abc123def456, token: abc, tokens=abc',           ['abc123def456', 'abc']],
-      ['key words',        'api_key=abc123, API-KEYS: abc, ssh key abc123',               ['abc123', 'abc']],
-      ['credential words', 'credential=abc123, Credentials: user:pass',                   ['abc123', 'user:pass']],
-      ['security words',   'security_token=abc123, security: abc, securities=abc',        ['abc123', 'abc']],
-      ['a GitHub token',   `ghp_${'x1Y2z3'.repeat(6)}`,                                   ['x1Y2z3x1Y2z3']],
-      ['an AWS key id',    'AKIAABCDEFGH12345678',                                        ['ABCDEFGH12345678']],
-      ['a JWT',            'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dBjftJeZ4CVPmB92K27uhbUJU1p1rwW1gFWFOEjXk',
-                           ['eyJzdWIiOiIxMjM0NTY3ODkwIn0']],
-      ['an sk- key',       `sk-${'a1B2c3D4e5'.repeat(4)}`,                                ['a1B2c3D4e5a1B2c3D4e5']],
-      ['a private key',    '-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEF\nQUJDREVGR0hJSktMTU5PUFFS\n'
-                           + '-----END PRIVATE KEY-----',
-                           ['MIIEvQIBADANBgkqhkiG9w0BAQEF', 'QUJDREVGR0hJSktMTU5PUFFS']],
-      ['a hex run',        'a3f5c7e9b1d2a3f5c7e9b1d2a3f5c7e9b1d2a3f5',                    ['a3f5c7e9b1d2a3f5c7e9']],
-      ['a 32 character hex run', 'a3f5c7e9b1d2a3f5c7e9b1d2a3f5c7e9',                      ['a3f5c7e9b1d2a3f5c7e9']],
-      ['a base64 run',     'dGhpcyBpcyBhIHNlY3JldCBrZXkgdmFsdWUgMTIzNDU2Nzg5MA==',
-                           ['dGhpcyBpcyBhIHNlY3JldCBrZXkgdmFsdWUg']],
-   ];
-
-   it.each(lines)('[H] %s stays out of the error and the log, '
+   it.each(SECRET_LINES)('[H] %s stays out of the error and the log, '
       + 'and the rest of the line is kept', async (_label, secretText, secrets) => {
       const { error, logger } = await exitDuringInitialize(`startup failed: ${secretText} (while starting)\n`);
       expect(error).toBeInstanceOf(AgentExitedError);

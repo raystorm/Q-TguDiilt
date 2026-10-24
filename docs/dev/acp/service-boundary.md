@@ -304,6 +304,81 @@ back to stderr. The backend is swappable behind the `Logger` interface.
 Connection lifecycle (connect, disconnect, session mapping) and errors
 (with context) are logged; secrets and raw prompt text are not.
 
+### Log rule
+
+The service log (`.workflow/work/acp.log`) may hold text from our own ACP
+layer, such as start-up and configuration messages (the `reason` of
+`driver_failed`, for example). Text from the provider or the agent never
+goes in it; it goes in the diagnostic log. Neither log holds the user's
+content: prompt text, the agent's reply text, tool titles, diffs or raw
+tool input. The canary tests (`protocol/__tests__/canary-sweep.test.ts`,
+`drivers/acp-driver-core/__tests__/lost-process.test.ts`) enforce this for
+the service log.
+
+The shared writer passes every string value that contains a space or a
+line break through `redact()` (`shared/redact.ts`), in both logs. A string
+with no space or line break (an id, a path, a name, a kind) is written
+unchanged, including a 32-character hex session id that `redact()` alone
+would replace. A secret stored alone as a whole field value is not caught;
+this is accepted.
+
+### Diagnostic log
+
+`.workflow/work/acp-diagnostic.log` sits beside the service log. The entry
+point creates it with `createDiagnosticLog` (`shared/diagnostic-log.ts`)
+before it builds the driver catalog, and the catalog hands it to every
+driver. It is always on; no setting turns it off.
+
+- One JSON line per failure, event `agent_failure`, level `error`. The file
+  is created owner-only (`0600`; not checked on Windows).
+- Capped at 1 MiB. When the next record would pass the cap, the file is
+  renamed to `acp-diagnostic.log.1`, replacing any earlier copy. At most
+  those two files exist. A record larger than the cap is written alone
+  after the rename.
+- At start-up the service logs the path once (`diagnostic_log_ready`, field
+  `path`). If the file cannot be opened, the service still starts, logs one
+  warning in the service log (`diagnostic_log_unavailable`, field `code`)
+  and writes no records. A later write failure is logged once
+  (`diagnostic_log_write_failed`, field `code`) and does not affect the
+  turn. Nothing goes to stderr.
+- A record is one JSON line. The fields are:
+
+  | Field            | Meaning                                                 |
+  | ---------------- | ------------------------------------------------------- |
+  | `ts`             | When the record was written (ISO 8601)                  |
+  | `level`          | Always `error`                                          |
+  | `event`          | Always `agent_failure`                                  |
+  | `kind`           | What failed; one of the kinds below                     |
+  | `message`        | The error text the user saw, without the agent's output |
+  | `driver`         | The driver's name                                       |
+  | `pid`            | The agent's process id, when a process started          |
+  | `agentSessionId` | The agent's session id, once the agent has named one    |
+  | `exitCode`       | The exit code, when the agent exited with one           |
+  | `signal`         | The signal, when a signal ended the agent               |
+  | `tail`           | The last lines the agent printed, redacted              |
+  | `model`          | The model the agent reports as selected, once known     |
+
+- The kinds are the `AGENT_FAILURE_KIND` constants
+  (`drivers/acp-driver-core/errors.ts`):
+
+  | Kind               | Failure                                              |
+  | ------------------ | ---------------------------------------------------- |
+  | `exited`           | The agent exited or crashed                          |
+  | `protocol`         | The agent broke the protocol or closed its output    |
+  | `requestError`     | The agent answered a request with an error           |
+  | `authRequired`     | The agent needs a login                              |
+  | `setupTimeout`     | A start-up step did not answer in time               |
+  | `notStarted`       | The command was not found or could not be started    |
+  | `refused`          | The service refused the agent (a check or a setting) |
+  | `modelUnavailable` | The agent does not offer the model (new session)     |
+  | `handlerFailed`    | Handling a request from the agent failed             |
+  | `cancelTimeout`    | The agent did not stop within the cancel deadline    |
+
+- A record joins to the service log through `agent_session_linked` (IDE
+  session id and agent session id) and `agent_process_ended` (pid and agent
+  session id). A failure before the agent names a session joins by pid and
+  time.
+
 ### Cancel logging
 
 | Event                | Level | Fields                                           |

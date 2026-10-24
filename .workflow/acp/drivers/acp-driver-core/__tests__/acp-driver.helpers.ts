@@ -1,5 +1,6 @@
 import { vi } from 'vitest';
 import { createAcpDriver } from '../acp-driver.js';
+import type { Diagnostics, FailureRecord } from '../../../shared/diagnostic-log.js';
 import type { AcpPolicy, LaunchSpec, UnsafeSetting } from '../types.js';
 import { createFakeAcpAgent } from './fake-acp-agent.js';
 
@@ -9,6 +10,16 @@ export const LAUNCH = { command: 'agent-cli', args: ['acp', '--flag'] };
 
 export function createLogger() {
    return { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() };
+}
+
+export const DIAGNOSTICS_PATH = '/work/acp-diagnostic.log';
+
+export type RecordingDiagnostics = Diagnostics & { records: FailureRecord[] };
+
+/** A diagnostics seam that keeps what it is given. `null` gives it no path. */
+export function createDiagnostics(path: string | null = DIAGNOSTICS_PATH): RecordingDiagnostics {
+   const records: FailureRecord[] = [];
+   return { ...(null === path ? {} : { path }), records, record: data => { records.push(data); } };
 }
 
 /** Fake agents, and a connect that hands them out in order, after `delayConnect(index)` if given. */
@@ -23,14 +34,16 @@ export function fakeAgents(count = 1, delayConnect?: (index: number) => Promise<
    return { agents, connect };
 }
 
-/** A core driver over fake agents. */
+/** A core driver over fake agents. By default the seam has no path, so no record line. */
 export function makeDriver(
    count = 1, delayConnect?: (index: number) => Promise<void> | undefined, policy?: AcpPolicy,
-   unsafeSettings?: readonly UnsafeSetting[],
+   unsafeSettings?: readonly UnsafeSetting[], diagnostics: Diagnostics = createDiagnostics(null),
 ) {
    const { agents, connect } = fakeAgents(count, delayConnect);
    const logger = createLogger();
-   const driver = createAcpDriver({ name: 'test', connect, launch: LAUNCH, policy, unsafeSettings, logger });
+   const driver = createAcpDriver({
+      name: 'test', connect, launch: LAUNCH, policy, unsafeSettings, logger, diagnostics,
+   });
    return { driver, agents, connect, logger };
 }
 

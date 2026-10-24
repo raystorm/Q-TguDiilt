@@ -395,6 +395,19 @@ Notice
 Names what is preferred, what is used instead, and why. It leads the first
 reply of every session, and later replies until one turn ends normally.
 
+Service Log
+: The operational log, `.workflow/work/acp.log`.  
+Records what the service did: connection lifecycle, sessions, stops, start-up
+and configuration events, and errors by kind. It can hold text from the
+service itself; it never holds text from a Provider or an agent, or the
+user's content. The shared writer redacts free text in it.
+
+Diagnostic Log
+: The failure log, `.workflow/work/acp-diagnostic.log`.  
+Holds one record for each failure of a Downstream Agent, with the agent's last
+output (redacted, not guaranteed). Always on, owner-only, capped at 1 MiB with
+one rotated copy. The chat error for the failure ends with a line naming it.
+
 Model Dispatch
 : Choosing the model and driver for a profile's commands.  
 Profile preference first, then the registry defaults, then an error.

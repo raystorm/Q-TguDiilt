@@ -1,7 +1,9 @@
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it, vi } from 'vitest';
-import { fakeAgents } from '../../drivers/acp-driver-core/__tests__/acp-driver.helpers.js';
+import {
+   createDiagnostics, fakeAgents,
+} from '../../drivers/acp-driver-core/__tests__/acp-driver.helpers.js';
 import { scriptFor } from '../../drivers/acp-driver-core/__tests__/permissions.helpers.js';
 import { createKiroAcpDriver } from '../../drivers/kiro-driver-acp.js';
 import { createGovernanceEngine } from '../../governance/engine.js';
@@ -36,7 +38,7 @@ describe('governance in front of the Kiro driver', () => {
       agent.respond('initialize', () => V3);
       const logger     = createLogger();
       const governance = createGovernanceEngine({ configPath: join(ACP_ROOT, 'governance', 'config.yaml'), logger });
-      const driver     = createKiroAcpDriver({ connect, logger });
+      const driver     = createKiroAcpDriver({ connect, logger, diagnostics: createDiagnostics() });
       const ide        = deferred<{ outcome: typeof allow }>();
       const cx         = createCx({ respond: () => ide.promise });
 

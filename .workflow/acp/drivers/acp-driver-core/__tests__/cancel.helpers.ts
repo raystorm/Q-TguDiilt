@@ -1,4 +1,5 @@
 import type { Driver, ExecuteOptions } from '../../governed-driver.js';
+import type { Diagnostics } from '../../../shared/diagnostic-log.js';
 import { type FakeAgent, makeDriver } from './acp-driver.helpers.js';
 import { ALLOW, REJECT, SESSION } from './failures.helpers.js';
 
@@ -18,8 +19,10 @@ export const askFor = (agent: FakeAgent, toolCallId: string, id?: string) =>
  * Starts a turn whose prompt the agent holds, with a signal the test controls.
  * `finish` and `fail` answer the held prompt.
  */
-export async function abortableTurn(options: ExecuteOptions = {}, count = 1, command = 'go') {
-   const made       = makeDriver(count);
+export async function abortableTurn(
+   options: ExecuteOptions = {}, count = 1, command = 'go', diagnostics?: Diagnostics,
+) {
+   const made       = makeDriver(count, undefined, undefined, undefined, diagnostics);
    const agent      = made.agents[0];
    const controller = new AbortController();
    let release!: (result: unknown) => void;

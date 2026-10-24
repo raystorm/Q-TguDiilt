@@ -2,11 +2,11 @@ import { beforeEach, describe, it, expect, vi } from 'vitest';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnAgent } from '../acp-driver-core/connect.js';
-import { buildDriverCatalog } from '../driver-catalog.js';
 import { declaresToolCallGovernance } from '../governed-driver.js';
 import { loadRegistryConfig } from '../registry.js';
 import { createDispatchResolver } from '../../modelResolver/resolver.js';
 import { createLogger } from '../../protocol/__tests__/agent.helpers.js';
+import { buildCatalog } from './build-catalog.js';
 import { useTempDir, writeDriver } from './catalog-fixtures.js';
 
 vi.mock('../acp-driver-core/connect.js', async importOriginal => ({
@@ -24,7 +24,7 @@ beforeEach(() => { vi.mocked(spawnAgent).mockReset(); });
 async function buildExample(config = loadRegistryConfig(EXAMPLE))
 {
    const logger  = createLogger();
-   const catalog = await buildDriverCatalog({ config, registryPath: EXAMPLE, logger });
+   const catalog = await buildCatalog({ config, registryPath: EXAMPLE, logger });
    return { catalog, logger };
 }
 

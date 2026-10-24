@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { AgentRefusedError } from '../acp-driver-core/errors.js';
-import { createLogger, fakeAgents, sent } from '../acp-driver-core/__tests__/acp-driver.helpers.js';
+import {
+   createDiagnostics, createLogger, fakeAgents, sent,
+} from '../acp-driver-core/__tests__/acp-driver.helpers.js';
 import { SESSION, failureOf } from '../acp-driver-core/__tests__/failures.helpers.js';
 import { declaresToolCallGovernance } from '../governed-driver.js';
 import type { ToolCallReport } from '../governed-driver.js';
@@ -29,7 +31,9 @@ function makeKiro(count = 1) {
    const { agents, connect } = fakeAgents(count);
    agents.forEach(agent => agent.respond('initialize', () => V3));
    const logger = createLogger();
-   return { driver: createKiroAcpDriver({ connect, logger }), agents, connect, logger };
+   const diagnostics = createDiagnostics();
+   const driver      = createKiroAcpDriver({ connect, logger, diagnostics });
+   return { driver, agents, connect, logger };
 }
 
 describe('Kiro launch', () => {

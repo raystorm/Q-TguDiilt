@@ -5,7 +5,7 @@ import {
 } from '../errors.js';
 import { SessionCollapseError } from '../../../protocol/errors.js';
 import { NEVER } from './fake-acp-agent.js';
-import { deferred, flush, makeDriver } from './acp-driver.helpers.js';
+import { createDiagnostics, deferred, flush, makeDriver } from './acp-driver.helpers.js';
 import { ALLOW, REJECT, SESSION, entries, failureOf, logged } from './failures.helpers.js';
 
 afterEach(() => { vi.useRealTimers(); });
@@ -228,7 +228,10 @@ describe('setup abort and process end entries', () => {
 describe('what the core logs', () => {
    it('[H] no entry holds prompt text, context, agent text, a title, a diff, '
       + 'raw input or the agent output', async () => {
-      const { driver, agents, logger } = makeDriver(2);
+      const diagnostics = createDiagnostics();
+      const { driver, agents, logger } = makeDriver(
+         2, undefined, undefined, undefined, diagnostics,
+      );
       const agent = agents[0];
       agent.respond('session/prompt', async () => {
          await agent.notify('session/update', {
@@ -277,5 +280,16 @@ describe('what the core logs', () => {
       }
       // The id a request names is the one thing an unknown-session entry holds.
       expect(logged(logger).replace('CANARY-OTHER', '')).not.toContain('CANARY');
+
+      // The record holds the agent's last words once, and none of the user's content.
+      const recorded = JSON.stringify(diagnostics.records);
+      expect(diagnostics.records).toHaveLength(1);
+      expect(recorded.split('CANARY-STDERR')).toHaveLength(2);
+      for (const canary of [
+         'CANARY-AGENT-TEXT', 'CANARY-TITLE', 'CANARY-RAW', 'CANARY-OLD', 'CANARY-NEW',
+         'CANARY-REQ', 'CANARY-PROMPT', 'CANARY-CONTEXT', 'CANARY-OTHER',
+      ]) {
+         expect(recorded).not.toContain(canary);
+      }
    });
 });

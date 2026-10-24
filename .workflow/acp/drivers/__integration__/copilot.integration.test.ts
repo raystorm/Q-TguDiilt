@@ -30,7 +30,9 @@ import {
 } from '../../protocol/__tests__/agent.helpers.js';
 import { until } from '../../protocol/__tests__/service-process.helpers.js';
 import { CANCEL_DEADLINE_MS } from '../acp-driver-core/acp-driver.js';
-import { createLogger as createMockLogger } from '../acp-driver-core/__tests__/acp-driver.helpers.js';
+import {
+   createDiagnostics, createLogger as createMockLogger,
+} from '../acp-driver-core/__tests__/acp-driver.helpers.js';
 import { realSleep } from '../acp-driver-core/__tests__/stub-agent.helpers.js';
 import { spawnAgent } from '../acp-driver-core/connect.js';
 import { endAgent } from '../acp-driver-core/ending.js';
@@ -65,7 +67,7 @@ afterAll(() => {
 describe('copilot through the ACP driver (live)', () => {
    it('[H] setup and verify pass, and a plain turn returns text and no tool calls', async () => {
       const logger = createMockLogger();
-      const driver = createCopilotAcpDriver({ logger });
+      const driver = createCopilotAcpDriver({ logger, diagnostics: createDiagnostics() });
       try {
          const result = await driver.execute('Reply with the single word: ok. Do not use any tools.', {
             onToolCall: async () => 'deny',
@@ -89,7 +91,7 @@ describe.skipIf('win32' === process.platform)('governance in front of the real c
    /** One real turn through the real engine; the fake IDE allows only the control command. */
    async function liveTurn(prompt: string) {
       const logger  = createLogger();
-      const real    = createCopilotAcpDriver({ logger });
+      const real    = createCopilotAcpDriver({ logger, diagnostics: createDiagnostics() });
       const results: DriverResult[] = [];
       const driver  = {
          ...real,
@@ -162,7 +164,7 @@ describe.skipIf('win32' === process.platform)('cancel with the real copilot (liv
    /** A real agent service over the real copilot. `decide` answers each permission request. */
    function liveSession(decide: (shown: string) => 'allow' | 'reject' | 'hold') {
       const logger = createLogger();
-      const driver = createCopilotAcpDriver({ logger });
+      const driver = createCopilotAcpDriver({ logger, diagnostics: createDiagnostics() });
       const shown  = () => JSON.stringify(detailsOf(cx).slice(-1));
       const cx     = createCx({
          respond: () => {
@@ -244,7 +246,9 @@ describe.skipIf('linux' !== process.platform)('closing the Copilot driver leaves
    const agents     = () => processIds().filter(pid => pid !== process.pid && dir === cwdOf(pid));
 
    it('[H] close with a turn in flight leaves no process', async () => {
-      const driver = createCopilotAcpDriver({ logger: createMockLogger() });
+      const driver = createCopilotAcpDriver({
+         logger: createMockLogger(), diagnostics: createDiagnostics(),
+      });
       let asked = false;
       const turn = driver.execute('Run the shell command `sleep 30; ls .`, then say done.', {
          onToolCall: async report => {
@@ -306,5 +310,7 @@ describe.skipIf('win32' === process.platform)('copilot in autopilot mode (live, 
 
 describeAdversarialRun({
    agent: 'copilot',
-   make:  () => createCopilotAcpDriver({ logger: createMockLogger() }),
+   make:  () => createCopilotAcpDriver({
+      logger: createMockLogger(), diagnostics: createDiagnostics(),
+   }),
 });

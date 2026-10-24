@@ -24,6 +24,7 @@ examples to copy for a new ACP agent.
 | `policy`         | Optional checks run during setup (see "Driver policy")  |
 | `unsafeSettings` | Optional list of agent settings to refuse (see below)   |
 | `logger`         | The service logger                                      |
+| `diagnostics`    | Where failures of the agent are recorded (required)      |
 
 Each shipped driver uses the real connect by default; tests pass a fake.
 The core touches an agent process only through one small interface, so a
@@ -31,8 +32,8 @@ fake agent can replace the process entirely.
 
 The service does not build these drivers itself. The Driver Catalog loads
 each driver from the module the driver registry names (`createDriver({
-logger })`), and the protocol layer takes drivers only from the catalog.
-On disconnect the service calls `closeAll()` on the catalog, which closes
+logger, diagnostics })`), and the protocol layer takes drivers only from
+the catalog. On disconnect the service calls `closeAll()` on the catalog, which closes
 every driver and so ends every agent process it started. One failing
 `close` does not stop the others, and the first failure is rethrown last.
 
@@ -220,8 +221,10 @@ service's redaction. It covers:
 It misses, on purpose or by design: short secrets with no marker word,
 secrets in a form not listed, secrets the agent splits over several lines
 (other than key blocks), and secrets written after a plain space with no
-digit. The service log never holds the agent's output or error text, only
-ids and kinds; redaction is for text that reaches the user.
+digit. The service log never holds the agent's output or error text; that
+goes only in the diagnostic log. This redaction is for text that reaches the
+user and the diagnostic log, and the shared writer redacts free text again
+in both logs.
 
 ## The real connect
 
@@ -268,8 +271,9 @@ codes and `onDisconnect`), see "Disconnect" in `service-boundary.md`.
 
 ## Log events
 
-Ids and kinds only. Prompt text, agent text, titles, diffs, raw input and
-stderr are never logged. `agentSessionId` is the agent's session id
+The service log has ids and kinds only. Agent text and stderr go in the
+diagnostic log (next section); prompt text, titles, diffs and raw input
+are logged nowhere. `agentSessionId` is the agent's session id
 (`sessionId` always means the IDE session); `pid` is the operating-system
 process id of the agent.
 
@@ -296,6 +300,33 @@ process id of the agent.
   sequence reached: none, stdin_closed, sigterm or sigkill.
 - `agent_session_linked` is the join between the IDE session and the agent
   session; it is logged when the id is new or changed.
+
+## Diagnostic records
+
+The core records failures of the agent through the `diagnostics` seam
+(`Diagnostics` in `shared/diagnostic-log.ts`: an optional `path` and a
+`record(data)` that never throws). The seam is required. The entry point
+creates the real one; tests pass a fake. The fields of a record and the
+meaning of its kind are in "Diagnostic log" in `service-boundary.md`.
+
+- One record per agent process, never two for the same failure. The record
+  is written before the failure is thrown, so the file is complete when
+  the user reads the chat error.
+- Recorded: an exit or crash nobody asked for (also between turns), the end
+  of the agent's output while it runs, a protocol error, an error answer to
+  a request (including authentication required and "not logged in"), a
+  setup step that times out, an agent that cannot be started, a refused
+  session, an unavailable model on a new session, a failing handler, and
+  the cancel deadline.
+- Not recorded: a failure the driver caused (a cancel, a requested close,
+  an abort during setup), an error with no kind, and a model the agent does
+  not offer on an existing session. In that case the agent keeps running;
+  models change only at session start and at a profile switch, and a bad
+  configured model falls back to `auto`.
+- The error message ends with `full record: <path>` for these errors:
+  exited, request error, protocol error, authentication, setup timeout,
+  command not found and launch error. The line is left out when
+  `diagnostics` has no `path`.
 
 ## Constants
 

@@ -20,13 +20,17 @@ import { registryPath } from './registry-location.js';
 import { createSessionStore } from './session-store.js';
 import { createShutdownHandler } from './shutdown.js';
 import { createGovernanceEngine } from '../governance/engine.js';
+import { createDiagnosticLog } from '../shared/diagnostic-log.js';
 import { createFileLogger, printErrorMessage } from '../shared/logger.js';
 
 // Operational log lives with workflow runtime state, mirroring workflow.log.
 // Cleanup at workflow completion is handled by the engine, not this process.
-const logger = createFileLogger({
-   filePath: join(process.cwd(), '.workflow', 'work', 'acp.log'),
-});
+const workDir = join(process.cwd(), '.workflow', 'work');
+const logger  = createFileLogger({ filePath: join(workDir, 'acp.log') });
+
+// The diagnostic log sits beside it. A file that cannot be opened is logged once and never
+// stops the service.
+const diagnostics = createDiagnosticLog({ filePath: join(workDir, 'acp-diagnostic.log'), logger });
 
 function newWorkflowId(): string {
    return `wf-acp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -47,7 +51,7 @@ const registryFile = registryPath();
 let catalog: DriverCatalog;
 try {
    const config = loadRegistryConfig(registryFile);
-   catalog = await buildDriverCatalog({ config, registryPath: registryFile, logger });
+   catalog = await buildDriverCatalog({ config, registryPath: registryFile, logger, diagnostics });
 }
 catch (err) {
    logger.error('registry_startup_failed', {

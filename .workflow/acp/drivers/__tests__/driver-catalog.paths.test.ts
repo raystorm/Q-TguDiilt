@@ -1,9 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { mkdirSync } from 'node:fs';
 import { isAbsolute, join, relative } from 'node:path';
-import { buildDriverCatalog, DRIVER_FAILURE } from '../driver-catalog.js';
+import { DRIVER_FAILURE } from '../driver-catalog.js';
 import { createLogger } from '../../protocol/__tests__/agent.helpers.js';
 import { configForFiles, failureLogs, useTempDir, writeDriver } from './catalog-fixtures.js';
+import { buildCatalog } from './build-catalog.js';
 
 const dirOf      = useTempDir();
 const registryIn = (dir: string) => join(dir, 'conf', 'registry.yaml');
@@ -12,7 +13,7 @@ const registryIn = (dir: string) => join(dir, 'conf', 'registry.yaml');
 async function buildAt(registryPath: string, modules: Record<string, string>)
 {
    const logger  = createLogger();
-   const catalog = await buildDriverCatalog({ config: configForFiles(modules), registryPath, logger });
+   const catalog = await buildCatalog({ config: configForFiles(modules), registryPath, logger });
    return { catalog, logger };
 }
 

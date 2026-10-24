@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { createAcpDriver } from '../acp-driver.js';
 import { spawnAgent } from '../connect.js';
 import type { Connect } from '../types.js';
-import { createLogger } from './acp-driver.helpers.js';
+import { createDiagnostics, createLogger } from './acp-driver.helpers.js';
 
 /** The stub agent: a real process that speaks just enough ACP. The script lists its behaviours. */
 export const STUB_AGENT = fileURLToPath(new URL('../../__integration__/fixtures/stub-agent.mjs', import.meta.url));
@@ -85,6 +85,7 @@ export function stubDriver() {
    const logger = createLogger();
    const driver = createAcpDriver({
       name: 'stub', connect, launch: { command: process.execPath, args: [STUB_AGENT] }, logger,
+      diagnostics: createDiagnostics(null),
    });
    return { driver, pids, logger };
 }
