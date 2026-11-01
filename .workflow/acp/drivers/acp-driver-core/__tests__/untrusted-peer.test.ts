@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import type { ToolCallReport } from '../../governed-driver.js';
+import type { ToolCallReport, TurnUpdate } from '../../governed-driver.js';
 import { makeDriver } from './acp-driver.helpers.js';
 import { ALLOW, REJECT, SESSION } from './failures.helpers.js';
 import { unrequested } from './permissions.helpers.js';
@@ -19,7 +19,11 @@ describe('updates naming another session', () => {
          await agent.notify('session/update', said(SESSION, 'mine'));
          return { stopReason: 'end_turn' };
       });
-      expect((await driver.execute('go')).text).toBe('mine');
+      const updates: TurnUpdate[] = [];
+      const result  = await driver.execute('go', { onUpdate: u => { updates.push(u); } });
+      expect(result.text).toBe('mine');
+      // Nothing for the other session reached the callback either.
+      expect(updates).toEqual([{ type: 'text', text: 'mine' }]);
       agent.exit(0);
    });
 
@@ -27,6 +31,7 @@ describe('updates naming another session', () => {
       const { driver, agents, logger } = makeDriver();
       const agent   = agents[0];
       const reports: ToolCallReport[] = [];
+      const updates: TurnUpdate[] = [];
       agent.respond('session/prompt', async () => {
          await agent.notify('session/update', update(OTHER, {
             sessionUpdate: 'tool_call', toolCallId: 'c1', title: 'x', kind: 'execute', status: 'in_progress',
@@ -37,9 +42,13 @@ describe('updates naming another session', () => {
          });
          return { stopReason: 'end_turn' };
       });
-      await driver.execute('go', { onToolCall: async report => { reports.push(report); return 'deny'; } });
+      await driver.execute('go', {
+         onToolCall: async report => { reports.push(report); return 'deny'; },
+         onUpdate:   u => { updates.push(u); },
+      });
       // The other session's record did not supply a kind or a command.
-      expect(reports).toEqual([{ kind: 'other', title: 'x' }]);
+      expect(reports).toEqual([{ id: 'c1', kind: 'other', title: 'x' }]);
+      expect(updates).toEqual([]);
       expect(unrequested(logger)).toEqual([]);
       agent.exit(0);
    });

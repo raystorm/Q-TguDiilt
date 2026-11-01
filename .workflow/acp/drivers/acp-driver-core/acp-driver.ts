@@ -17,7 +17,8 @@ import {
    type Stream,
 } from '@agentclientprotocol/sdk';
 import {
-   Driver, DriverResult, ExecuteOptions, ToolCallOutcome, gateToolCall, validateExecuteArgs,
+   Driver, DriverResult, ExecuteOptions, ToolCallOutcome, TurnEnd, TurnUpdate,
+   gateToolCall, validateExecuteArgs,
 } from '../governed-driver.js';
 import { loggedPath } from '../../governance/engine.js';
 import { AUTO_MODEL } from '../../modelResolver/resolver.js';
@@ -26,14 +27,17 @@ import { TguDiiltError } from '../../shared/errors.js';
 import { type Logger, printErrorMessage } from '../../shared/logger.js';
 import { type EndStage, endAgent, exitsWithin } from './ending.js';
 import {
-   AgentCancelTimeoutError, AgentProtocolError, AgentRefusedError, AgentSetupTimeoutError, ModelUnavailableError,
+   AgentCancelTimeoutError, AgentProtocolError, AgentRefusedError, AgentSetupTimeoutError,
+   AgentStopReasonError, ModelUnavailableError,
    AGENT_FAILURE_KIND, type AgentFailureKind,
    exitFailure, failureKind, launchFailure, requestFailure, summaryOf, withRecordLine,
 } from './errors.js';
-import { answerFor, cancelledAnswer, createToolCallTable, type ToolCallTable } from './permissions.js';
+import {
+   answerFor, cancelledAnswer, createToolCallTable, turnUpdateOf, type ToolCallTable,
+} from './permissions.js';
 import { type StderrTail, createStderrTail } from './stderr-tail.js';
 import type { AcpDriverDeps, AgentExit, AgentHandle, UnsafeSetting } from './types.js';
-import { prependWarning, refusalFor, unsafeSettingsOn } from './unsafe-settings.js';
+import { refusalFor, unsafeSettingsOn, warningFor } from './unsafe-settings.js';
 
 /** How long each setup step (connect, initialize, session/new) may take before the agent is ended. */
 export const SETUP_TIMEOUT_MS = 30000;
@@ -67,6 +71,12 @@ function bounded<T>(step: string, promise: Promise<T>): Promise<T> {
 function cancelledResult(): DriverResult {
    return { text: '', sessionId: '', toolCalls: [], cancelled: true };
 }
+
+/** What each stop reason for a finished turn means. Any other value is a failure. */
+const END_OF = new Map<string, TurnEnd>([
+   ['end_turn', 'completed'], ['max_tokens', 'output_limit'],
+   ['max_turn_requests', 'request_limit'], ['refusal', 'refused'],
+]);
 
 /** The agent's select option that holds its model (category `model`). */
 type ModelOption = Extract<SessionConfigOption, { type: 'select' }>;
@@ -105,7 +115,7 @@ interface Proc {
    options:    readonly SessionConfigOption[];
    /** The unsafe settings the agent has on now. */
    unsafeOn:   readonly string[];
-   /** Settings switched on since the last result that the user has not been told about. */
+   /** Settings switched on between turns, to be told at the start of the next turn. */
    warnings:   string[];
    /** What the agent printed on stderr, bounded. */
    stderr:     StderrTail;
@@ -139,6 +149,26 @@ function processFields(proc: ProcState) {
 }
 
 /**
+ * Reports an update to the turn's callback, only while a turn runs. The callback belongs to
+ * that turn; a throw is ignored, because the turn must not depend on who is listening.
+ */
+function emit(proc: ProcState, update: TurnUpdate | undefined): void {
+   const onUpdate = proc.turn.active?.options.onUpdate;
+   if (undefined === update || undefined === onUpdate) { return; }
+   try { onUpdate(update); }
+   catch { /* a callback that throws never fails the turn */ }
+}
+
+/** Adds the unsafe-setting warning to the turn's text, as its own paragraph, and reports it. */
+function tellWarning(proc: ProcState, names: readonly string[]): void {
+   const { turn } = proc;
+   const lead = '' === turn.text || turn.text.endsWith('\n\n') ? '' : '\n\n';
+   const paragraph = `${lead}${warningFor(names)}\n\n`;
+   turn.text += paragraph;
+   emit(proc, { type: 'text', text: paragraph });
+}
+
+/**
  * The client side of one agent connection. It collects message text, records
  * the tool calls the stream shows, and answers permission requests through the
  * turn's handler. It allows nothing else: every request it does not register
@@ -156,6 +186,7 @@ function connectClient(
          const { update } = params;
          if ('agent_message_chunk' === update.sessionUpdate && 'text' === update.content.type) {
             proc.turn.text += update.content.text;
+            if ('' !== update.content.text) { emit(proc, { type: 'text', text: update.content.text }); }
          }
          else if ('tool_call' === update.sessionUpdate || 'tool_call_update' === update.sessionUpdate) {
             const unasked = proc.turn.calls.note(update, 'tool_call' === update.sessionUpdate);
@@ -167,14 +198,19 @@ function connectClient(
                   ...(0 < unasked.paths.length ? { paths: unasked.paths.map(path => loggedPath(path)) } : {}),
                });
             }
+            emit(proc, turnUpdateOf(update));
          }
          else if ('config_option_update' === update.sessionUpdate) {
             const switchedOn = unsafeSettingsOn(unsafe, update.configOptions);
-            for (const setting of switchedOn.filter(name => !proc.unsafeOn.includes(name))) {
+            const added = switchedOn.filter(name => !proc.unsafeOn.includes(name));
+            for (const setting of added) {
                logger.warn('agent_setting_changed', { agentSessionId: proc.sessionId, setting });
-               proc.warnings.push(setting);
             }
             proc.unsafeOn = switchedOn;
+            if (0 < added.length) {
+               if (undefined === proc.turn.active) { proc.warnings.push(...added); }
+               else                                { tellWarning(proc, added); }
+            }
          }
       })
       .onRequest(methods.client.session.requestPermission, ({ params }) => answerPermission(proc, params, logger, fail))
@@ -477,6 +513,9 @@ export function createAcpDriver(deps: AcpDriverDeps): Driver {
          abortSeen: new Promise<void>(resolve => { markAborted = () => { active.aborted = true; resolve(); }; }),
       };
       proc.turn.active = active;
+      // Settings found between turns are told first: the first text of this turn.
+      const pending = [...new Set(proc.warnings.splice(0))];
+      if (0 < pending.length) { tellWarning(proc, pending); }
       let deadline: ReturnType<typeof setTimeout> | undefined;
       /** The abort: ask the agent to stop and give it CANCEL_DEADLINE_MS to answer. Acts once. */
       const onAbort = () => {
@@ -492,11 +531,12 @@ export function createAcpDriver(deps: AcpDriverDeps): Driver {
             failProc(proc, new AgentCancelTimeoutError(CANCEL_DEADLINE_MS), 'deadline');
          }, CANCEL_DEADLINE_MS);
       };
-      const result = (): DriverResult => ({
-         text:      prependWarning(proc.warnings.splice(0), proc.turn.text),
+      const result = (end?: TurnEnd): DriverResult => ({
+         text:      proc.turn.text,
          sessionId: proc.sessionId,
          toolCalls: active.outcomes,
          ...(active.aborted ? { cancelled: true } : {}),
+         ...(undefined === end ? {} : { end }),
       });
       try {
          const context = options.context;
@@ -506,10 +546,12 @@ export function createAcpDriver(deps: AcpDriverDeps): Driver {
          signal?.addEventListener('abort', onAbort);
          if (signal?.aborted) { onAbort(); }
          const response = await call(proc, 'session/prompt', prompt);
-         if ('cancelled' === response.stopReason && !active.aborted) {
-            logger.info('agent_cancel_unrequested', { agentSessionId: proc.sessionId });
-         }
-         return result();
+         // Our abort wins over whatever the agent says. Otherwise only the four known reasons are an
+         // answer: the agent cancelling by itself, or any other value, fails the turn but not the process.
+         const stopReason: unknown = response.stopReason;
+         const known = 'string' === typeof stopReason ? END_OF.get(stopReason) : undefined;
+         if (!active.aborted && undefined === known) { throw new AgentStopReasonError(stopReason); }
+         return result(undefined !== known && 'completed' !== known ? known : undefined);
       }
       catch (err) {
          if (!active.aborted) { throw err; }

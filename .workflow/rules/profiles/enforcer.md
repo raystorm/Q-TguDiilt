@@ -83,3 +83,5 @@ When validating rule changes:
 - [ ] Verify no contradictions introduced
 - [ ] Verify impact analysis accurate
 - [ ] Check for cascade risks
+
+**Reference:** `workflow/rule-change-validation.md`

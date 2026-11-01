@@ -66,8 +66,10 @@ exactly one `driver.execute(...)`**.
   `options.model` (`auto` included). If the session has a prior driver
   session, its id is passed via `options.sessionId`; a session keeps one
   driver, so the id is only ever used with the driver that issued it.
-- `DriverResult.text` → ACP response content (streamed as a
-  `session/update` chunk before the final response).
+- `options.onUpdate` is supplied on every turn. The agent's text and tool
+  calls reach the client as the driver reports them (see "Streaming" and
+  "Tool-call cards"). `DriverResult.text` is sent once at the end only
+  when the driver streamed no text.
 - `DriverResult.sessionId` → stored on the session record for
   continuity across turns.
 - `options.onToolCall` is supplied on every turn: the first, a later
@@ -78,10 +80,119 @@ exactly one `driver.execute(...)`**.
 - `options.signal` is supplied on every turn. It aborts when the client
   cancels the turn or the connection ends (see "Cancel and wind-down").
   A driver may honor it; a driver that ignores it still conforms.
-- Each turn streams at least one `session/update` before returning its
-  stop reason (`end_turn`, or `cancelled` after a cancel).
+- A turn returns its stop reason (`end_turn`, `cancelled` after a cancel,
+  or an abnormal-end reason, see "How a turn ends") only after every
+  update was delivered. A turn with no text and no tool calls sends no
+  update.
 
 An empty prompt (no text content) is rejected with a clear error.
+
+## Streaming
+
+Agent text and tool calls reach the client while the turn runs. `prompt`
+gives the driver an `onUpdate` callback (the driver side is in
+`acp-driver-core.md`) and sends each update as a `session/update`.
+
+- **Order.** Every `session/update` the service sends in a prompt goes
+  through one update sink (`update-sink.ts`), created per prompt. Sends
+  leave in the order they were queued and each waits for the one before
+  it to settle, so a slow client cannot reorder them. Nothing the service
+  writes itself (an ask detail, an outcome) overtakes an earlier agent
+  update.
+- **Asks keep their place.** When the driver reports a tool call, the
+  handler takes its place in the sink's order at once. Agent updates that
+  arrive while governance and the user decide leave after the ask detail
+  and the approval request, not before.
+- **Fallback.** A driver that never calls `onUpdate` still conforms: its
+  `DriverResult.text` is sent once, at the end. Text a driver streamed is
+  never sent again. A turn with no text sends no text chunk.
+- **Flush.** `prompt` returns or rejects only after every queued update
+  was delivered or dropped, so a failure reaches the client after what
+  the turn produced.
+- **Delivery failure.** The first failed send in a prompt is logged once
+  as `update_delivery_failed` (warn; `sessionId` and `failureKind` only,
+  never the error text), and every later send in that prompt is dropped.
+  The turn carries on to its end, and a failed send no longer fails the
+  prompt. If the detail of an ask cannot be sent, the approval request is
+  not sent and the call is denied (`ask_failed`).
+- **After the turn.** The sink closes when the prompt ends. An update a
+  driver sends after `execute` settled is ignored.
+- **Warnings.** The warning for an unsafe setting is part of the turn
+  text. Found between turns, it is the first text of the next turn; found
+  during a turn, it appears where it happened.
+- **No placeholder.** The `Working on it...` message is gone. A reply
+  starts with the notice, if there is one, or with the agent's first
+  update.
+
+Updates and cards write no log entries of their own.
+
+## How a turn ends
+
+`DriverResult.end` says why the agent ended the turn; absent reads as
+`completed`. The service maps it to the stop reason the IDE receives:
+
+- `completed` → `end_turn`.
+- `output_limit` → `max_tokens`, after the line "The agent stopped because
+  it reached its output limit; the reply may be cut off."
+- `request_limit` → `max_turn_requests`, after the line "The agent stopped
+  because it reached its limit on requests in one turn; the work may be
+  unfinished."
+- `refused` → `refusal`, after the line "The agent refused to continue
+  this turn."
+
+The line is sent after the turn's text and before the response, and the
+end is logged as `turn_ended_abnormally` (info; `sessionId` and `end`
+only). The session stays usable.
+
+- **Cancel wins.** A turn that was cancelled and also ended abnormally
+  returns `cancelled`, sends no line, and logs both entries.
+- **Normal end.** A normal end is a `completed` turn that was not
+  cancelled. Only a normal end sets `endedNormally`, which stops the
+  notice from leading the next replies. An abnormal end, a cancel and a
+  failure keep the notice.
+- **The agent stops by itself.** An agent that cancels a turn we did not
+  cancel, or ends it with a stop reason the driver does not know, makes
+  the driver throw `AgentStopReasonError`, naming the reason. The prompt
+  fails like any driver failure (`prompt_failed`), the text already shown
+  stays, and the session stays usable.
+
+## Tool-call cards
+
+Every tool call the driver reports through `onUpdate` is a card in the
+chat, in order with the text, including calls that never ask (read,
+search, think) and calls a rule decides. `cards.ts` keeps the card state
+for one turn and drops it when the turn ends, so nothing crosses turns.
+
+- **Announce and update.** The first update for a call is an ACP
+  `tool_call`; later ones are `tool_call_update`s that carry only what
+  the driver update carried. A report for a call whose card was never
+  sent announces the card first. The card id combines the service's turn
+  counter with the agent's call id, so an agent that reuses a call id in
+  a later turn, or in a new downstream session, gets a different card.
+- **What a card shows.** The kind, the agent's title (`Tool call` when it
+  has none), the status (`running` is sent as `in_progress`), and for a
+  command or file call the command (as `rawInput: { command }`) or the
+  paths (as locations). That is what governance matched, so a title that
+  says something else cannot hide it. A card never carries a diff, other
+  raw input or content blocks.
+- **Outcome.** When governance has finished with a call, the card's title
+  becomes `<agent title> - <outcome>`, in one update that carries only
+  the title and, for a failure, the status:
+  - `approved by governance`: a rule approved the call.
+  - `denied by governance`: a rule denied it, or the report was unusable.
+    The status is `failed`.
+  - `allowed by you`, `rejected by you`: the user's answer to an ask. A
+    rejection sets the status `failed`.
+  - `cancelled`: the turn was cancelled, or the IDE answered the ask
+    cancelled.
+  - `Approval process errored: request denied`: the answer was not
+    understood or the ask failed, so the call was denied. The status is
+    `failed`.
+- A later title from the agent keeps the outcome, once. The outcome never
+  goes into the card's content, which would erase what the IDE shows. If
+  the sink is dead (see "Delivery failure"), the outcome is not seen.
+- **The ask.** See "Ask flow". The detail goes on the call's card and the
+  approval request names it.
 
 ## Session lifecycle & mapping
 
@@ -93,8 +204,8 @@ exactly one `workflowId`** and tracks:
 - `driverSessionId` — the driver's continuity id, updated after each
   turn.
 - `driver` and `model` — resolved once when the session opens.
-- `endedNormally` — true once a turn of the session has ended with
-  `end_turn`.
+- `endedNormally` — true once a turn of the session has had a normal end
+  (see "How a turn ends").
 - `activeTurn` — the per-session in-flight flag.
 - `abort` — the abort controller of the in-flight turn; set and cleared
   together with `activeTurn`.
@@ -133,11 +244,12 @@ under a running session. If the catalog has no driver of that name,
 `prompt` rejects before the turn starts and the session stays free.
 
 When the catalog has a notice (the preferred driver or model cannot be
-used), the first `agent_message_chunk` of a turn carries it, before the
-progress update, for new and reopened sessions alike. It repeats on every
-turn until one turn of that session ends normally (`end_turn`). A
-cancelled, failed or rejected turn does not count. Opening a session sends
-nothing. Without a notice the updates are unchanged.
+used), the first `agent_message_chunk` of a turn carries it, before any
+other update, for new and reopened sessions alike. It repeats on every
+turn until one turn of that session ends normally (see "How a turn
+ends"). A cancelled, failed, rejected or abnormally ended turn does not
+count. Opening a session sends nothing. Without a notice the updates are
+unchanged.
 
 ### Cancel and wind-down
 
@@ -153,8 +265,9 @@ new prompt gets the retryable `TurnInProgressError`.
 When the turn settles after an abort:
 
 - The turn is cancelled if the driver result says so or the signal is
-  aborted, whatever the result holds. Non-empty partial text is
-  streamed, `turn_cancelled` is logged, and the prompt returns
+  aborted, whatever the result holds. Text already shown stays and is not
+  repeated; partial text a driver did not stream is sent once.
+  `turn_cancelled` is logged, and the prompt returns
   `stopReason: 'cancelled'`. The session stays usable.
 - The driver session id is stored only when it is non-empty (a turn
   cancelled before a downstream session existed has none).
@@ -220,13 +333,20 @@ An allow covers that one report only; nothing is remembered.
 Governance asks are surfaced to the IDE user as **two messages, in
 order**:
 
-1. A detail `session/update` (`tool_call`, `status: 'pending'`) carrying
-   the full specifics — command, file paths, diff/patch, tool
-   parameters — as an `AskDetails` payload. It also carries `kind`,
-   `agentTitle` (the agent's title, labelled as display text and never
-   used as a command), and `note` when governance could not evaluate.
+1. A detail `session/update` carrying the full specifics — command, file
+   paths, diff/patch, tool parameters — as an `AskDetails` payload. It
+   also carries `kind`, `agentTitle` (the agent's title, labelled as
+   display text and never used as a command), and `note` when governance
+   could not evaluate. For a call with an id it is a `tool_call_update`
+   on the call's card, with no title or status, so the card keeps its
+   title. For a report with no id it is a `tool_call` of its own, with an
+   id the service makes (`status: 'pending'`, titled with the command, or
+   `Requested action`); that card gets no outcome, and a report with no
+   id that a rule decides gets no card.
 2. The approval request (`session/request_permission`) with allow/reject
-   options.
+   options. It names the card (`toolCall.toolCallId`), so the IDE ties the
+   question to the call. The exported `ask()` helper sends the card of its
+   own without an id, and its request names no card.
 
 The user MUST see the specifics (message 1) before the approval request
 (message 2). The default Kiro+ACP ask presentation is insufficient (no
@@ -261,7 +381,7 @@ After a cancel, failures are part of the cancel:
 | Driver throws after the abort           | `stopReason: cancelled` | `turn_cancelled` with `failureKind`      |
 | Open ask ends after the abort           | deny                    | `governance_outcome`, reason `cancelled` |
 | Ask fails or answer invalid after abort | deny                    | same, with `cause`                       |
-| Partial text cannot be streamed         | error surfaces          | `prompt_failed`                          |
+| An update cannot be delivered           | turn carries on         | `update_delivery_failed`                 |
 | `close` fails on disconnect             | sessions still released | `close_failed` with `failureKind`        |
 
 ### Outcome logging
@@ -292,8 +412,22 @@ anything else is treated as generic `internal`. Transport,
 malformed-message, unknown-method, and protocol-version errors are
 handled by the SDK, not the boundary.
 
-Model **refusal is a normal successful turn**, not an error. No secrets
-or raw prompt text are written to logs.
+A model **refusal is not an error**: the turn returns `stopReason:
+'refusal'` after a chat line (see "How a turn ends"). No secrets or raw
+prompt text are written to logs.
+
+## Known limits
+
+- **Session id after an agent's own stop.** When the agent cancels a turn
+  by itself, or ends it with a stop reason the driver does not know, the
+  driver throws and the service never learns that turn's downstream
+  session id. After a first turn (a reopened chat counts as a first
+  turn), the next prompt starts a new agent session, so the conversation
+  context is lost, and the old agent process stays up and idle until the
+  chat disconnects. Later turns are not affected: the chat keeps the id
+  from an earlier turn. The case is rare and has not been checked against
+  a real agent. Planned fix: the error carries the session id and
+  `prompt` links it before it rethrows.
 
 ## Logging
 

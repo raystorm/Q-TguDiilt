@@ -163,7 +163,7 @@ Used in diagnostic prompts to assess context health.
 Changeover
 : A governed workflow operation where one profile prepares control and
 context for another profile. All changeovers follow the same invariant:
-user-triggered, summarized, confirmed, approved, then written.  
+user-triggered, then written.  
 Handoffs (linear) and Side Trips (parallel) are two types of changeovers.
 
 Change
@@ -359,7 +359,8 @@ Turn
 : One prompt and its response: a single ACP `session/prompt` (ACP calls it a
 prompt turn), run as exactly one `driver.execute(...)`.  
 A session runs at most one turn at a time.  
-A turn ends completed, cancelled (the user stopped it), or failed.
+A turn ends completed (a Normal End or one of three abnormal ends),
+cancelled (the user stopped it), or failed.
 
 Wind-down
 : The time between a cancel and the driver settling.  
@@ -393,7 +394,7 @@ and closes every driver on shutdown.
 Notice
 : The text a chat shows when the preferred driver or model cannot be used.  
 Names what is preferred, what is used instead, and why. It leads the first
-reply of every session, and later replies until one turn ends normally.
+reply of every session, and later replies until one turn has a Normal End.
 
 Service Log
 : The operational log, `.workflow/work/acp.log`.  
@@ -430,6 +431,7 @@ Ask
 : A governance outcome that sends the decision to the user.  
 The user first sees the specifics (command, paths, diff, parameters),
 then the approval request. Anything but an explicit Allow is a deny.
+The specifics appear on the call's Card.
 
 Fail Closed
 : When governance cannot decide safely, the outcome is never approve.  
@@ -473,8 +475,39 @@ The service then exits 0 after a clean disconnect and 1 otherwise.
 
 Tool-Call Report
 : What governance evaluates for one tool call: kind, command, paths, diff and
-raw input.  
+raw input, and the agent's id for the call when it has one.  
 Built from the agent's stream and its permission request.
+
+Turn Update
+: One thing the agent produced during a Turn, reported as it happens: a
+piece of text, or the state of a tool call (id, kind, title, status, and
+the command or paths).  
+A Driver reports them through the optional `onUpdate` callback, in the order
+the agent produced them. A driver that cannot stream sends its text in the
+result instead.
+
+Update Sink
+: The one place every `session/update` of a prompt goes through.  
+Sends leave in the order they were queued. A failed send is logged once and
+the rest of that prompt's sends are dropped; the Turn carries on.
+
+Normal End
+: A Turn that ended `completed` and was not cancelled.  
+Only a Normal End stops the Notice from leading the next replies. Three
+abnormal ends (output limit, request limit, refusal) each get a chat line
+and their own stop reason.
+
+Card
+: How the chat shows one Tool Call: a `tool_call` the IDE keeps updating.  
+Shows the kind, the agent's title, the status, and the command or paths. Never
+a diff or other raw input. Its title ends with the Outcome once governance has
+finished with the call, and an Ask puts its specifics on it.
+
+Outcome
+: How governance finished with a Tool Call, shown at the end of its Card's
+title: approved by governance, denied by governance, allowed by you, rejected
+by you, cancelled, or Approval process errored: request denied.  
+A denial, a rejection and the errored outcome also mark the Card failed.
 
 Unrequested Call
 : A tool call that ran with no permission request.  

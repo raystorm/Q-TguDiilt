@@ -8,7 +8,7 @@ Workflow Artifact
 Files that represent long‑term project state and must be versioned.
 
 ***NOTE:* specific directory paths and file patterns MUST be defined by the project**
-in `.workflow/rules/terms-project.md`
+in `.workflow/rules/foundation/terms-project.md`
 
 Persistent artifact categories:
 - **Source Code** — all files containing executable application logic
@@ -22,7 +22,7 @@ Persistent artifact categories:
 
 : **Includes - Transient Workflow Artifacts**  
 Files that represent workflow state and must NOT be versioned.  
-any file inside `.amazonq/work/`, or subdirectories
+any file inside a Working Directory, except its structure markers
 
 : **Excludes - System-Owned (Not Workflow Artifacts)**  
 Internal plumbing and runtime files that are never treated as workflow artifacts.  
@@ -30,6 +30,17 @@ System-owned plumbing (workflow.log, auto-suspend state, internal metadata), tem
 
 : **Invariant**  
 All creation or modification of workflow artifacts requires explicit user confirmation.
+
+Working Directory
+: A directory that holds transient workflow state. Its contents are not versioned.
+: Not the shell's current directory, and not the git working tree.
+: **Engine Working Directories**
+  - `.amazonq/work/` and subdirectories, including `current/`
+  - `.amazonq/suspended/`
+  - `.workflow/work/`
+: Structure markers (`.gitignore`, `.gitkeep`, `README.md`) inside a Working Directory
+  are Persistent Workflow Artifacts.
+: Projects define additional Working Directories in `terms-project.md`.
 
 Rules Files
 : Files that control how the System behaves. `.amazonq/rules/` and `.workflow/rules/`
@@ -49,7 +60,7 @@ Governed File
 Changeover
 : A governed workflow operation where one profile prepares control and
 context for another profile. All changeovers follow the same invariant:
-user-triggered, summarized, confirmed, approved, then written.  
+user-triggered, then written.  
 Handoffs (linear) and Side Trips (parallel) are two types of changeovers.
 
 Change
@@ -69,6 +80,15 @@ Formatted like a command for readability.
 Handoff
 : A workflow artifact that transfers control and context from one profile to another.
 : Marks a state transition in the Main Thread.
+
+Changeover File
+: The file a Change command writes and a Begin command reads to transfer control and
+context between profiles.
+: `HANDOFF.md` (linear, written by `@handoff`, read by `@start`) or
+`MESSAGE.md` (side trip, written by `@send`, read by `@receive`).
+: Located in `.amazonq/work/current/`, a Working Directory, so it is a Transient
+Workflow Artifact.
+: Shape: `workflow/changeover-format.md`.
 
 Thread
 : An isolated workflow execution context with its own workflowId and state.

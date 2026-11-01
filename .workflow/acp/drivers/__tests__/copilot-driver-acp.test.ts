@@ -189,7 +189,7 @@ describe('Copilot permission requests', () => {
       const seen: ToolCallReport[] = [];
       await askToRun('touch x', async report => { seen.push(report); return 'deny'; });
       expect(seen).toStrictEqual([{
-         kind: 'execute', title: 'Create marker', command: 'touch x',
+         id: 'call_1', kind: 'execute', title: 'Create marker', command: 'touch x',
          rawInput: { command: 'touch x', commands: ['touch x'] },
       }]);
    });

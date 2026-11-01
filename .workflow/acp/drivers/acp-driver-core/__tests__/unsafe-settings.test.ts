@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import type { ExecuteOptions, TurnUpdate } from '../../governed-driver.js';
 import { AgentRefusedError } from '../errors.js';
 import type { UnsafeSetting } from '../types.js';
 import { type FakeAgent, flush, makeDriver } from './acp-driver.helpers.js';
@@ -192,6 +193,119 @@ describe('unsafe settings switched on during the session', () => {
       const error = await failureOf(driver.execute('go'));
       expect(error?.message).toContain('boom');
       expect(changes(logger)).toEqual([{ agentSessionId: SESSION, setting: 'blanket_approval' }]);
+      agent.exit(0);
+   });
+});
+
+/** A turn with a recording onUpdate. */
+async function streamedTurn(driver: ReturnType<typeof started>['driver'], options: ExecuteOptions = {}) {
+   const updates: TurnUpdate[] = [];
+   const result  = await driver.execute('go', { ...options, onUpdate: u => { updates.push(u); } });
+   const texts   = updates.flatMap(u => 'text' === u.type ? [u.text] : []);
+   return { result, updates, texts };
+}
+
+const MENTIONS = /Warning: .*blanket_approval/;
+const ON       = [option('approval', 'on'), option('mode', 'urn:modes#normal')];
+
+describe('unsafe settings through onUpdate', () => {
+   it('[H] a change found between turns is the first update of the next turn', async () => {
+      const { driver, agent } = started();
+      turnWith(agent, []);
+      await driver.execute('go');
+      await agent.notify('session/update', configUpdate(ON));
+      await flush();
+      turnWith(agent, [], 'next');
+      const { result, texts } = await streamedTurn(driver, { sessionId: SESSION });
+      expect(texts[0]).toMatch(WARNING);
+      expect(texts[1]).toBe('next');
+      expect(result.text).toBe(texts.join(''));
+      expect(result.text).toMatch(WARNING);
+      agent.exit(0);
+   });
+
+   it('[H] a change found mid-turn shows where it happened', async () => {
+      const { driver, agent } = started();
+      agent.respond('session/prompt', async () => {
+         await agent.notify('session/update', said('a'));
+         await agent.notify('session/update', configUpdate(ON));
+         await agent.notify('session/update', said('b'));
+         return { stopReason: 'end_turn' };
+      });
+      const { result, texts } = await streamedTurn(driver);
+      expect(texts).toHaveLength(3);
+      expect(texts[0]).toBe('a');
+      expect(texts[1]).toMatch(MENTIONS);
+      expect(texts[2]).toBe('b');
+      expect(result.text).toBe(texts.join(''));
+      expect(result.text).not.toMatch(/^Warning/);
+      agent.exit(0);
+   });
+
+   it('two settings together give one warning update naming both', async () => {
+      const { driver, agent } = started();
+      turnWith(agent, [configUpdate([option('approval', 'on'), option('mode', 'hands-off')])]);
+      const { texts } = await streamedTurn(driver);
+      const warnings = texts.filter(text => text.includes('Warning'));
+      expect(warnings).toHaveLength(1);
+      expect(warnings[0]).toContain('blanket_approval');
+      expect(warnings[0]).toContain('hands_off');
+      agent.exit(0);
+   });
+
+   it('[H] a warning is not consumed by a turn cancelled at entry', async () => {
+      const { driver, agent } = started();
+      turnWith(agent, []);
+      await driver.execute('go');
+      await agent.notify('session/update', configUpdate(ON));
+      await flush();
+      const controller = new AbortController();
+      controller.abort();
+      const skipped = await streamedTurn(driver, { sessionId: SESSION, signal: controller.signal });
+      expect(skipped.result).toMatchObject({ cancelled: true });
+      expect(skipped.updates).toEqual([]);
+      turnWith(agent, [], 'next');
+      const next = await streamedTurn(driver, { sessionId: SESSION });
+      expect(next.texts.filter(text => MENTIONS.test(text))).toHaveLength(1);
+      turnWith(agent, [], 'last');
+      expect((await streamedTurn(driver, { sessionId: SESSION })).result.text).toBe('last');
+      agent.exit(0);
+   });
+
+   it('[H] a warning that was delivered is not repeated after the turn fails', async () => {
+      const { driver, agent } = started();
+      agent.respond('session/prompt', async () => {
+         await agent.notify('session/update', configUpdate(ON));
+         throw Object.assign(new Error('boom'), { code: -32603 });
+      });
+      const updates: TurnUpdate[] = [];
+      const error = await failureOf(driver.execute('go', { onUpdate: u => { updates.push(u); } }));
+      expect(error?.message).toContain('boom');
+      expect(updates.some(u => 'text' === u.type && MENTIONS.test(u.text))).toBe(true);
+      turnWith(agent, [], 'next');
+      const next = await streamedTurn(driver, { sessionId: SESSION });
+      expect(next.result.text).toBe('next');
+      agent.exit(0);
+   });
+
+   it('a cancelled turn shows the warning once, before the partial text', async () => {
+      const { driver, agent } = started();
+      const controller = new AbortController();
+      agent.respond('session/prompt', async () => {
+         await agent.notify('session/update', configUpdate(ON));
+         await agent.notify('session/update', said('partial'));
+         controller.abort();
+         await agent.arrived('session/cancel');
+         return { stopReason: 'cancelled' };
+      });
+      const { result, texts } = await streamedTurn(driver, { signal: controller.signal });
+      expect(result).toMatchObject({ cancelled: true });
+      const warned = texts.findIndex(text => MENTIONS.test(text));
+      expect(texts.filter(text => MENTIONS.test(text))).toHaveLength(1);
+      expect(warned).toBeGreaterThanOrEqual(0);
+      expect(warned).toBeLessThan(texts.indexOf('partial'));
+      expect(result.text.match(/Warning/g)).toHaveLength(1);
+      expect(result.text).toBe(texts.join(''));
       agent.exit(0);
    });
 });

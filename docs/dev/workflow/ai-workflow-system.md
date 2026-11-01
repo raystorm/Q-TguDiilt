@@ -158,7 +158,7 @@ Analyzes systems and changes to identify test scenarios (aliases: TD, Provoker, 
 Writes documentation, commit messages, diffs, and story descriptions (aliases: commit, keeper, ledger, Engraver)
 
 **Planner** —
-Writes user stories, backlog items, manages agile flow (aliases: PO, ProductOwner, Strategist)
+Writes user stories, backlog items, manages agile flow (aliases: PO, ProductOwner)
 
 **Architect** — Defines system design, domain models, structure, and long-term direction
 
@@ -270,7 +270,7 @@ Users *can* break the loop, but the system itself never will.
 
 ### 4. Explicit User Confirmation
 
-No file is ever modified without explicit user approval.  
+No persistent file is ever modified without explicit user approval.  
 Builder, Doctor, and Enforcer all require confirmation before writing any workflow artifact.
 
 ### 5. Explicit Context, No Implicit Sharing
@@ -318,6 +318,29 @@ The system does not replace:
 * domain expertise
 
 ***The system amplifies human judgment; it does not eliminate it.***
+
+
+## Key Principles
+
+**Profile Stability** — Profiles stay active until explicitly switched, never auto-switch
+
+**Builder Routing** — All Builder work routes through PromptEngineer first to ensure prompt quality
+
+**Confirmation Required** — All file changes require user confirmation before execution
+
+**Context Awareness** — Doctor and Enforcer check context before fixing (FEATURE.md, workflow log, git diff)
+
+**Minimal Code** — Write only the absolute minimal code needed to address requirements correctly
+
+**Pattern Earning** — Patterns must be earned, not applied by default; partial implementation is acceptable
+
+**Schema-First** — New data types defined in GraphQL schema first, then codegen generates TypeScript types
+
+**Workflow Logging** — Profiles log workflow_start and key events to enable retrospective analysis
+
+**Self Improving** —
+Retrospective analyzes workflow logs recommends improvements 
+for the user to approve to streamline future workflows.
 
 ## Workflow Logging
 

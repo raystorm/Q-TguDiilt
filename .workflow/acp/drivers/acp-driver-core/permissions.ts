@@ -11,7 +11,9 @@ import type {
    ToolCallLocation,
    ToolCallUpdate,
 } from '@agentclientprotocol/sdk';
-import type { ToolCallDecision, ToolCallKind, ToolCallReport } from '../governed-driver.js';
+import type {
+   ToolCallDecision, ToolCallKind, ToolCallReport, ToolCallStatus, TurnUpdate,
+} from '../governed-driver.js';
 
 /** The kinds a report may carry. Any other kind the agent names is `other`. */
 const KINDS: ReadonlySet<string> = new Set<ToolCallKind>([
@@ -58,6 +60,14 @@ export interface ToolCallTable {
 }
 
 const present = <T>(value: T | null | undefined): value is T => undefined !== value && null !== value;
+
+/** An id the service can use: a non-empty string. */
+const usable = (id: unknown): id is string => 'string' === typeof id && '' !== id;
+
+/** What each ACP status is called in an update. Any other status is left out. */
+const STATUS = new Map<string, ToolCallStatus>([
+   ['pending', 'pending'], ['in_progress', 'running'], ['completed', 'completed'], ['failed', 'failed'],
+]);
 
 /** The record after `update`: a field the update names replaces the earlier one. */
 function merge(previous: CallRecord | undefined, update: ToolCallUpdate): CallRecord {
@@ -117,6 +127,26 @@ function buildReport(record: CallRecord): ToolCallReport {
    return report;
 }
 
+/**
+ * The update for one `tool_call` or `tool_call_update` message: only what that message carried,
+ * read the way governance reads it. Nothing from the diff, the rest of the raw input or the
+ * content is passed on. A message with no usable id gives no update.
+ */
+export function turnUpdateOf(message: ToolCallUpdate): TurnUpdate | undefined {
+   if (!usable(message.toolCallId)) { return undefined; }
+   const record  = merge(undefined, message);
+   const update: Extract<TurnUpdate, { type: 'tool_call' }> = { type: 'tool_call', id: message.toolCallId };
+   const status  = STATUS.get(message.status ?? '');
+   const command = commandOf(record.rawInput);
+   const paths   = pathsOf(record);
+   if (present(message.kind))             { update.kind    = kindOf(message.kind); }
+   if ('string' === typeof message.title) { update.title   = message.title; }
+   if (undefined !== status)              { update.status  = status; }
+   if (undefined !== command)             { update.command = command; }
+   if (0 < paths.length)                  { update.paths   = paths; }
+   return update;
+}
+
 export function createToolCallTable(): ToolCallTable {
    const calls    = new Map<string, CallRecord>();
    const asked    = new Set<string>();
@@ -141,7 +171,7 @@ export function createToolCallTable(): ToolCallTable {
          const record = merge(calls.get(id), request);
          calls.delete(id);
          asked.add(id);
-         return buildReport(record);
+         return { ...(usable(id) ? { id } : {}), ...buildReport(record) };
       },
 
       clear() {

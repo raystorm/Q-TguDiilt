@@ -11,6 +11,8 @@ export type ToolCallKind =
    | 'execute' | 'fetch' | 'think' | 'other';
 
 export interface ToolCallReport {
+   /** The agent's id for the call, when the driver has one. */
+   id?:       string;
    kind:      ToolCallKind;
    title:     string;
    command?:  string;
@@ -20,6 +22,22 @@ export interface ToolCallReport {
 }
 
 export type ToolCallDecision = 'approve' | 'deny';
+
+export type ToolCallStatus = 'pending' | 'running' | 'completed' | 'failed';
+
+/**
+ * What the agent produced, reported as it happens. A `tool_call` update carries
+ * only the fields the agent's message carried; the receiver merges them by `id`.
+ */
+export type TurnUpdate =
+   | { type: 'text'; text: string }
+   | {
+      type: 'tool_call'; id: string; kind?: ToolCallKind; title?: string; status?: ToolCallStatus;
+      command?: string; paths?: string[];
+   };
+
+/** Why a turn ended, other than being cancelled. */
+export type TurnEnd = 'completed' | 'output_limit' | 'request_limit' | 'refused';
 
 export interface ToolCallOutcome {
    report:   ToolCallReport;
@@ -33,6 +51,12 @@ export interface ExecuteOptions {
    onToolCall?: (report: ToolCallReport) => Promise<ToolCallDecision>;
    /** Aborts the turn. Supplied per call, like `onToolCall`. */
    signal?:     AbortSignal;
+   /**
+    * Optional. Called once per update, in the order the agent produced them, only
+    * while the turn runs. A throw is ignored. A driver that cannot stream may
+    * ignore it: the turn's text then arrives in the result.
+    */
+   onUpdate?:   (update: TurnUpdate) => void;
 }
 
 export interface DriverResult {
@@ -44,6 +68,8 @@ export interface DriverResult {
     * `sessionId` may be empty only if cancelled before a downstream session existed.
     */
    cancelled?: boolean;
+   /** Why the turn ended. Absent reads as `completed`. */
+   end?: TurnEnd;
 }
 
 export interface Driver {

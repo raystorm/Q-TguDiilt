@@ -136,3 +136,28 @@ describe('what a record holds', () => {
       agent.exit(0);
    });
 });
+
+describe('streamed content', () => {
+   it('[H] a crash after streamed text and a card leaves them out of the record and the error', async () => {
+      const { driver, agent, diagnostics } = recorded();
+      const send = (update: object) => agent.notify('session/update', { sessionId: SESSION, update });
+      agent.respond('session/prompt', async () => {
+         await send({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'CANARY-STREAM' } });
+         await send({
+            sessionUpdate: 'tool_call', toolCallId: 'CANARY-ID', title: 'CANARY-CARD', kind: 'execute',
+            rawInput: { command: 'CANARY-COMMAND' }, locations: [{ path: '/CANARY-PATH' }],
+         });
+         await flush();
+         agent.exit(1);
+         return NEVER;
+      });
+      const error = await failureOf(driver.execute('go', { onUpdate: () => undefined }));
+      expect(diagnostics.records).toHaveLength(1);
+      const text = JSON.stringify([diagnostics.records, error?.message]);
+      for (const canary of [
+         'CANARY-STREAM', 'CANARY-ID', 'CANARY-CARD', 'CANARY-COMMAND', 'CANARY-PATH',
+      ]) {
+         expect(text).not.toContain(canary);
+      }
+   });
+});

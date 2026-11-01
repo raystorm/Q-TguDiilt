@@ -15,10 +15,21 @@ execute(command: string, options?: ExecuteOptions): Promise<DriverResult>
 ```
 
 The driver receives a command string and optional context, session, model,
-a per-call `onToolCall` handler, and a per-call abort `signal`. It returns
-the response text, a session ID for conversation continuity, the outcome
-(approved or denied) of each tool call it reported, and `cancelled: true`
-when the turn ended because the signal aborted.
+a per-call `onToolCall` handler, a per-call abort `signal`, and an optional
+per-call `onUpdate` callback. It returns the response text, a session ID
+for conversation continuity, the outcome (approved or denied) of each tool
+call it reported, `cancelled: true` when the turn ended because the signal
+aborted, and, when the turn ended abnormally, an `end` that says why.
+
+A driver that can stream reports what the agent produces through
+`onUpdate`, in the order it was produced: text pieces, and tool calls with
+their id, kind, title, status and command or paths. It announces a call
+there before it reports it through `onToolCall`, and gives the report the
+same `id`. It calls `onUpdate` only while `execute` runs and ignores a
+throw from it. The text updates joined equal `DriverResult.text`. A driver
+that cannot stream may ignore `onUpdate`: the service then sends the
+result text once, at the end. `end` is `output_limit`, `request_limit` or
+`refused` for the three abnormal finishes; leave it out for a normal one.
 
 Before running any tool call, the driver reports it through `onToolCall`
 and runs it only on an exact `'approve'`. No handler, or any other answer,
@@ -45,8 +56,12 @@ Key rules:
   driver started, and must be idempotent and safe to call concurrently
   (every call resolves, the downstream agent is released once). A driver
   with nothing to release resolves immediately
+- Report text and tool calls through `onUpdate` if the provider can
+  stream; otherwise leave `onUpdate` alone and return all the text
+- Set `id` on a report when the provider has an id for the call
 - Prove the driver with the shared contract suite
-  (`describeGovernedDriverContract`)
+  (`describeGovernedDriverContract`); pass `{ streams: true }` for a
+  driver that streams
 
 See `.workflow/acp/drivers/EXTENDING.md` for the full interface contract
 and type definitions.

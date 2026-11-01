@@ -38,10 +38,9 @@ describe('the notice in the first reply', () => {
       expect(texts.slice(1)).toEqual(plain);
    });
 
-   it('without a notice the updates are the progress update and the result only', async () => {
+   it('without a notice the reply is the result only', async () => {
       const texts = textsOf(await firstReply(agentWith().agent));
-      expect(texts).toHaveLength(2);
-      expect(texts[1]).toBe(RESULT);
+      expect(texts).toEqual([RESULT]);
    });
 
    it('after a turn ends normally the notice is never sent again', async () => {
@@ -101,24 +100,27 @@ describe('the notice in the first reply', () => {
       expect(noticesIn(first)).toBe(1);
    });
 
-   it('cancelled, failed, then normal: sent on each of those turns and not after', async () => {
+   it('cancelled, failed, abnormal ends, then normal: sent on each but not after', async () => {
       let n = 0;
+      const ENDS = ['output_limit', 'request_limit', 'refused'];
       const driver = createDriverSpy(() => {
          const call = n++;
          if (1 === call) { throw new Error('boom'); }
-         return 0 === call
-            ? { cancelled: true, text: '', sessionId: '', toolCalls: [] }
-            : { text: RESULT, sessionId: 'drv-1', toolCalls: [] };
+         if (0 === call) { return { cancelled: true, text: '', sessionId: '', toolCalls: [] }; }
+         const end = ENDS[call - 2];
+         return {
+            text: RESULT, sessionId: 'drv-1', toolCalls: [], ...(undefined === end ? {} : { end }),
+         };
       });
       const { agent } = agentWith(NOTICE, driver);
       const { sessionId } = await agent.newSession(newSessionArgs());
       const sent: number[] = [];
-      for (let turn = 0; turn < 4; turn++) {
+      for (let turn = 0; turn < 7; turn++) {
          const cx = createCx();
          await agent.prompt({ sessionId, ...textParam('go') }, cx).catch(() => undefined);
          sent.push(noticesIn(cx));
       }
-      expect(sent).toEqual([1, 1, 1, 0]);
+      expect(sent).toEqual([1, 1, 1, 1, 1, 1, 0]);
    });
 
    it('two sessions in flight at once each get it once, on their own session', async () => {

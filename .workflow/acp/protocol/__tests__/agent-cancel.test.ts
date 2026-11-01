@@ -1,8 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { TurnInProgressError, DriverGovernanceUnsupportedError } from '../errors.js';
 import {
-   createCx, deferred, flush, createHeldDriver, startTurn, makeAgent, newSessionArgs, eventsOf, textParam,
+   createCx, createDriverSpy, flush, createHeldDriver, startTurn, makeAgent, newSessionArgs,
+   eventsOf, textParam,
 } from './agent.helpers.js';
+import { UPDATE_FAILED_EVENT } from '../update-sink.js';
 
 // Groups 15-19: turn cancel ---------------------------------------------------
 
@@ -146,22 +148,6 @@ describe('Group 15 — cancel: signal and wind-down', () => {
       await expect(a.turn).resolves.toEqual({ stopReason: 'cancelled' });
    });
 
-   it('[H] cancel before the driver is called hands it an already-aborted signal', async () => {
-      const gate = deferred();
-      const base = createCx();
-      const cx   = {
-         ...base,
-         notify: async (method: string, params: any) => { await gate.promise; return base.notify(method, params); },
-      };
-      const { agent, driver }   = makeAgent();
-      const { sessionId, turn } = await startTurn(agent, cx);
-      await agent.cancel({ sessionId });
-      gate.resolve();
-      await expect(turn).resolves.toEqual({ stopReason: 'cancelled' });
-      expect(driver.seen).toHaveLength(1);
-      expect(driver.seen[0].options.signal.aborted).toBe(true);
-   });
-
    it('a prompt rejected before it starts leaves no flag and no abort handle', async () => {
       const { agent, driver, sessionStore, logger } = makeAgent();
       const s = await agent.newSession(newSessionArgs());
@@ -193,25 +179,27 @@ describe('Group 15 — cancel: signal and wind-down', () => {
       expect(eventsOf(logger, 'cancel_requested')).toHaveLength(0);
    });
 
-   it('a turn that fails before the driver is called clears the flag and the abort handle', async () => {
-      const cx = { ...createCx(), notify: async () => { throw new Error('connection lost'); } };
-      const { agent, driver, sessionStore } = makeAgent();
+   it('a turn whose driver fails clears the flag and the abort handle', async () => {
+      const driver = createDriverSpy(() => { throw new Error('driver down'); });
+      const { agent, sessionStore } = makeAgent({ driver });
       const s = await agent.newSession(newSessionArgs());
-      await expect(agent.prompt({ sessionId: s.sessionId, ...textParam('q') }, cx)).rejects.toThrow('connection lost');
-      expect(driver.seen).toHaveLength(0);
+      await expect(agent.prompt({ sessionId: s.sessionId, ...textParam('q') }, createCx()))
+         .rejects.toThrow('driver down');
+      expect(driver.seen).toHaveLength(1);
       expect(sessionStore.hasActiveTurn(s.sessionId)).toBe(false);
       expect(sessionStore.get(s.sessionId)?.abort).toBeUndefined();
    });
 
-   it('a notification failure after a cancel still surfaces as an error', async () => {
-      const gate = deferred();
-      const cx   = { ...createCx(), notify: async () => { await gate.promise; throw new Error('connection lost'); } };
-      const { agent, sessionStore } = makeAgent();
-      const { sessionId, turn }     = await startTurn(agent, cx);
-      const outcome = turn.then(() => undefined, (e: any) => e);
+   it('a notification failure after a cancel is logged, not thrown', async () => {
+      const cx   = { ...createCx(), notify: async () => { throw new Error('connection lost'); } };
+      const held = createHeldDriver();
+      const { agent, sessionStore, logger } = makeAgent({ driver: held.driver });
+      const { sessionId, turn } = await startTurn(agent, cx);
+      await held.started(0);
       await agent.cancel({ sessionId });
-      gate.resolve();
-      expect((await outcome)?.message).toBe('connection lost');
+      held.release(0, { cancelled: true, text: 'partial', sessionId: 'drv-c', toolCalls: [] });
+      await expect(turn).resolves.toEqual({ stopReason: 'cancelled' });
+      expect(eventsOf(logger, UPDATE_FAILED_EVENT)).toHaveLength(1);
       expect(sessionStore.hasActiveTurn(sessionId)).toBe(false);
    });
 });

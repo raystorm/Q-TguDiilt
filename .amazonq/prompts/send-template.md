@@ -1,18 +1,15 @@
 # Send Message Template
 
+Write message to `.amazonq/work/current/MESSAGE.md`.
+
 ## Format
 
 Follow the canonical changeover shape defined in
 `.workflow/rules/workflow/changeover-format.md`.
 
-Use heading: `# Message to [Profile]`
+## After Writing
 
-## Procedure
+- Display: "---\n**Next**: Open new tab and run `@receive`"
 
-1. Generate MESSAGE.md content in memory
-2. Display for user review
-3. Request confirmation
-4. Wait for explicit approval
-5. Write to `.amazonq/work/current/MESSAGE.md`
-
-Do not change your current profile. Do not clean up work directory.
+Do not change your current profile.
+Do not clean up work directory.

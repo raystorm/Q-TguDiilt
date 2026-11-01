@@ -1,7 +1,7 @@
 Commit Style Guide
 ==================
 
-The AI workflow engine uses a structured, domain‑driven commit style designed
+This project uses a structured, domain‑driven commit style designed
 for clarity, traceability, and long‑term maintainability.
 Commits should use plain language, be concise, expressive, and easy to skim.
 
@@ -184,6 +184,21 @@ Example:
 ```
 
 Sub‑items should be indented consistently for readability.
+
+---
+
+#### 2.7 Bullet Text Symbols
+
+Symbols may prefix the text to add additional meaning or qualification.
+
+Symbols:
+
+  * `!:` **Important** - signifies a change that is important or significant,
+    such as a security fix, breaking change, or other critical update.
+
+```
+  * !: This is an important security or other significant change
+```
 
 ---
 

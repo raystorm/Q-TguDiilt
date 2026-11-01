@@ -175,11 +175,14 @@ describe('Kiro permission requests', () => {
 
    it('the command comes from the stream by id, and the title is display only', async () => {
       expect(await reportFor(true)).toStrictEqual({
-         kind: 'execute', title: 'ls -la', command: 'ls -la', rawInput: STREAM_RAW,
+         id: 'run_command_toolu_01', kind: 'execute', title: 'ls -la', command: 'ls -la',
+         rawInput: STREAM_RAW,
       });
    });
 
    it('[H] without the stream record the request alone has no command, whatever its title or _meta says', async () => {
-      expect(await reportFor(false)).toStrictEqual({ kind: 'other', title: 'ls -la' });
+      expect(await reportFor(false)).toStrictEqual({
+         id: 'run_command_toolu_01', kind: 'other', title: 'ls -la',
+      });
    });
 });

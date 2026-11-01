@@ -124,7 +124,9 @@ describe('permission requests: options and answers', () => {
    it('[H] with no handler a request is denied', async () => {
       const { scripted, result } = await runTurn(async ({ ask }) => ask({ toolCallId: 'a' }), null);
       expect(scripted.result.outcome).toEqual(picked('reject'));
-      expect(result.toolCalls).toEqual([{ report: { kind: 'other', title: '' }, decision: 'deny' }]);
+      expect(result.toolCalls).toEqual([
+         { report: { id: 'a', kind: 'other', title: '' }, decision: 'deny' },
+      ]);
    });
 
    const failure = new Error('handler broke');
@@ -221,9 +223,9 @@ describe('permission requests: options and answers', () => {
          for (const title of ['one', 'two', 'three']) { await ask({ toolCallId: title, title }); }
       }, async () => answers[n++]);
       expect(result.toolCalls).toEqual([
-         { report: { kind: 'other', title: 'one' },   decision: 'approve' },
-         { report: { kind: 'other', title: 'two' },   decision: 'deny' },
-         { report: { kind: 'other', title: 'three' }, decision: 'approve' },
+         { report: { id: 'one',   kind: 'other', title: 'one' },   decision: 'approve' },
+         { report: { id: 'two',   kind: 'other', title: 'two' },   decision: 'deny' },
+         { report: { id: 'three', kind: 'other', title: 'three' }, decision: 'approve' },
       ]);
    });
 

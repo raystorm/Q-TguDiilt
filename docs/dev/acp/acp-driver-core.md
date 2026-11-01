@@ -67,13 +67,24 @@ process and fails the turn with `AgentSetupTimeoutError`.
 ## Results
 
 - The result text is the agent's message text only. Thought, plan, mode
-  and non-text chunks are ignored.
+  and non-text chunks are ignored. With `onUpdate` it equals the text
+  updates joined.
 - `sessionId` is the downstream session id.
 - There is no `cancelled` key unless our own abort fired.
-- A stop reason other than `cancelled` (`end_turn`, `max_tokens`,
-  `max_turn_requests`, `refusal`) is a normal result.
-- An agent that says `cancelled` without our abort is a normal result and
-  is logged as `agent_cancel_unrequested`.
+- `end` says why the agent ended the turn. `end_turn` is a normal finish
+  and leaves `end` out (it reads as `completed`); `max_tokens` is
+  `output_limit`, `max_turn_requests` is `request_limit`, `refusal` is
+  `refused`.
+- Our abort wins: a turn whose signal aborted is `cancelled` whatever the
+  agent says.
+- Otherwise any other stop reason fails the turn with
+  `AgentStopReasonError`: `cancelled` without our abort ("the agent
+  cancelled the turn on its own"), any other value, or none. The message
+  names the reason, through redaction. It is not a process failure: the
+  agent is not ended, no diagnostic record is written, and the session
+  stays usable. Known limit: the error carries no session id, so the
+  service does not learn the downstream session id of that turn (see
+  "Known limits" in `service-boundary.md`).
 - A `session/update` that names another session is ignored.
 - `options.context` is prepended to the prompt text with a blank line
   between.
@@ -83,6 +94,29 @@ process and fails the turn with `AgentSetupTimeoutError`.
   on that option. Choosing the model is the dispatcher's job. `auto` is
   never an error. Any other model the agent does not offer rejects with
   `ModelUnavailableError`, the agent is ended, and nothing is substituted.
+
+## Updates
+
+`options.onUpdate`, when given, receives what the agent produces, as it
+arrives:
+
+- One `{ type: 'text', text }` per non-empty agent text chunk.
+- One `{ type: 'tool_call', id, ... }` per `tool_call` or
+  `tool_call_update` message, carrying only what that message carried:
+  `kind` (the report kinds, `other` for any other), `title`, `status`
+  (`pending`, `running` for the agent's `in_progress`, `completed`,
+  `failed`; any other status is left out), `command` and `paths`. The
+  command and paths are read as for a report. The diff, other raw input
+  and content are never passed on. A message with no usable id gives no
+  update.
+- Not forwarded: thoughts, plans, mode and command lists, usage, non-text
+  content, and any update that names another session.
+- The callback belongs to its turn. It is called only while the turn runs,
+  never after `execute` settles. A throw from it is ignored and never
+  fails the turn; later updates still arrive.
+- Order is the agent's. The update for a call comes before the permission
+  request for the same call, and text keeps arriving while the handler
+  waits.
 
 ## Permission requests and tool-call reports
 
@@ -95,6 +129,8 @@ process and fails the turn with `AgentSetupTimeoutError`.
   win; an omitted field keeps the earlier one) and the request. A request
   with no record is reported from the request alone, with kind `other`
   when it names none.
+- Id: the report carries the request's `toolCallId` as `id` when it is a
+  non-empty string. Otherwise the report has no `id` key.
 - Kind: the nine report kinds; anything else, including `switch_mode`, is
   `other`.
 - Command: only `rawInput.command`, exactly as received. If `commands` is
@@ -259,7 +295,11 @@ numbers are not used.
 `AcpDriverDeps.unsafeSettings` is a list of `UnsafeSetting` (`name`,
 `optionId`, `values`). The core refuses at `session/new` when one is on,
 warns on a later `config_option_update` once per change, and logs the
-change by setting name (`agent_setting_changed`). There is no callback.
+change by setting name (`agent_setting_changed`). The warning is a
+paragraph of the turn text, reported through `onUpdate` like any text: a
+change found between turns is the first text of the next turn, and a
+change found during a turn appears where it happened. There is no
+callback.
 An absent list means no check. Only the Copilot driver passes one.
 
 ## Wiring and shutdown
@@ -285,7 +325,6 @@ process id of the agent.
 | `permission_option_fallback` | warn  | `agentSessionId`, `wanted`                      |
 | `permission_unknown_session` | warn  | `agentSessionId`, `pid`                         |
 | `governance_unrequested`     | warn  | `agentSessionId`, `toolCallId`, `kind`, `paths` |
-| `agent_cancel_unrequested`   | info  | `agentSessionId`                                |
 | `agent_cancel_deadline`      | warn  | `agentSessionId`, `pid`, `deadlineMs`           |
 | `agent_failure_after_cancel` | info  | `agentSessionId`, `failureKind`                 |
 | `agent_session_linked`       | info  | `sessionId`, `agentSessionId`                   |

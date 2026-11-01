@@ -23,10 +23,8 @@ export function refusalFor(names: readonly string[]): string {
       'This client cannot change it; turn it off in the agent itself, then try again';
 }
 
-/** The text with a warning paragraph in front when settings were switched on during the session. */
-export function prependWarning(names: readonly string[], text: string): string {
-   if (0 === names.length) { return text; }
-   const warning = `Warning: the agent turned on ${names.join(' and ')} during this session. ` +
+/** The warning for settings the agent switched on during the session. */
+export function warningFor(names: readonly string[]): string {
+   return `Warning: the agent turned on ${names.join(' and ')} during this session. ` +
       'This client cannot turn it off. The agent may now run tools without asking, so they are not checked.';
-   return '' === text ? warning : `${warning}\n\n${text}`;
 }

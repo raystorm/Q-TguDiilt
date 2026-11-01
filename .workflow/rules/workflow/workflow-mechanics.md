@@ -5,7 +5,7 @@
 A **Changeover** is a governed workflow operation transferring control and context
 between profiles. All Changeovers follow the same invariant:
 
-**user-triggered → summarized → confirmed → approved → written**
+**user-triggered → written → next command displayed**
 
 See foundation/terms.md for complete Changeover definitions.
 
@@ -37,16 +37,16 @@ Only the user may trigger `@handoff`, `@send`, or close the tab.
 
 **When Changeover is next:**
 ```
-[Profile] [Task] complete.
-[Summary of results]
-**Next**: Run `@handoff` to [next profile in the workflow] (or `@send [next profile in the workflow]`)
+[Profile] [Task] complete.  
+[Summary of results]  
+**Next**: Run `@handoff` to [next profile in the workflow] (or `@send [next profile in the workflow]`)  
 ```
 
 **When no Changeover (side trip completion):**
 ```
-[Profile] [Task] complete.
-[Summary of results]
-Close this tab and return to [source profile] tab.
+[Profile] [Task] complete.  
+[Summary of results]  
+Close this tab and return to [source profile] tab.  
 ```
 
 *The message MUST appear as one message, with no pause, no STOP, and no wait.*
@@ -79,44 +79,21 @@ initiate a Changeover:
 - `@send` (parallel)  
 
 When the user triggers a Change command, profiles must:
-1. Generate the proposed Changeover file in memory
-2. Show a Changeover summary:
-   - What is being passed  
-   - What the receiving profile will do  
-   - What information is included  
-3. Request explicit user confirmation  
-4. **Wait for approval before completing Changeover**  
-5. **Never complete Changeover without explicit user approval**  
-6. After approval, Write the Changeover file  
-7. **If handoff**
-   After approval, Remove stale files from `.amazonq/work/current/`
-   (all files except the newly written `HANDOFF.md` and it's listed artifacts)
-8. After approval, Display the next user command
+1. Write the Changeover File immediately
+2. IF the command was `@handoff`:
+   Remove stale files from `.amazonq/work/current/`
+   (all files except the newly written `HANDOFF.md` and its listed artifacts)
+3. Display the next user command
 
-**What counts as explicit confirmation:**
-- "Yes", "Yes, proceed", "Go ahead", "Approved"
-- "LGTM", "Looks good", "Proceed"
-
-**What does NOT count:**
-- Clarifying questions  
-- Acknowledging understanding  
-- General agreement without explicit approval
-
-**Example Changeover summary:**
+**Example:**
+```Markdown
+[Change] to [Profile] created.   
+  
+Next: Open new tab and run `[Begin]`
 ```
-Created handoff to [Profile] with:
-- [Artifact 1]: [description]
-- [Artifact 2]: [description]
-- [Context]: [key decisions/information]
 
-Receiving profile will: [expected action]
-
-Should I proceed with handoff?
-
-[After user confirms]
-
-Next command: Open new tab and type `'@start' to run as [Profile]
-```
+`[Change]` is the executed of the command.
+`[Begin]` is the command to activate the next profile
 
 ### Begin (Activating a Changeover)
 
@@ -138,7 +115,7 @@ and then perform any other profile activation triggers.
 
 See foundation/terms.md for a full definition of changeover file.
 
-```
+```Markdown
 === Context Status ===  
 Profile: [ProfileName]  
 WorkflowId: [workflowId]  
@@ -168,6 +145,17 @@ See `workflow/changeover-format.md` for the authoritative definition.
 
 ---
 
+## Work Artifact Location
+
+When creating analysis, planning, or solution documents during workflow execution,
+profiles MUST place them in `.amazonq/work/current/`.
+
+**Do NOT place in:**
+- Project root
+- `docs/` directory
+
+---
+
 ## Standard Handoffs (Linear Changeover)
 
 **Handoffs are Linear Changeovers.**  
@@ -185,11 +173,7 @@ Profile A informs user work is complete
   ↓
 User triggers @handoff
   ↓
-Profile A shows summary and requests confirmation
-  ↓
-User approves handoff
-  ↓
-Profile A creates HANDOFF.md (after confirmation)
+Profile A creates HANDOFF.md immediately
   ↓
 User triggers Profile B with @start
   ↓
@@ -211,10 +195,7 @@ Profile B continues work
 
 ---
 
-## Reviewable Handoffs
-
-Reviewable Handoffs are simply **Handoffs with additional completeness checks**.
-They still follow the **Change** invariant.
+## Handoff Completeness
 
 ### Problem
 
@@ -224,71 +205,41 @@ but PE needs full story requirements (schema, guards, wiring).
 
 ### Solution
 
-Make handoffs explicit, reviewable, and governed by the Change invariant.
+Profiles are responsible for including complete context in handoffs.
+User can review HANDOFF.md after creation if verification needed.
 
-### Reviewable Handoff Pattern
-
-**Profile creating handoff:**
-1. user types `@handoff`
-2. Generate the proposed HANDOFF content
-3. **Show summary of what's being passed:**
-   - "Passing to PE: test scenarios + story requirements (schema, guards, wiring)"
-4. Request user confirmation
-5. **Wait for approval before completing handoff**
-6. Create HANDOFF.md
-7. **Never complete handoff without explicit user approval**
-
-**User reviewing handoff:**
-1. Check HANDOFF.md content
-2. Verify completeness
-3. Ask: "Is everything needed for next profile included?"
-4. Approve or request additions
-
-**Example:**
-```
-TestDesigner: "Created handoff to PE with:
-- 27 test scenarios for guards
-- Story requirements: schema creation, guard implementation, wiring
-- Validation checklist
-
-Should I proceed with handoff?"
-
-User: [Reviews HANDOFF.md]
-User: "Yes, proceed"
-```
-
-### What to Check in Handoffs
+### What to Include in Handoffs
 
 **From Architect to Planner:**
-- [ ] Impact analysis complete
-- [ ] Change classification clear
-- [ ] Phase recommendations included
+- Impact analysis complete
+- Change classification clear
+- Phase recommendations included
 
 **From Planner to PE:**
-- [ ] Execution strategy defined
-- [ ] Profile sequence clear
-- [ ] Validation checkpoints identified
+- Execution strategy defined
+- Profile sequence clear
+- Validation checkpoints identified
 
 **From TestDesigner to PE:**
-- [ ] Test scenarios complete
-- [ ] Story requirements included (not just test scenarios)
-- [ ] All acceptance criteria covered
+- Test scenarios complete
+- Story requirements included (not just test scenarios)
+- All acceptance criteria covered
 
 **From PE to Builder:**
-- [ ] All story requirements in prompt
-- [ ] Anchoring to existing patterns
-- [ ] Validation checklist included
-- [ ] Confirmation requirement specified
+- All story requirements in prompt
+- Anchoring to existing patterns
+- Validation checklist included
+- Confirmation requirement specified
 
 **From Builder to Enforcer:**
-- [ ] All changes made
-- [ ] Tests created alongside
-- [ ] Validation checklist provided
+- All changes made
+- Tests created alongside
+- Validation checklist provided
 
 **From Enforcer to Documentor:**
-- [ ] Validation results
-- [ ] Files modified
-- [ ] Context for commit message
+- Validation results
+- Files modified
+- Context for commit message
 
 ---
 
@@ -310,7 +261,7 @@ Profile A needs Profile B for side task
   ↓
 User triggers @send
   ↓
-Profile A creates MESSAGE.md (after confirmation)
+Profile A creates MESSAGE.md immediately
   ↓
 User opens new tab
   ↓
@@ -418,13 +369,41 @@ artifacts require the standard confirmation sequence.
 1. Profile completes work
 2. Profile informs user work is complete
 3. User triggers `@handoff` (if continuing workflow)
-4. Profile generates proposed HANDOFF.md content
-5. Profile shows summary of what's being passed
-6. Profile requests explicit user confirmation
-7. **Profile waits for approval**
-8. User approves
-9. Profile writes HANDOFF.md (only after confirmation)
-10. Next profile activates with `@start`
+4. Profile writes HANDOFF.md immediately
+5. Profile verifies HANDOFF.md was written successfully
+6. Profile displays next user command
+7. Next profile activates with `@start`
+
+### Handoff Write Verification (MANDATORY)
+
+After writing HANDOFF.md or MESSAGE.md, profiles MUST verify the file exists:
+
+1. Write changeover file (HANDOFF.md or MESSAGE.md)
+2. Verify file exists using fsRead
+3. If verification fails:
+   - Report error to user: "Failed to write [file]. Retrying..."
+   - Retry write operation (max 2 retries)
+   - If all retries fail: "Cannot complete handoff - file write failed. Please check permissions and try again."
+   - DO NOT log handoff_sent event
+4. Only after successful verification:
+   - Log handoff_sent event
+   - Display next user command
+
+**Pattern:**
+```typescript
+// Write handoff
+fsWrite({ command: "create", path: ".amazonq/work/current/HANDOFF.md", ... });
+
+// Verify write succeeded
+const verification = fsRead({ paths: [".amazonq/work/current/HANDOFF.md"] });
+if (!verification || verification.error) {
+  // Report failure, retry, or abort
+  return;
+}
+
+// Only log after verification
+fsWrite({ command: "append", path: ".amazonq/workflow.log", ... });
+```
 
 ---
 

@@ -50,7 +50,7 @@ Planner decides when to use Behavior-Driven Development (BDD) approach:
 **When BDD chosen:**
 - Note in story: "BDD approach"
 - TestDesigner creates BDD scenarios with stakeholder collaboration in mind
-
+- See `docs/dev/workflow/workflow-loops.md` for BDD workflow pattern
 
 ## Escalation Rules
 

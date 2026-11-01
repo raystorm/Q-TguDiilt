@@ -83,6 +83,24 @@ export type AgentRefusedError = InstanceType<typeof AgentRefusedError>;
 
 type ProviderAuth = InstanceType<typeof ProviderAuthError>;
 
+/** What a stop reason is called in a message: the text, or "none" when the agent gave no usable one. */
+const reasonText = (reason: unknown) =>
+   undefined === reason || null === reason ? 'none' : 'string' === typeof reason ? reason : String(reason);
+
+/**
+ * The agent ended a turn that we did not cancel in a way that is no answer: it cancelled by
+ * itself, or gave a stop reason the driver does not know. Not a process failure.
+ */
+export const AgentStopReasonError = defineError(
+   'AgentStopReasonError',
+   (reason: unknown) => ({
+      message: 'cancelled' === reason
+         ? 'the agent cancelled the turn on its own'
+         : `the agent ended the turn with an unknown stop reason: ${redact(reasonText(reason))}`,
+   }),
+);
+export type AgentStopReasonError = InstanceType<typeof AgentStopReasonError>;
+
 /** The JSON-RPC code ACP gives to "authentication required". */
 const AUTH_REQUIRED_CODE = -32000;
 

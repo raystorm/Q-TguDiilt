@@ -3,8 +3,10 @@
  * by @agentclientprotocol/sdk) and the provider-neutral driver layer.
  *
  * One `session/prompt` turn maps to exactly one `driver.execute(...)`. The
- * boundary streams a `session/update` before the final response, surfaces
- * governance asks as a detail update sent BEFORE the approval request,
+ * boundary sends the agent's text as it arrives (once at the end for a driver
+ * that cannot stream), through one per-prompt sink that keeps order, shows every
+ * tool call as a card whose title ends with how governance decided it, surfaces
+ * governance asks as a detail update on that card sent BEFORE the approval request,
  * answers every tool call the driver reports through governance (an ask goes
  * to the user; anything that goes wrong denies),
  * enforces reject-with-retry concurrency, and maps provider / session-collapse
@@ -12,6 +14,7 @@
  * ACP-agnostic; they are reached only through the injected driver catalog.
  */
 import {
+   Driver,
    DriverResult,
    ExecuteOptions,
    ToolCallDecision,
@@ -29,12 +32,18 @@ import type {
    ContentBlock,
    NewSessionRequest,
    RequestPermissionResponse,
+   StopReason,
 } from '@agentclientprotocol/sdk';
 import {
    TurnInProgressError,
    DriverGovernanceUnsupportedError,
    boundaryErrorKind,
 } from './errors.js';
+import {
+   ABNORMAL_END_EVENT, END_LINE, END_STOP_REASON, abnormalEnd,
+} from './turn-end.js';
+import { AskCard, Cards, Outcome, createCards, ownCard } from './cards.js';
+import { UpdateSink, UpdateSlot, createUpdateSink } from './update-sink.js';
 
 /**
  * Minimal subset of the SDK's AgentContext the boundary uses to reach the
@@ -62,8 +71,17 @@ const REQUEST_PERMISSION = 'session/request_permission';
 /** How the IDE answered an approval request. `invalid` is anything unrecognized. */
 type AskAnswer = 'allow' | 'reject' | 'cancelled' | 'invalid';
 
+/** What governance decided, and the outcome the call's card shows. */
+interface Decided { decision: ToolCallDecision; outcome: Outcome }
+
 /** Shown with the details when governance could not evaluate a report. */
 const GOVERNANCE_UNAVAILABLE_NOTE = 'governance could not evaluate this action';
+
+/** An `agent_message_chunk` update carrying `text`. */
+const textUpdate = (text: string) => ({
+   sessionUpdate: 'agent_message_chunk',
+   content:       { type: 'text', text },
+});
 
 /** Extracts the concatenated text of an ACP prompt content array. */
 function promptText(params: PromptRequest): string {
@@ -80,6 +98,7 @@ export function createAgent(deps: AgentDeps) {
    const { catalog, resolver, sessionStore, logger, governance, protocolVersion } = deps;
    let sessionSeq = 0;
    let callSeq    = 0;
+   let turnSeq    = 0;
    let initialized = false;
 
    function newSessionId(): string {
@@ -108,35 +127,33 @@ export function createAgent(deps: AgentDeps) {
    }
 
    /**
-    * Ask: emit a detail `session/update` carrying the full
-    * specifics (command, paths, diff, params) BEFORE the approval request,
-    * correlated by ACP session id. Returns `{ approved, answer }`. Anything
+    * Ask: emit the detail `session/update` (the specifics: command, paths, diff, params, on
+    * the call's card) BEFORE the approval request, which names that card and is correlated
+    * by ACP session id. Returns `{ approved, answer }`. Anything
     * but an explicit allow is not approved; an unrecognized answer is
     * reported as `invalid` so the caller can tell it from a user's rejection.
     * Denial or cancellation leave the session usable.
     */
-   async function ask(
+   async function askVia(
       target: { sessionId: string },
-      specifics: AskDetails,
+      card: AskCard,
       cx: ClientContext,
+      sendDetail: (update: unknown) => Promise<boolean>,
+      issued: () => void,
    ): Promise<{ approved: boolean; answer: AskAnswer }> {
-      await cx.notify(SESSION_UPDATE, {
-         sessionId: target.sessionId,
-         update: {
-            sessionUpdate: 'tool_call',
-            status:        'pending',
-            title:         specifics.command ?? 'Requested action',
-            rawInput:      specifics,
-         },
-      });
+      const sent = await sendDetail(card.update);
+      if (!sent) { throw new Error('the ask detail was not delivered'); }
 
-      const response = await cx.request(REQUEST_PERMISSION, {
+      const pending = cx.request(REQUEST_PERMISSION, {
          sessionId: target.sessionId,
+         ...(undefined !== card.toolCallId ? { toolCall: { toolCallId: card.toolCallId } } : {}),
          options: [
             { kind: 'allow_once',  name: 'Allow',  optionId: 'allow'  },
             { kind: 'reject_once', name: 'Reject', optionId: 'reject' },
          ],
-      }) as RequestPermissionResponse;
+      });
+      issued();
+      const response = await pending as RequestPermissionResponse;
 
       const outcome = response?.outcome;
       if ('selected' === outcome?.outcome) {
@@ -147,6 +164,18 @@ export function createAgent(deps: AgentDeps) {
       return { approved: false, answer: 'invalid' };
    }
 
+   /** The ask with its detail sent straight to the client, outside any turn's sink. */
+   async function ask(
+      target: { sessionId: string },
+      specifics: AskDetails,
+      cx: ClientContext,
+   ): Promise<{ approved: boolean; answer: AskAnswer }> {
+      return askVia(target, { update: ownCard(specifics) }, cx, async update => {
+         await cx.notify(SESSION_UPDATE, { sessionId: target.sessionId, update });
+         return true;
+      }, () => undefined);
+   }
+
    /**
     * Asks the user about one tool call and logs how it ended. A throw (the
     * detail update or the request failed) or an unrecognized answer denies,
@@ -154,25 +183,31 @@ export function createAgent(deps: AgentDeps) {
     */
    async function askForApproval(
       context: { sessionId: string; callId: number },
-      specifics: AskDetails,
+      card: AskCard,
       cx: ClientContext,
       signal: AbortSignal,
-   ): Promise<ToolCallDecision> {
+      slot: UpdateSlot,
+   ): Promise<Decided> {
       // Anything that ends an open ask after the abort is part of the cancel.
-      const denyCancelled = (answeredBy: string, cause?: string): ToolCallDecision => {
+      const denyCancelled = (answeredBy: string, cause?: string): Decided => {
          const outcome: Record<string, unknown> = { ...context, action: 'deny', answeredBy, reason: 'cancelled' };
          if (undefined !== cause) { outcome.cause = cause; }
          logger.info('governance_outcome', outcome);
-         return 'deny';
+         return { decision: 'deny', outcome: 'cancelled' };
       };
       let result: { approved: boolean; answer: AskAnswer };
-      try { result = await ask({ sessionId: context.sessionId }, specifics, cx); }
+      try {
+         result = await askVia(
+            { sessionId: context.sessionId }, card, cx,
+            update => slot.send(update), () => slot.release(),
+         );
+      }
       catch {
          if (signal.aborted) { return denyCancelled('cancel', 'ask_failed'); }
          logger.warn('governance_outcome', {
             ...context, action: 'deny', answeredBy: 'failure', reason: 'ask_failed',
          });
-         return 'deny';
+         return { decision: 'deny', outcome: 'errored' };
       }
 
       if ('invalid' === result.answer) {
@@ -180,7 +215,7 @@ export function createAgent(deps: AgentDeps) {
          logger.warn('governance_outcome', {
             ...context, action: 'deny', answeredBy: 'failure', reason: 'invalid_answer',
          });
-         return 'deny';
+         return { decision: 'deny', outcome: 'errored' };
       }
 
       // A late answer, Allow included, never becomes an approve.
@@ -191,22 +226,27 @@ export function createAgent(deps: AgentDeps) {
       };
       if ('cancelled' === result.answer) { outcome.reason = 'cancelled'; }
       logger.info('governance_outcome', outcome);
-      return result.approved ? 'approve' : 'deny';
+      if ('cancelled' === result.answer) { return { decision: 'deny', outcome: 'cancelled' }; }
+      return result.approved
+         ? { decision: 'approve', outcome: 'allowed' }
+         : { decision: 'deny',    outcome: 'rejected' };
    }
 
    /**
-    * Answers one tool call a driver reports. Governance decides: approve and
-    * deny map straight through; an ask goes to the user. If governance
+    * Decides one tool call a driver reports, and says how its card shows it. Governance
+    * decides: approve and deny map straight through; an ask goes to the user. If governance
     * itself fails the failure is logged and the call falls back to an ask
     * (noting that governance could not evaluate it). Built per turn over that
     * turn's session and context, so concurrent reports share no state.
     */
-   async function handleToolCall(
+   async function decideToolCall(
       sessionId: string,
       report: ToolCallReport,
       cx: ClientContext,
       signal: AbortSignal,
-   ): Promise<ToolCallDecision> {
+      slot: UpdateSlot,
+      cards: Cards,
+   ): Promise<Decided> {
       const context = { sessionId, callId: ++callSeq };
 
       // After the abort: no evaluation, no detail update, no approval request.
@@ -214,7 +254,7 @@ export function createAgent(deps: AgentDeps) {
          logger.info('governance_outcome', {
             ...context, action: 'deny', answeredBy: 'cancel', reason: 'cancelled',
          });
-         return 'deny';
+         return { decision: 'deny', outcome: 'cancelled' };
       }
 
       let decision: Decision;
@@ -228,13 +268,112 @@ export function createAgent(deps: AgentDeps) {
          note     = GOVERNANCE_UNAVAILABLE_NOTE;
       }
 
-      if ('approve' === decision.action) { return 'approve'; }
-      if ('deny'    === decision.action) { return 'deny'; }
+      if ('approve' === decision.action) { return { decision: 'approve', outcome: 'approved' }; }
+      if ('deny'    === decision.action) { return { decision: 'deny',    outcome: 'denied'   }; }
 
       // The title is agent-supplied display text: shown, labelled, never a command.
       const specifics: AskDetails = { ...decision.details, kind: report.kind, agentTitle: report.title };
       if (undefined !== note) { specifics.note = note; }
-      return askForApproval(context, specifics, cx, signal);
+      return askForApproval(context, cards.askCard(report.id, specifics), cx, signal, slot);
+   }
+
+   /**
+    * Takes the call's place in the sink's order at once, so agent updates that arrive while
+    * governance and the user decide leave after the ask detail and its request. A call whose
+    * card was never sent announces it first. When the call is decided its card gets the
+    * outcome. A call that needs no ask releases the place as it returns.
+    */
+   async function handleToolCall(
+      sessionId: string,
+      report: ToolCallReport,
+      cx: ClientContext,
+      signal: AbortSignal,
+      sink: UpdateSink,
+      cards: Cards,
+   ): Promise<ToolCallDecision> {
+      const slot = sink.reserve();
+      try {
+         const { id } = report;
+         if (undefined !== id) {
+            const card = cards.announce(id, report);
+            if (undefined !== card) { void slot.send(card); }
+         }
+         const { decision, outcome } = await decideToolCall(
+            sessionId, report, cx, signal, slot, cards,
+         );
+         // Updates that arrived while the call was decided are already queued; the outcome follows.
+         slot.release();
+         if (undefined !== id) { void sink.send(cards.outcome(id, outcome)); }
+         return decision;
+      }
+      finally { slot.release(); }
+   }
+
+   /**
+    * One turn: the notice, one `execute`, and the text the driver did not stream. Everything
+    * it sends goes through the prompt's sink. Returns the ACP stop reason.
+    */
+   async function runTurn(turn: {
+      sessionId: string; record: SessionRecord; driver: Driver; command: string;
+      signal: AbortSignal; sink: UpdateSink; cx: ClientContext;
+   }): Promise<{ stopReason: StopReason }> {
+      const { sessionId, record, driver, command, signal, sink, cx } = turn;
+      // Card state lives for this turn only.
+      const cards = createCards(++turnSeq);
+      // Until a turn of this session ends normally, its turns lead with the notice.
+      if (undefined !== catalog.notice && !record.endedNormally) {
+         void sink.send(textUpdate(catalog.notice));
+      }
+
+      let sawText = false;
+      const options: ExecuteOptions = {
+         signal,
+         model:      record.model,
+         onToolCall: report => handleToolCall(sessionId, report, cx, signal, sink, cards),
+         onUpdate:   update => {
+            if ('text' !== update.type) { void sink.send(cards.render(update)); return; }
+            sawText = true;
+            void sink.send(textUpdate(update.text));
+         },
+      };
+      if (record.driverSessionId) { options.sessionId = record.driverSessionId; }
+
+      // A driver that did not stream sends its text now, once; streamed text is never repeated.
+      const sendUnstreamed = (text: string) => {
+         if (!sawText && '' !== text) { void sink.send(textUpdate(text)); }
+      };
+
+      let result: DriverResult;
+      try { result = await driver.execute(command, options); }
+      catch (err) {
+         if (!signal.aborted) { throw err; }
+         // A failure after a cancel is part of the cancel: log the kind only.
+         logger.info('turn_cancelled', {
+            sessionId, failureKind: boundaryErrorKind(err) ?? 'internal',
+         });
+         return { stopReason: 'cancelled' as const };
+      }
+
+      // An abnormal end is logged whether or not the turn was cancelled; a cancel wins.
+      const abnormal = abnormalEnd(result.end);
+      if (undefined !== abnormal) { logger.info(ABNORMAL_END_EVENT, { sessionId, end: abnormal }); }
+
+      if (result.cancelled || signal.aborted) {
+         if ('' !== result.sessionId) { linkDriverSession(record, sessionId, result.sessionId); }
+         sendUnstreamed(result.text);
+         logger.info('turn_cancelled', { sessionId });
+         return { stopReason: 'cancelled' as const };
+      }
+
+      linkDriverSession(record, sessionId, result.sessionId);
+      sendUnstreamed(result.text);
+      // The line follows the turn's text. An abnormal end is not a normal end: the notice stays.
+      if (undefined !== abnormal) {
+         void sink.send(textUpdate(END_LINE[abnormal]));
+         return { stopReason: END_STOP_REASON[abnormal] };
+      }
+      record.endedNormally = true;
+      return { stopReason: 'end_turn' as const };
    }
 
    return {
@@ -304,75 +443,22 @@ export function createAgent(deps: AgentDeps) {
          const controller = new AbortController();
          const { signal } = controller;
          sessionStore.setActiveTurn(params.sessionId, true, controller);
+         const sink = createUpdateSink({
+            deliver:   update => cx.notify(SESSION_UPDATE, { sessionId: params.sessionId, update }),
+            logger,
+            sessionId: params.sessionId,
+         });
          try {
-            // Until a turn of this session ends normally, its turns lead with the notice.
-            if (undefined !== catalog.notice && !record.endedNormally) {
-               await cx.notify(SESSION_UPDATE, {
-                  sessionId: params.sessionId,
-                  update: {
-                     sessionUpdate: 'agent_message_chunk',
-                     content: { type: 'text', text: catalog.notice },
-                  },
-               });
-            }
-
-            // Stream at least one update before the final response.
-            await cx.notify(SESSION_UPDATE, {
-               sessionId: params.sessionId,
-               update: {
-                  sessionUpdate: 'agent_message_chunk',
-                  content: { type: 'text', text: 'Working on it...' },
-               },
+            const response = await runTurn({
+               sessionId: params.sessionId, record, driver, command, signal, sink, cx,
             });
-
-            const options: ExecuteOptions = {
-               signal,
-               model: record.model,
-               onToolCall: report => handleToolCall(params.sessionId, report, cx, signal),
-            };
-            if (record.driverSessionId) { options.sessionId = record.driverSessionId; }
-
-            let result: DriverResult;
-            try { result = await driver.execute(command, options); }
-            catch (err) {
-               if (!signal.aborted) { throw err; }
-               // A failure after a cancel is part of the cancel: log the kind only.
-               logger.info('turn_cancelled', {
-                  sessionId:   params.sessionId,
-                  failureKind: boundaryErrorKind(err) ?? 'internal',
-               });
-               return { stopReason: 'cancelled' as const };
-            }
-
-            if (result.cancelled || signal.aborted) {
-               if ('' !== result.sessionId) { linkDriverSession(record, params.sessionId, result.sessionId); }
-               if ('' !== result.text) {
-                  await cx.notify(SESSION_UPDATE, {
-                     sessionId: params.sessionId,
-                     update: {
-                        sessionUpdate: 'agent_message_chunk',
-                        content: { type: 'text', text: result.text },
-                     },
-                  });
-               }
-               logger.info('turn_cancelled', { sessionId: params.sessionId });
-               return { stopReason: 'cancelled' as const };
-            }
-
-            linkDriverSession(record, params.sessionId, result.sessionId);
-
-            await cx.notify(SESSION_UPDATE, {
-               sessionId: params.sessionId,
-               update: {
-                  sessionUpdate: 'agent_message_chunk',
-                  content: { type: 'text', text: result.text },
-               },
-            });
-
-            record.endedNormally = true;
-            return { stopReason: 'end_turn' as const };
+            // The prompt resolves only after every update was delivered.
+            await sink.flush();
+            return response;
          }
          catch (err) {
+            // What the turn produced reaches the IDE before the failure does.
+            await sink.flush();
             // The ACP `PromptResponse.stopReason` enum has no `error` value, so
             // provider quota/auth, session collapse, and generic mid-turn
             // failures are surfaced as JSON-RPC errors: the SDK converts a
@@ -387,6 +473,7 @@ export function createAgent(deps: AgentDeps) {
             throw err;
          }
          finally {
+            sink.close();
             sessionStore.setActiveTurn(params.sessionId, false);
          }
       },

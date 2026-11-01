@@ -26,10 +26,6 @@ Architect creates HANDOFF.md:
    - Feature breakdown (3 stories)
    - Impact analysis (cross-domain, 50+ files)
    - Phase recommendations
-   Should I proceed?"
-  ↓
-User reviews HANDOFF.md
-User: "Yes, proceed"
   ↓
 Architect: "Handoff complete. Next command: Open new tab and type `@start' to run as Planner"
   ↓
@@ -68,35 +64,7 @@ Retrospective continues analysis
 
 ---
 
-## Example 3: Reviewable Handoff Catches Issue
-
-```
-TestDesigner creates test scenarios
-  ↓
-TestDesigner: "Test scenarios complete. Created 27 scenarios for guards."
-  ↓
-User: "@handoff"
-  ↓
-TestDesigner creates HANDOFF.md:
-  "Handoff to PE with:
-   - 27 test scenarios for guards
-   Should I proceed?"
-  ↓
-User reviews HANDOFF.md
-User: "Wait, this is missing story requirements. PE needs build requirements, not just test scenarios."
-  ↓
-TestDesigner updates HANDOFF.md with full requirements
-  ↓
-User: "Yes, proceed"
-  ↓
-TestDesigner: "Handoff complete. Next command: Open new tab and type `'@start' to run as PE"
-  ↓
-PE receives complete requirements
-```
-
----
-
-## Example 4: Multi-Story Feature Flow
+## Example 3: Multi-Story Feature Flow
 
 ```
 Story 1: Planner → TestDesigner → PE → Builder → Enforcer → Documentor
@@ -112,7 +80,7 @@ Retrospective analyzes and offers improvements
 
 ---
 
-## Example 5: Single Story with Retrospective
+## Example 4: Single Story with Retrospective
 
 ```
 Story: Planner → TestDesigner → PE → Builder → Enforcer → Documentor

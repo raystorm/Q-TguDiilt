@@ -14,7 +14,7 @@ When profile needs to undo changes during active workflow:
 - `git revert`
 - `git reset`
 - `git checkout`
-- Any git command that modifies working directory
+- Any git command that modifies the git working tree
 
 **Why:**
 - Active workflow often has uncommitted changes in multiple files

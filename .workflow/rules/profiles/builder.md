@@ -118,6 +118,38 @@ When implementing tests and code:
 - Confirmation request before modifying any workflow artifact
 - Handoff to Enforcer with validation checklist
 
+## Large Operation Batching
+
+When implementing changes that affect many files (>10 files)
+or many test cases (>15 tests), Builder MUST batch the work:
+
+**Batching Strategy:**
+
+1. **Identify logical segments:**
+   - Group by feature area (e.g., all User tests, all Box tests)
+   - Group by change type (e.g., all schema updates, all guard updates)
+   - Group by test phase (e.g., Phase 1: write tests, Phase 2: implementation)
+
+2. **Batch size guidelines:**
+   - 5-10 files per batch
+   - 10-15 test cases per batch
+   - Smaller batches if files are large or changes are complex
+
+3. **Batch execution:**
+   - Complete one batch fully (write, verify, confirm)
+   - Request user confirmation after each batch
+   - Continue to next batch only after confirmation
+
+4. **When to use Builder → Builder handoff:**
+   - Context window approaching 70% capacity
+   - Logical break point between phases (e.g., tests complete, ready for implementation)
+   - User requests pause/review mid-implementation
+
+**Do NOT:**
+- Attempt all changes in single operation if >10 files or >15 tests
+- Continue without user confirmation between batches
+- Batch arbitrarily (respect logical boundaries)
+
 ## Safe Undo Pattern
 
 **CRITICAL:** This profile follows the safe undo process in `workflow/safe-undo.md`

@@ -1,5 +1,15 @@
 import { describe, it, expect } from 'vitest';
-import type { Driver, ToolCallDecision, ToolCallReport } from '../governed-driver.js';
+import type {
+   Driver, ExecuteOptions, ToolCallDecision, ToolCallReport, TurnUpdate,
+} from '../governed-driver.js';
+
+/**
+ * One step of a streamed turn: the agent says something, or announces a call
+ * (and asks about it when `gate` is true).
+ */
+export type StreamStep =
+   | { type: 'say'; text: string }
+   | { type: 'call'; id: string; report: ToolCallReport; gate?: boolean };
 
 export interface GovernedDriverHarness {
    driver: Driver;
@@ -7,11 +17,23 @@ export interface GovernedDriverHarness {
    ran():  ToolCallReport[];
    /** How many times close() actually released the downstream agent. */
    released(): number;
-   /** The report a driver is expected to hand over for a scripted one. Absent: the same report. */
-   project?(report: ToolCallReport): ToolCallReport;
+   /**
+    * The report a driver is expected to hand over for the nth scripted one.
+    * Absent: the same report.
+    */
+   project?(report: ToolCallReport, index: number): ToolCallReport;
+   /** Scripts the next turn as text and calls, in order. Only the streaming checks need it. */
+   stream?(steps: StreamStep[]): void;
+   /** The agent sends a text chunk after the turn has settled. Absent: nothing can arrive late. */
+   lateChunk?(): Promise<void>;
 }
 
-const REPORT_KEYS = ['kind', 'title', 'command', 'paths', 'diff', 'rawInput'];
+export interface ContractOptions {
+   /** True for a driver that reports updates through `onUpdate`: the streaming checks run. */
+   streams?: boolean;
+}
+
+const REPORT_KEYS = ['id', 'kind', 'title', 'command', 'paths', 'diff', 'rawInput'];
 
 const read: ToolCallReport = { kind: 'read', title: 'Read a.ts', paths: ['/repo/a.ts'] };
 const edit: ToolCallReport = {
@@ -26,7 +48,8 @@ const decisions = (outcomes: { decision: ToolCallDecision }[]) =>
    outcomes.map(o => o.decision);
 
 /** What the driver should report for a scripted report. */
-const expected = (h: GovernedDriverHarness, report: ToolCallReport): ToolCallReport => h.project?.(report) ?? report;
+const expected = (h: GovernedDriverHarness, report: ToolCallReport, index = 0): ToolCallReport =>
+   h.project?.(report, index) ?? report;
 
 function deferred<T = void>() {
    let resolve!: (value: T) => void;
@@ -42,12 +65,121 @@ async function flush() {
 /** A decision that is never answered. */
 const unanswered = () => new Promise<ToolCallDecision>(() => {});
 
+/**
+ * A check on a driver that streams. `create` makes a fresh harness for each turn
+ * the check runs.
+ */
+export interface StreamingCheck {
+   name: string;
+   run(create: () => GovernedDriverHarness): Promise<void>;
+}
+
+const say = (text: string): StreamStep => ({ type: 'say', text });
+const call = (id: string, report: ToolCallReport, gate = false): StreamStep =>
+   ({ type: 'call', id, report, gate });
+
+/** Two texts and two calls, none asked. */
+const TWO_CALLS: StreamStep[]  = [say('a'), call('c1', read), say('b'), call('c2', exec)];
+/** Two texts around one call that is asked. */
+const ASKED_CALL: StreamStep[] = [say('a'), call('c1', edit, true), say('b')];
+
+/** Lets trailing work finish: microtasks, then a real tick for anything on a stream. */
+async function settle() {
+   await flush();
+   await new Promise<void>(resolve => setTimeout(resolve, 10));
+}
+
+/** Runs one scripted turn and collects the updates, in the order they arrived. */
+async function streamed(h: GovernedDriverHarness, steps: StreamStep[], extra: ExecuteOptions = {}) {
+   if (undefined === h.stream) { throw new Error('the harness cannot script a stream'); }
+   h.stream(steps);
+   const updates: TurnUpdate[] = [];
+   const result = await h.driver.execute('cmd', {
+      ...extra,
+      onUpdate: update => { updates.push(update); extra.onUpdate?.(update); },
+   });
+   return { updates, result };
+}
+
+const labelOf = (update: TurnUpdate) =>
+   'text' === update.type ? `text:${update.text}` : `call:${update.id}`;
+
+export const STREAMING_CHECKS: StreamingCheck[] = [
+   {
+      name: 'updates arrive in the order the agent produced them',
+      async run(create) {
+         const { updates } = await streamed(create(), TWO_CALLS);
+         expect(updates.map(labelOf)).toEqual(['text:a', 'call:c1', 'text:b', 'call:c2']);
+      },
+   },
+   {
+      name: 'the text updates joined equal the result text',
+      async run(create) {
+         const { updates, result } = await streamed(create(), TWO_CALLS);
+         const texts = updates.flatMap(
+            update => 'text' === update.type ? [update.text] : []);
+         expect(texts.length).toBeGreaterThan(1);
+         expect(texts.join('')).toBe(result.text);
+         expect(result.text).toBe('ab');
+      },
+   },
+   {
+      name: '[H] nothing arrives after the turn settles',
+      async run(create) {
+         const h = create();
+         const { updates } = await streamed(h, TWO_CALLS);
+         const count = updates.length;
+         expect(count).toBeGreaterThan(0);
+         await h.lateChunk?.();
+         await settle();
+         expect(updates).toHaveLength(count);
+      },
+   },
+   {
+      name: '[H] a callback that throws does not fail the turn',
+      async run(create) {
+         let calls = 0;
+         const approve = async () => 'approve' as const;
+         const throwing = () => { calls += 1; throw new Error('callback failed'); };
+         const threw = await streamed(create(), ASKED_CALL, {
+            onToolCall: approve,
+            onUpdate:   throwing,
+         });
+         const quiet = await streamed(create(), ASKED_CALL, { onToolCall: approve });
+         expect(calls).toBeGreaterThan(1);
+         expect(threw.updates.map(labelOf)).toEqual(['text:a', 'call:c1', 'text:b']);
+         expect(threw.result.text).toBe('ab');
+         expect(threw.result).toEqual(quiet.result);
+      },
+   },
+   {
+      name: '[H] a call is announced before it is gated, with the same id',
+      async run(create) {
+         const order: string[] = [];
+         await streamed(create(), ASKED_CALL, {
+            onUpdate:   update => { order.push(labelOf(update)); },
+            onToolCall: async report => { order.push(`gate:${report.id}`); return 'approve'; },
+         });
+         expect(order).toEqual(['text:a', 'call:c1', 'gate:c1', 'text:b']);
+      },
+   },
+];
+
 /** Reusable contract: any governed Driver (the fake today, real drivers later). */
 export function describeGovernedDriverContract(
    label: string,
    createHarness: () => GovernedDriverHarness,
+   options: ContractOptions = {},
 ) {
    describe(`governed driver contract — ${label}`, () => {
+      if (true === options.streams) {
+         describe('streaming', () => {
+            for (const check of STREAMING_CHECKS) {
+               it(check.name, () => check.run(createHarness));
+            }
+         });
+      }
+
       it('onToolCall is passed per call and invoked before the call runs', async () => {
          const h = createHarness();
          const ranAtInvoke: number[] = [];
@@ -65,7 +197,7 @@ export function describeGovernedDriverContract(
          await h.driver.execute('cmd', {
             onToolCall: async report => { seen.push(report); return 'approve'; },
          });
-         expect(seen).toEqual([exec, edit].map(report => expected(h, report)));
+         expect(seen).toEqual([exec, edit].map((report, n) => expected(h, report, n)));
          for (const report of seen) {
             expect(typeof report.kind).toBe('string');
             expect(typeof report.title).toBe('string');

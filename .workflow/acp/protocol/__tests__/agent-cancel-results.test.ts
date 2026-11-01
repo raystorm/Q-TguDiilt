@@ -31,7 +31,7 @@ describe('Group 16 — cancel: result of a cancelled turn', () => {
       const res = await agent.prompt({ sessionId: s.sessionId, ...textParam('q') }, cx);
       const chunks = cx.calls.filter(c => 'agent_message_chunk' === c.params?.update?.sessionUpdate);
       expect(res).toEqual({ stopReason: 'cancelled' });
-      expect(chunks).toHaveLength(1);   // only 'Working on it...'
+      expect(chunks).toHaveLength(0);
       expect(logger.entries.filter((e: LogEntry) => 'error' === e.level)).toEqual([]);
    });
 

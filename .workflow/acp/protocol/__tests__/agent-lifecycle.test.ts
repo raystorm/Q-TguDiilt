@@ -113,14 +113,14 @@ describe('Group 2 — ACP <-> driver translation seam', () => {
 
 // Group 3: Streaming update-before-final -----------------------------------
 
-describe('Group 3 — streaming: update before final', () => {
-   it('emits at least one session/update before the final response', async () => {
-      const { agent } = makeAgent();
+describe('Group 3 — streaming', () => {
+   it('[H] a turn with no text and no tool calls sends no update', async () => {
+      const driver = createDriverSpy({ text: '', sessionId: 'drv-1', toolCalls: [] });
+      const { agent } = makeAgent({ driver });
       const s  = await agent.newSession(newSessionArgs());
       const cx = createCx();
       const res = await agent.prompt({ sessionId: s.sessionId, ...textParam('q') }, cx);
-      const updateCount = cx.calls.filter(c => 'session/update' === c.method).length;
-      expect(updateCount).toBeGreaterThanOrEqual(1);
+      expect(cx.calls).toEqual([]);
       expect(res.stopReason).toBe('end_turn');
    });
 

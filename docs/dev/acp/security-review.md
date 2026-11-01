@@ -28,6 +28,7 @@ each finding, its tier, and whether it was fixed or accepted.
 | An agent changing a command after approval               |           | Accepted            |
 | Redaction is not guaranteed                              |           | Accepted            |
 | Agent output persists in the diagnostic log              |           | Accepted            |
+| Paths in the service log are not redacted                |           | Accepted            |
 | The service killed with SIGKILL                          |           | Accepted            |
 | Processes outside the agent's process group              |           | Accepted            |
 | SDK prints agent messages to stderr                      |           | Accepted            |
@@ -137,6 +138,15 @@ preset, which is backlogged.
   and this finding is about stored text, as with "Redaction". Outcome:
   accepted; users are told to read the file before sharing it. The live
   runs will read the file as a leak check.
+- **Paths in the service log.** Governance logs the paths it matched as
+  given, cut at 500 characters. The service log writer redacts a value
+  only when it contains whitespace, so a path with none is written
+  unredacted, and a secret embedded in such a path would be logged.
+  Commands are redacted; the diagnostic log and error messages are not
+  affected. Outcome: accepted for now. The canary tests exempt the path
+  canary from the service-log check only, and still check it in error
+  messages and diagnostic records. A later change could run logged paths
+  through `redact()`, which would let the canary check cover paths too.
 - **SIGKILL.** If the service is killed with SIGKILL it cannot end its
   agent. Kiro and its children exited by themselves about 5.5 seconds
   later (kiro-cli 2.22.0).

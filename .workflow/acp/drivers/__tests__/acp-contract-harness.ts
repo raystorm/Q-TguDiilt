@@ -1,12 +1,12 @@
 /**
- * Turns the contract suite's `script(reports)` into ACP traffic, so the suite
+ * Turns the contract suite's `script(reports)` and `stream(steps)` into ACP traffic, so the suite
  * can run against a real driver over fake agents. Not product code.
  */
 import { createLogger, fakeAgents, type FakeAgent } from '../acp-driver-core/__tests__/acp-driver.helpers.js';
 import type { Connect } from '../acp-driver-core/types.js';
 import type { Logger } from '../../shared/logger.js';
 import type { Driver, ToolCallReport } from '../governed-driver.js';
-import type { GovernedDriverHarness } from './governed-driver.contract.js';
+import type { GovernedDriverHarness, StreamStep } from './governed-driver.contract.js';
 
 const SESSION = 'agent-sess-1';
 
@@ -41,11 +41,18 @@ function streamCall(id: string, report: ToolCallReport) {
    };
 }
 
-/** The report a driver builds from `streamCall`: only the diff text differs from the scripted one. */
-function project(report: ToolCallReport): ToolCallReport {
-   if (undefined === report.diff) { return report; }
+/** The stream's chunk of agent text. */
+const chunk = (text: string) => ({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } });
+
+/** The id the harness gives the nth report of a `script`. */
+const idOf = (index: number) => `call-${index}`;
+
+/** The report a driver builds from `streamCall`: it gains the call's id; the diff text differs. */
+function project(report: ToolCallReport, index: number): ToolCallReport {
+   const withId = { ...report, id: idOf(index) };
+   if (undefined === report.diff) { return withId; }
    const path = report.paths?.[0] ?? '';
-   return { ...report, diff: `--- ${path}\n${OLD_TEXT}\n+++ ${path}\n${NEW_TEXT}` };
+   return { ...withId, diff: `--- ${path}\n${OLD_TEXT}\n+++ ${path}\n${NEW_TEXT}` };
 }
 
 const allowedOnce = (answer: any) =>
@@ -55,9 +62,11 @@ export function createAcpHarness({ make, prepare }: AcpHarnessOptions): Governed
    const { agents, connect } = fakeAgents(AGENT_COUNT);
    const inner = make(connect, createLogger());
    /** One script per launched agent, in launch order. */
-   const scripts: ToolCallReport[][] = [];
-   const allowed: ToolCallReport[]   = [];
-   let next: ToolCallReport[] = [];
+   const scripts: StreamStep[][] = [];
+   const allowed: ToolCallReport[] = [];
+   let next: StreamStep[] = [];
+   /** Index of the agent that served the latest turn. */
+   let latest = 0;
 
    agents.forEach((agent, index) => {
       prepare?.(agent);
@@ -66,9 +75,14 @@ export function createAcpHarness({ make, prepare }: AcpHarnessOptions): Governed
       agent.handle.closeStdin = () => { closeStdin(); agent.exit(0); };
       agent.respond('session/prompt', async () => {
          const cancelled = agent.arrived('session/cancel').then(() => 'cancelled' as const);
-         for (const [n, report] of (scripts[index] ?? []).entries()) {
-            const id = `call-${n}`;
+         for (const step of scripts[index] ?? []) {
+            if ('say' === step.type) {
+               await agent.notify('session/update', { sessionId: SESSION, update: chunk(step.text) });
+               continue;
+            }
+            const { id, report } = step;
             await agent.notify('session/update', { sessionId: SESSION, update: streamCall(id, report) });
+            if (true !== step.gate) { continue; }
             const asked = agent.request('session/request_permission', {
                sessionId: SESSION, toolCall: { toolCallId: id, title: report.title }, options: OPTIONS,
             });
@@ -86,7 +100,7 @@ export function createAcpHarness({ make, prepare }: AcpHarnessOptions): Governed
       ...inner,
       execute: (command, options) => {
          // A call that is aborted at entry launches nothing, so it takes no script.
-         if (true !== options?.signal?.aborted) { scripts.push(next); }
+         if (true !== options?.signal?.aborted) { scripts.push(next); latest = scripts.length - 1; }
          next = [];
          return inner.execute(command, options);
       },
@@ -94,9 +108,13 @@ export function createAcpHarness({ make, prepare }: AcpHarnessOptions): Governed
 
    return {
       driver,
-      script:   reports => { next = reports; },
-      ran:      () => [...allowed],
-      released: () => agents.filter(agent => agent.stdinClosed).length,
+      script:    reports => {
+         next = reports.map((report, n): StreamStep => ({ type: 'call', id: idOf(n), report, gate: true }));
+      },
+      stream:    steps => { next = steps; },
+      lateChunk: () => agents[latest].notify('session/update', { sessionId: SESSION, update: chunk('late') }),
+      ran:       () => [...allowed],
+      released:  () => agents.filter(agent => agent.stdinClosed).length,
       project,
    };
 }

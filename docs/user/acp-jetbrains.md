@@ -52,8 +52,9 @@ From your side, a session follows this lifecycle:
 1. **Connect** — the IDE starts the service and initializes the
    connection.
 2. **New session** — each session maps to exactly one workflow.
-3. **Prompt turns** — you send a prompt; the service shows progress and
-   returns a response. One prompt turn runs one workflow step.
+3. **Prompt turns** — you send a prompt; the service shows the agent's
+   reply and tool calls as they happen and returns a response. One prompt
+   turn runs one workflow step.
 4. **Disconnect** — closing the connection releases all sessions.
 
 Only one prompt turn runs at a time per session. If you send a second
@@ -62,12 +63,43 @@ to retry once the current turn finishes. To interrupt a running turn,
 use your IDE's cancel action (ACP `session/cancel`); see "Stopping a
 turn".
 
+## What you see during a turn
+
+The agent's reply appears as the agent writes it, not once at the end.
+The tool calls the agent makes appear in the same chat, in order with the
+text, each as a **card**.
+
+- **A card** shows what the call is: its kind, the agent's title and, for
+  a command or file call, the command or the file paths. These are what
+  governance checked, so you see them even if the agent's title says
+  something else. A card never shows a diff; the diff appears only when
+  you are asked to approve.
+- **The outcome** is added to the end of the card's title once governance
+  has finished with the call:
+  - `approved by governance`: a rule approved it and you were not asked.
+  - `denied by governance`: a rule denied it. The card is marked failed.
+  - `allowed by you` or `rejected by you`: your answer to an approval
+    request. A rejection marks the card failed.
+  - `cancelled`: you stopped the turn, or the IDE cancelled the question.
+  - `Approval process errored: request denied`: the question could not be
+    asked or the answer was not understood, so the call was denied. The
+    card is marked failed.
+- **When the agent stops early**, the chat shows one line after the text
+  and the turn ends. Your IDE shows it as ended for that reason, and you
+  can send another prompt. If you stop a turn yourself, no line appears.
+  - "The agent stopped because it reached its output limit; the reply may
+    be cut off."
+  - "The agent stopped because it reached its limit on requests in one
+    turn; the work may be unfinished."
+  - "The agent refused to continue this turn."
+
 ## Approvals
 
 When a step needs your approval, the service first shows you the
 **specifics** of the action — the command, file paths, diff, and any
-tool parameters — and then presents the approval request. You always
-see what you are approving before you approve it.
+tool parameters — and then presents the approval request. The specifics
+appear on the call's card, and text the agent writes meanwhile follows
+them. You always see what you are approving before you approve it.
 
 ## Stopping a turn
 
@@ -146,6 +178,12 @@ still runs. `acp.log` gets one warning, and no records and no
   interrupted, so the turn ends only when the driver finishes its
   current work. Wait, then retry. The log shows `cancel_requested` when
   the stop reached the service and `turn_cancelled` when the turn ended.
+- **A turn fails with an error naming a stop reason** — the agent ended
+  the turn by itself (it cancelled, or sent a reason the service does not
+  know). The text shown before the error stays; send the prompt again. If
+  this happened in the first turn of a chat, or of a reopened chat, the
+  next message starts a new agent session, so the agent does not remember
+  that turn, and the old agent stays idle until you close the chat.
 - **Provider quota / authentication errors** — these surface as clear,
   actionable errors; resolve the provider issue (quota or re-login) and
   retry the turn.

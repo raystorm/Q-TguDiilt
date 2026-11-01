@@ -1,7 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { evaluateCommand, evaluateToolCall, loadGovernanceConfig } from '../engine.js';
+import {
+   createGovernanceEngine, evaluateCommand, evaluateToolCall, loadGovernanceConfig,
+} from '../engine.js';
 import type { ToolCallKind, ToolCallReport } from '../../drivers/governed-driver.js';
 import type { Decision, GovernanceAction, GovernanceConfig, GovernanceRule } from '../types.js';
 
@@ -386,5 +388,32 @@ describe('a kind outside the vocabulary', () => {
 
    it('when it asks, shows the user what the report carried', () => {
       expect(decide([], odd('teleport')).details).toMatchObject({ paths: ['/p/a'], command: 'ls' });
+   });
+});
+
+describe('a report id', () => {
+   const RULES: GovernanceRule[] = [
+      { kind: 'read', action: 'approve' },
+      { pattern: 'ls *', action: 'deny' },
+   ];
+   const samples: Array<[string, ToolCallReport]> = [
+      ['execute', rep('execute', { command: 'ls -la' })],
+      ['edit',    rep('edit', { paths: ['/p/src/a.ts'], diff: '- a\n+ b' })],
+      ['read',    rep('read', { paths: ['/p/src/a.ts'] })],
+   ];
+
+   it.each(samples)('[H] an id on an %s report changes no decision and is not logged', (_kind, report) => {
+      const entries: Array<{ event: string; data: unknown }> = [];
+      const log = (event: string, data: unknown = {}) => { entries.push({ event, data }); };
+      const engine = createGovernanceEngine({
+         config: { rules: RULES, default: 'ask' }, logger: { debug: log, info: log, warn: log, error: log },
+      });
+      const context = { sessionId: 's1', callId: 1 };
+      const plain   = engine.evaluateToolCall(report, context);
+      const withId  = engine.evaluateToolCall({ ...report, id: 'UNIQUE-CALL-ID' }, context);
+      expect(withId).toEqual(plain);
+      const [first, second] = entries.filter(entry => 'governance_decision' === entry.event);
+      expect(second.data).toEqual(first.data);
+      expect(JSON.stringify(entries)).not.toContain('UNIQUE-CALL-ID');
    });
 });

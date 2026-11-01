@@ -61,7 +61,7 @@ describe('path reports: the other kinds', () => {
    it('[H] a thin Kiro edit request with no stream record is reported as other with no paths: '
       + 'ask under the shipped config', () => {
       const report = createToolCallTable().report({ toolCallId: 'e1', status: 'pending', title: 'Edit a.ts' });
-      expect(report).toEqual({ kind: 'other', title: 'Edit a.ts' });
+      expect(report).toEqual({ id: 'e1', kind: 'other', title: 'Edit a.ts' });
       expect(evaluateToolCall(SHIPPED, report).action).toBe('ask');
       // Accepted residual risk: under `default: approve` an unclassified request is approved.
       expect(evaluateToolCall(withDefault('approve'), report).action).toBe('approve');

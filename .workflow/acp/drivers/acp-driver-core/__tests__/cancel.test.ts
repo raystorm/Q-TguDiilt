@@ -134,18 +134,20 @@ describe('the result of an aborted turn', () => {
    it.each([
       ['stopReason cancelled',  t => t.finish({ stopReason: 'cancelled' })],
       ['stopReason end_turn',   t => t.finish({ stopReason: 'end_turn' })],
-      ['stopReason max_tokens', t => t.finish({ stopReason: 'max_tokens' })],
+      ['stopReason max_tokens', t => t.finish({ stopReason: 'max_tokens' }), { end: 'output_limit' }],
       ['a JSON-RPC error',      t => t.fail(rpcFailure('boom', -32603))],
       ['a connection error',    t => t.agent.exit(1)],
-   ] as Array<[string, (t: Awaited<ReturnType<typeof abortableTurn>>) => void]>)(
+   ] as Array<[string, (t: Awaited<ReturnType<typeof abortableTurn>>) => void, object?]>)(
       '[H] a turn whose signal aborted is cancelled when the prompt returns %s',
-      async (_label, end) => {
+      async (_label, end, extra = {}) => {
          const t = await abortableTurn();
          await say(t.agent, 'partial');
          t.controller.abort();
          await flush();
          end(t);
-         expect(await t.turn).toStrictEqual({ text: 'partial', sessionId: SESSION, toolCalls: [], cancelled: true });
+         expect(await t.turn).toStrictEqual({
+            text: 'partial', sessionId: SESSION, toolCalls: [], cancelled: true, ...extra,
+         });
          await wrapUp(t);
       },
    );

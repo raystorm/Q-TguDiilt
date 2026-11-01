@@ -26,6 +26,7 @@ interface ExecuteOptions {
    model?:      string;   // Model to use for this call
    onToolCall?: (report: ToolCallReport) => Promise<ToolCallDecision>;
    signal?:     AbortSignal;   // Aborts the turn; supplied per call
+   onUpdate?:   (update: TurnUpdate) => void;   // Optional; supplied per call
 }
 
 interface DriverResult {
@@ -33,9 +34,11 @@ interface DriverResult {
    sessionId: string;
    toolCalls: ToolCallOutcome[];   // every reported call and its decision
    cancelled?: boolean;            // true when the turn ended because the signal aborted
+   end?:       TurnEnd;            // why the turn ended; absent reads as 'completed'
 }
 
 interface ToolCallReport {
+   id?:       string;         // the agent's id for the call, when the driver has one
    kind:      ToolCallKind;   // 'read' | 'edit' | 'delete' | 'move' | 'search'
                               // | 'execute' | 'fetch' | 'think' | 'other'
    title:     string;
@@ -51,6 +54,15 @@ interface ToolCallOutcome {
    report:   ToolCallReport;
    decision: ToolCallDecision;
 }
+
+type ToolCallStatus = 'pending' | 'running' | 'completed' | 'failed';
+
+type TurnUpdate =
+   | { type: 'text'; text: string }
+   | { type: 'tool_call'; id: string; kind?: ToolCallKind; title?: string;
+       status?: ToolCallStatus; command?: string; paths?: string[] };
+
+type TurnEnd = 'completed' | 'output_limit' | 'request_limit' | 'refused';
 ```
 
 **Contract rules:**
@@ -93,6 +105,23 @@ interface ToolCallOutcome {
   the driver started; with none started it resolves at once. It is
   idempotent and safe to call concurrently: every call resolves and the
   downstream agent is released once
+- `onUpdate` is optional and passed per `execute` call. A driver that
+  streams calls it once per update, in the order the agent produced them,
+  and only while `execute` runs: never after it settles. A throw from the
+  callback is ignored and never fails the turn
+- A `tool_call` update carries only the fields the agent's message
+  carried; the receiver merges them by `id`. It carries no diff, no raw
+  input and no content
+- A call is announced through `onUpdate` before it is reported through
+  `onToolCall`, and the report's `id` equals the update's `id`
+- The text updates joined equal `DriverResult.text`. A driver that does
+  not stream returns all its text in the result; the service sends it once
+  at the end, and never sends again text a driver streamed
+- `end` is `output_limit`, `request_limit` or `refused` for an abnormal
+  finish; absent reads as `completed`. A turn whose signal aborted is
+  `cancelled` whatever the downstream reason, and `end` is not used for it
+- `ToolCallReport.id` is optional. Without it, an ask is shown on a card
+  of its own, and a call a rule decides has no card
 - The driver MUST NOT throw on empty `options` — treat it as `{}`
 
 **Protocol layer:** a prompt fails before any work starts, with
@@ -135,6 +164,8 @@ export function createDriver({ logger }: { logger: Logger }): Driver {
          // ...start the provider session with `command`...
          // If `options.signal` is aborted (at entry, or while a decision is
          // pending), stop and return { text, sessionId, toolCalls, cancelled: true }
+         // If streaming: options.onUpdate?.({ type: 'text', text }) per piece,
+         // and a tool_call update for each call before gating it
          // For each tool call the provider wants to run, build a `report`:
          //    const decision = await gateToolCall(options, report);
          //    toolCalls.push({ report, decision });
@@ -177,6 +208,17 @@ describeGovernedDriverContract('my-driver', () => ({
    `released()` returns how many times `close()` actually released the
    downstream agent (the suite expects 0 when nothing was started and 1
    after a started driver is closed, however often `close()` is called).
+
+   A driver that streams passes `{ streams: true }` as a third argument and
+   adds two members to the harness: `stream(steps)` scripts the next turn as
+   `{ type: 'say', text }` and `{ type: 'call', id, report, gate? }` steps
+   (a call with `gate: true` is also reported through `onToolCall`), and
+   `lateChunk()` makes the agent send text after the turn settled. The
+   suite then checks the order, that the joined text equals the result
+   text, that nothing arrives after the turn settles, that a throwing
+   callback does not fail the turn, and that a call is announced before it
+   is gated with the same id. A driver that does not stream leaves the
+   option out.
 
 6. Add a registry entry for the driver, with its `module` (see Registry
    Config Format and How to Register a Custom Driver below). The Driver

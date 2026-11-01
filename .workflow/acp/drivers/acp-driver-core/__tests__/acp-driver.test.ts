@@ -178,15 +178,6 @@ describe('text, continuity and results', () => {
       },
    );
 
-   it('an agent that reports cancelled without our abort is a normal result, and is logged', async () => {
-      const { driver, agents, logger } = makeDriver();
-      sayDuringPrompt(agents[0], ['partial'], 'cancelled');
-      const result = await driver.execute('go');
-      expect(result.text).toBe('partial');
-      expect(Object.keys(result)).not.toContain('cancelled');
-      expect(logger.info).toHaveBeenCalledWith('agent_cancel_unrequested', { agentSessionId: 'agent-sess-1' });
-   });
-
    it('an empty command is rejected as the other drivers do, and starts no process', async () => {
       const { driver, connect } = makeDriver();
       await expect(driver.execute('')).rejects.toThrow(/command/i);

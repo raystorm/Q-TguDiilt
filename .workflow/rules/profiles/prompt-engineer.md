@@ -156,6 +156,13 @@ When modifying rules:
 
 **CRITICAL:** Follow rule change workflow from `workflow/rule-change-workflow.md`
 
+**You edit rules directly. Do NOT create Builder prompts for rules changes.**
+
+**Standard workflow:**
+```
+PromptEngineer (rules) → Documentor (docs) → Enforcer → Documentor (commit)
+```
+
 ---
 
 ## Output Structure

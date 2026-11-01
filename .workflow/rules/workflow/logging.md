@@ -295,6 +295,17 @@ fsWrite({
 See `.workflow/rules/workflow/timestamp-method.md` for the
 authoritative method definition.
 
+### Timestamp Generation Enforcement (MANDATORY - Zero Tolerance)
+
+**CRITICAL: ALL workflow log timestamps MUST be generated using the
+Timestamp Generation Method. NO EXCEPTIONS.**
+
+**Before logging ANY event, profiles MUST:**
+1. Execute timestamp generation method (see workflow/timestamp-method.md)
+2. Verify timestamp is current system time
+3. Verify timestamp format is ISO 8601
+4. Log event immediately (no delay between generation and logging)
+
 ### Validation Checklist
 
 Before logging any event, profiles MUST verify:

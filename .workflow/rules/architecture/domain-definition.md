@@ -53,6 +53,7 @@ changes.**
 
 ## CRITICAL: No Premature Abstraction
 
+**Do not create folders or structural abstractions for single files.**
 **Do not create structural abstractions until they are justified.**
 
 If only one file or module exists, keep it at the parent level

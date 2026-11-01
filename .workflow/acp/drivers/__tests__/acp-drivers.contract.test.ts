@@ -24,13 +24,13 @@ describe('the real drivers pass the contract', () => {
          connect, logger, diagnostics: createDiagnostics(),
       }),
       prepare: agent => agent.respond('initialize', () => KIRO_V3),
-   }));
+   }), { streams: true });
 
    describeGovernedDriverContract('copilot', () => createAcpHarness({
       make: (connect, logger) => createCopilotAcpDriver({
          connect, logger, diagnostics: createDiagnostics(),
       }),
-   }));
+   }), { streams: true });
 
    // A third driver is a launch command and nothing else: no core change makes it pass.
    describeGovernedDriverContract('a third driver', () => createAcpHarness({
@@ -38,7 +38,7 @@ describe('the real drivers pass the contract', () => {
          name: 'toy', connect, launch: { command: 'toy-agent', args: [] },
          policy: { verifySession: () => undefined }, logger, diagnostics: createDiagnostics(),
       }),
-   }));
+   }), { streams: true });
 });
 
 /** `createDriver` starts its agent with `spawnAgent`; the mock hands it the fake agents. */
@@ -52,9 +52,9 @@ describe('the registry entry points pass the contract', () => {
    describeGovernedDriverContract('kiro createDriver', () => createAcpHarness({
       make:    viaSpawnAgent(createKiro),
       prepare: agent => agent.respond('initialize', () => KIRO_V3),
-   }));
+   }), { streams: true });
 
    describeGovernedDriverContract('copilot createDriver', () => createAcpHarness({
       make: viaSpawnAgent(createCopilot),
-   }));
+   }), { streams: true });
 });

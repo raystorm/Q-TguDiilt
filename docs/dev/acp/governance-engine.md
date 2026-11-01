@@ -173,6 +173,9 @@ means no rule matched. A denial forced by a missing field has no
   `missing_details` or `parent_segment`). Empty fields are omitted. The plain
   `evaluate(command)` entry carries the redacted `command`, `matchedRule`
   and `action`.
+  The service log writer redacts a value only when it contains whitespace,
+  so a path with none is written as given. A secret inside such a path
+  would be logged; accepted (see `security-review.md`).
 - `governance_rule_shadowed` (warning, at startup) — `rule`,
   `shadowedBy`, `ruleAction`, `shadowedByAction`, `approveHidesStricter`.
 - `governance_config_error` — a config that failed to load.

@@ -24,7 +24,8 @@ describe('permission reports: correlation', () => {
             });
             await ask({ toolCallId: other, title: 'asked' });
          });
-         expect(reports).toStrictEqual([{ kind: 'other', title: 'asked' }]);
+         const id = '' === other ? {} : { id: other };
+         expect(reports).toStrictEqual([{ ...id, kind: 'other', title: 'asked' }]);
       },
    );
 
@@ -45,7 +46,8 @@ describe('permission reports: correlation', () => {
          await ask({ toolCallId: 'shell-permission', rawInput: { command: 'rm -rf .' } });
       });
       expect(reports[1]).toStrictEqual({
-         kind: 'other', title: '', command: 'rm -rf .', rawInput: { command: 'rm -rf .' },
+         id: 'shell-permission', kind: 'other', title: '', command: 'rm -rf .',
+         rawInput: { command: 'rm -rf .' },
       });
    });
 
@@ -64,7 +66,7 @@ describe('permission reports: correlation', () => {
       const onToolCall = async (report: ToolCallReport) => { reports.push(report); return 'approve' as const; };
       const first = await driver.execute('one', { onToolCall });
       await driver.execute('two', { sessionId: first.sessionId, onToolCall });
-      expect(reports).toStrictEqual([{ kind: 'other', title: '' }]);
+      expect(reports).toStrictEqual([{ id: 'T', kind: 'other', title: '' }]);
    });
 
    it.each(['__proto__', 'constructor', 'toString', 'hasOwnProperty'])(
@@ -133,7 +135,7 @@ describe('permission reports: content', () => {
       const { reports } = await runTurn(async ({ ask }) => {
          await ask({ toolCallId: 'k1', status: 'pending', title: 'Run shell command' });
       });
-      expect(reports).toStrictEqual([{ kind: 'other', title: 'Run shell command' }]);
+      expect(reports).toStrictEqual([{ id: 'k1', kind: 'other', title: 'Run shell command' }]);
    });
 
    it('[H] the title is never used as the command', async () => {
@@ -271,6 +273,6 @@ describe('permission reports: content', () => {
       });
       expect(reports[0].rawInput).toEqual(rawInput);
       expect(Object.keys(reports[0]).every(key =>
-         ['kind', 'title', 'command', 'paths', 'diff', 'rawInput'].includes(key))).toBe(true);
+         ['id', 'kind', 'title', 'command', 'paths', 'diff', 'rawInput'].includes(key))).toBe(true);
    });
 });
