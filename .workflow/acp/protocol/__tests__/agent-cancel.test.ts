@@ -164,6 +164,7 @@ describe('Group 15 — cancel: signal and wind-down', () => {
       const unsupported = {
          name: 'plain', supportsToolCallGovernance: false, execute: async () => ({ text: '', sessionId: '' }),
          close: async () => {},
+         release: async () => {},
       };
       const { agent, sessionStore, logger } = makeAgent({ driver: unsupported });
       const s = await agent.newSession(newSessionArgs());

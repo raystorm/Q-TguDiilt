@@ -46,6 +46,13 @@ every driver and so ends every agent process it started. One failing
   never silently replaced by a new session.
 - `close()` ends every process the driver started, once, however often or
   concurrently it is called.
+- `release(sessionId)` ends the process that serves that session, once. The
+  session leaves the driver first, so a turn that follows raises
+  `SessionCollapseError` at once. An unknown, empty or released id resolves
+  and does nothing, and logs nothing. A release is not a loss: it writes no
+  diagnostic record, and the next launch is not logged as a relaunch. After
+  `close()` (or before it) the ending already running is shared, so the
+  process is ended once. The caller never releases during a turn.
 
 ## Setup
 
@@ -335,8 +342,8 @@ process id of the agent.
 - `reason` of `agent_process_ended` is deadline, setup_timeout,
   aborted_during_setup, launch_failure (exit before setup finished),
   crash, protocol_failure, handler_failure, model_unavailable,
-  verify_refused or disconnect. `stage` is the last stage of the ending
-  sequence reached: none, stdin_closed, sigterm or sigkill.
+  verify_refused, disconnect or release. `stage` is the last stage of the
+  ending sequence reached: none, stdin_closed, sigterm or sigkill.
 - `agent_session_linked` is the join between the IDE session and the agent
   session; it is logged when the id is new or changed.
 

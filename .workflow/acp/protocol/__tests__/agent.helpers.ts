@@ -91,6 +91,7 @@ export function createDriverSpy(
          return result;
       },
       close: async () => {},
+      release: async () => {},
    };
 }
 
@@ -390,6 +391,7 @@ export function createScriptedDriver(name = 'scripted') {
          return finish(undefined === ended ? {} : { end: ended });
       },
       close: async () => {},
+      release: async () => {},
    };
    return {
       driver,

@@ -104,6 +104,53 @@ describe('catalog — a driver fails a check', () => {
       },
    );
 
+   const MISSING: Array<[string, string[]]> = [
+      ['execute',                 ['execute']],
+      ['close',                   ['close']],
+      ['release',                 ['release']],
+      ['execute, release',        ['execute', 'release']],
+      ['execute, close, release', ['execute', 'close', 'release']],
+   ];
+
+   it.each(MISSING)('a driver missing %s fails with that reason', async (reason, missing) => {
+      const driver = fakeDriver(
+         'bad', Object.fromEntries(missing.map(method => [method, undefined])),
+      );
+      const built = await buildBad(moduleOf(driver));
+      expectFailureOutcome(built, DRIVER_FAILURE.missingMethod);
+      expect(failureLogs(built.logger, 'bad')[0].data.reason).toBe(reason);
+   });
+
+   it.each([['a string', 'run'], ['null', null], ['an object', {}]])(
+      'a driver whose release is %s instead of a function fails',
+      async (_label, value) => {
+         const driver = fakeDriver('bad', { release: value });
+         const built = await buildBad(moduleOf(driver));
+         expectFailureOutcome(built, DRIVER_FAILURE.missingMethod);
+         expect(failureLogs(built.logger, 'bad')[0].data.reason).toBe('release');
+      },
+   );
+
+   it('a driver failing governance and lacking a method reports the governance kind', async () => {
+      const driver = fakeDriver('bad', { supportsToolCallGovernance: false, release: undefined });
+      expectFailureOutcome(await buildBad(moduleOf(driver)), DRIVER_FAILURE.noGovernance);
+   });
+
+   it('a rejected driver that still has close is closed', async () => {
+      const driver = fakeDriver('bad', { release: undefined });
+      await buildBad(moduleOf(driver));
+      expect(driver.close).toHaveBeenCalledTimes(1);
+   });
+
+   it('a driver with execute, close and release loads', async () => {
+      const { modules } = validSet('alpha');
+      const catalog = await buildCatalog({
+         config: configOf(['alpha']), registryPath: FIXTURE_REGISTRY, logger: createLogger(),
+         importModule: importFrom(modules),
+      });
+      expect(catalog.names()).toEqual(['alpha']);
+   });
+
    it('the failure kinds are distinct', () => {
       const kinds = Object.values(DRIVER_FAILURE);
       expect(new Set(kinds).size).toBe(kinds.length);

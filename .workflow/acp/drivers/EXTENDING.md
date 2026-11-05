@@ -14,6 +14,7 @@ interface Driver {
    readonly supportsToolCallGovernance: boolean;
    execute(command: string, options?: ExecuteOptions): Promise<DriverResult>;
    close(): Promise<void>;
+   release(sessionId: string): Promise<void>;
 }
 ```
 
@@ -105,6 +106,14 @@ type TurnEnd = 'completed' | 'output_limit' | 'request_limit' | 'refused';
   the driver started; with none started it resolves at once. It is
   idempotent and safe to call concurrently: every call resolves and the
   downstream agent is released once
+- `release(sessionId)` is required. It ends the process that serves that
+  session through the driver's ending sequence, and resolves, with no value,
+  when the process has ended. The driver and its other sessions keep running.
+  It is idempotent and safe to call concurrently and next to `close()`: every
+  call resolves and the process is ended once. An unknown, empty or already
+  released id resolves and does nothing. A later turn on a released session
+  fails with `SessionCollapseError`. A release is not a loss: it records no
+  failure. A caller never releases a session during a turn
 - `onUpdate` is optional and passed per `execute` call. A driver that
   streams calls it once per update, in the order the agent produced them,
   and only while `execute` runs: never after it settles. A throw from the
@@ -133,7 +142,7 @@ busy until `execute` settles. On disconnect it aborts every turn and
 awaits `close()`.
 
 See `__tests__/fake-governed-driver.ts` as a minimal reference
-implementation. It honors the signal and implements `close`.
+implementation. It honors the signal and implements `close` and `release`.
 
 ---
 
@@ -175,6 +184,9 @@ export function createDriver({ logger }: { logger: Logger }): Driver {
       },
       async close() {
          // ...release every process this driver started; a no-op if none...
+      },
+      async release(sessionId) {
+         // ...end the process that serves this session; a no-op for an unknown id...
       }
    };
 }
@@ -187,7 +199,8 @@ export function createDriver({ logger }: { logger: Logger }): Driver {
    the call only when it resolves `'approve'`.
 
 4. Honor `options.signal` if the provider can be interrupted, and
-   implement `close()` (required; see the contract rules above).
+   implement `close()` and `release(sessionId)` (both required; see the
+   contract rules above).
 
 5. Prove the driver with the shared contract suite, in a test under
    `drivers/__tests__/`:
@@ -199,15 +212,18 @@ describeGovernedDriverContract('my-driver', () => ({
    driver: createDriver({ logger }),
    script: reports => { /* make the driver attempt these tool calls */ },
    ran:    () => [ /* reports whose side effects actually happened */ ],
-   released: () => /* times close() released the downstream agent */ 0,
+   released: () => /* agents released, by release() or close() */ 0,
 }));
 ```
 
    `script(reports)` sets the tool calls the driver attempts during its
    next `execute`; `ran()` returns the reports that actually ran;
-   `released()` returns how many times `close()` actually released the
-   downstream agent (the suite expects 0 when nothing was started and 1
-   after a started driver is closed, however often `close()` is called).
+   `released()` returns how many downstream agents were released, by
+   `release()` or by `close()`, each counted once (the suite expects 0 when
+   nothing was started, 1 after a started driver is closed however often
+   `close()` is called, and 1 after one of two sessions is released). The
+   release checks open their sessions with turns that carry no `sessionId`,
+   so a harness must give each new session its own id.
 
    A driver that streams passes `{ streams: true }` as a third argument and
    adds two members to the harness: `stream(steps)` scripts the next turn as
@@ -371,6 +387,7 @@ a loaded registry. For each entry it checks that:
 - the factory does not throw and returns a driver
 - the driver's `name` equals the registry key
 - the driver declares tool-call governance (exactly `true`)
+- the driver has `execute`, `close` and `release` as functions
 
 Models and installed CLIs are not checked.
 
@@ -380,7 +397,12 @@ out of `resolverConfig`, the registry the dispatch resolver sees. The other
 drivers still load. A driver the factory created and the catalog then
 rejected is closed. The failure kinds are the `DRIVER_FAILURE` constants:
 module not found, import failed, no createDriver, factory failed, not a
-driver, name mismatch, no governance.
+driver, name mismatch, no governance, missing method. A driver that lacks
+`execute`, `close` or `release` (absent or not a function) is left out as
+missing method, and the logged reason names the missing methods in that
+order, for example `execute, release`. The check runs after the governance
+check, so a driver that fails both reports no governance. It does not check
+what the methods return.
 
 **Build failure.** `buildDriverCatalog` rejects with
 `DriverCatalogBuildError` when `drivers:` is empty, when every driver

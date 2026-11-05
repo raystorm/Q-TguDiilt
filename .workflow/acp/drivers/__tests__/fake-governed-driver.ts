@@ -9,6 +9,7 @@ import {
    gateToolCall,
    validateExecuteArgs,
 } from '../governed-driver.js';
+import { SessionCollapseError } from '../../protocol/errors.js';
 import type { StreamStep } from './governed-driver.contract.js';
 
 const CANCELLED = Symbol('cancelled');
@@ -50,6 +51,8 @@ const isStep = (item: ToolCallReport | FakeStep): item is FakeStep => 'step' in 
  * It honors the abort signal: it stops asking, discards late answers, and
  * settles cancelled. On close it settles in-flight turns cancelled and
  * discards late answers.
+ * It has sessions: the first is `fake-sess`, each further turn without a `sessionId` opens its
+ * own, `release` ends one, and a turn on a released session rejects with `SessionCollapseError`.
  */
 export function createFakeGovernedDriver(
    name = 'fake', { streams = true }: { streams?: boolean } = {},
@@ -59,10 +62,27 @@ export function createFakeGovernedDriver(
    const events: string[] = [];
    let releases = 0;
    let closing: Promise<void> | undefined;
-   let started  = false;
+   /** The sessions the fake opened, in order, and those released. */
+   const opened      = new Set<string>();
+   const releasedIds = new Set<string>();
    let isClosed = false;
    let closeNow!: () => void;
    const closed = new Promise<typeof CANCELLED>(resolve => { closeNow = () => resolve(CANCELLED); });
+
+   /** The session a turn runs on: a new one, one the fake opened, or (as before) `fake-sess`. */
+   const sessionFor = (requested?: string): string => {
+      if (undefined === requested) {
+         const id = 0 === opened.size ? 'fake-sess' : `fake-sess-${opened.size + 1}`;
+         opened.add(id);
+         return id;
+      }
+      if (releasedIds.has(requested)) {
+         throw new SessionCollapseError(
+            `the session ${requested} is no longer available; start a new session`,
+         );
+      }
+      return opened.has(requested) ? requested : 'fake-sess';
+   };
 
    const driver: Driver = {
       name:                       name,
@@ -86,11 +106,11 @@ export function createFakeGovernedDriver(
             catch { /* a callback that throws never fails the turn */ }
          };
          if (signal?.aborted || isClosed) { return cancelled(''); }
-         started = true;
+         const session = sessionFor(options.sessionId);
          const aborted = whenAborted(signal);
          try {
             for (const item of steps) {
-               if (isClosed) { return cancelled('fake-sess'); }
+               if (isClosed) { return cancelled(session); }
                if ('say' === item.step) {
                   said.push(item.text);
                   emit({ type: 'text', text: item.text });
@@ -106,7 +126,7 @@ export function createFakeGovernedDriver(
                events.push(`gate:${report.title}`);
                const decision = await Promise.race([gateToolCall(options, report), aborted, closed]);
                // An answer that arrives after the abort is discarded.
-               if (CANCELLED === decision || signal?.aborted || isClosed) { return cancelled('fake-sess'); }
+               if (CANCELLED === decision || signal?.aborted || isClosed) { return cancelled(session); }
                toolCalls.push({ report, decision });
                if ('approve' === decision) {
                   events.push(`run:${report.title}`);
@@ -115,12 +135,12 @@ export function createFakeGovernedDriver(
             }
          }
          catch (err) {
-            if (signal?.aborted || isClosed) { return cancelled('fake-sess'); }
+            if (signal?.aborted || isClosed) { return cancelled(session); }
             throw err;
          }
-         if (signal?.aborted || isClosed) { return cancelled('fake-sess'); }
+         if (signal?.aborted || isClosed) { return cancelled(session); }
          return {
-            text: plain ? 'done' : said.join(''), sessionId: 'fake-sess', toolCalls,
+            text: plain ? 'done' : said.join(''), sessionId: session, toolCalls,
             ...(undefined === ended ? {} : { end: ended }),
          };
       },
@@ -128,11 +148,20 @@ export function createFakeGovernedDriver(
          if (undefined === closing) {
             closing = (async () => {
                isClosed = true;
-               if (started) { releases += 1; }
+               for (const id of opened) {
+                  if (!releasedIds.has(id)) { releasedIds.add(id); releases += 1; }
+               }
                closeNow();
             })();
          }
          return closing;
+      },
+      release(sessionId) {
+         if (opened.has(sessionId) && !releasedIds.has(sessionId)) {
+            releasedIds.add(sessionId);
+            releases += 1;
+         }
+         return Promise.resolve();
       },
    };
 

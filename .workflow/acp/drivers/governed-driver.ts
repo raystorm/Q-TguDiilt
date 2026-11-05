@@ -83,6 +83,16 @@ export interface Driver {
     * released once.
     */
    close(): Promise<void>;
+   /**
+    * Ends the process that serves this session, through the driver's ending sequence, and
+    * resolves with no value when it has ended. The driver and its other sessions keep running.
+    * Idempotent and safe to call concurrently and next to `close()`: every call resolves and
+    * the process is ended once. An unknown or already released id, the empty id included,
+    * resolves and does nothing. A later turn on a released session fails as a session
+    * collapse. A release is not a loss: it records no failure. A caller never releases a
+    * session during a turn.
+    */
+   release(sessionId: string): Promise<void>;
 }
 
 export function validateExecuteArgs(command: string, options: ExecuteOptions = {}): void {

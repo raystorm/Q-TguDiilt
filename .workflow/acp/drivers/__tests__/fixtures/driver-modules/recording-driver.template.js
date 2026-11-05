@@ -13,5 +13,6 @@ export function createDriver() {
          calls.push({ driver: '__NAME__', call: 'close' });
          if (__CLOSE_FAILS__) { throw new Error('close-boom'); }
       },
+      release: async () => {},
    };
 }

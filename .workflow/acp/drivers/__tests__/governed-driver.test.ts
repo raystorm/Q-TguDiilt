@@ -11,6 +11,7 @@ import {
    declaresToolCallGovernance,
    validateExecuteArgs,
 } from '../governed-driver.js';
+import { SessionCollapseError } from '../../protocol/errors.js';
 import { call, createFakeGovernedDriver, end, gate, say, update } from './fake-governed-driver.js';
 import {
    STREAMING_CHECKS,
@@ -32,16 +33,37 @@ describe('governed-driver module', () => {
       const result:   DriverResult     = { text: '', sessionId: '', toolCalls: [outcome] };
       const driver:   Driver           = {
          name: 'x', supportsToolCallGovernance: false, execute: async () => result, close: async () => {},
+         release: async (sessionId: string) => {},
       };
       // @ts-expect-error name is required
-      const noName: Driver = { supportsToolCallGovernance: true, execute: async () => result, close: async () => {} };
+      const noName: Driver = {
+         supportsToolCallGovernance: true, execute: async () => result,
+         close: async () => {}, release: async () => {},
+      };
       // @ts-expect-error supportsToolCallGovernance is required
-      const noFlag: Driver = { name: 'x', execute: async () => result, close: async () => {} };
+      const noFlag: Driver = {
+         name: 'x', execute: async () => result, close: async () => {}, release: async () => {},
+      };
       // @ts-expect-error close is required
-      const noClose: Driver = { name: 'x', supportsToolCallGovernance: true, execute: async () => result };
+      const noClose: Driver = {
+         name: 'x', supportsToolCallGovernance: true, execute: async () => result,
+         release: async () => {},
+      };
       // @ts-expect-error close must return a promise
       const syncClose: Driver = { ...driver, close: () => {} };
-      expect([options, driver, noName, noFlag, noClose, syncClose]).toHaveLength(6);
+      // @ts-expect-error release is required
+      const noRelease: Driver = {
+         name: 'x', supportsToolCallGovernance: true, execute: async () => result,
+         close: async () => {},
+      };
+      // @ts-expect-error release must return a promise
+      const syncRelease: Driver = { ...driver, release: () => {} };
+      // @ts-expect-error release takes the session id as a string
+      const numberRelease: Driver = { ...driver, release: async (sessionId: number) => {} };
+      expect([
+         options, driver, noName, noFlag, noClose, syncClose,
+         noRelease, syncRelease, numberRelease,
+      ]).toHaveLength(9);
    });
 
    it('execute returns a Promise resolving to a DriverResult', async () => {
@@ -76,6 +98,7 @@ describe('cancellation additions', () => {
       const cancelled: DriverResult   = { text: '', sessionId: '', toolCalls: [], cancelled: true };
       const plain:     Driver         = {
          name: 'x', supportsToolCallGovernance: true, execute: async () => cancelled, close: async () => {},
+         release: async () => {},
       };
       // @ts-expect-error signal must be an AbortSignal
       const badSignal: ExecuteOptions = { signal: 'abort' };
@@ -110,6 +133,59 @@ describe('fake governed driver', () => {
       await h.driver.close();
       await h.driver.close();
       expect(h.released()).toBe(1);
+   });
+
+   it('opens its own session for each turn without a session id; the first is fake-sess', async () => {
+      const h = createFakeGovernedDriver();
+      const first  = await h.driver.execute('one');
+      const second = await h.driver.execute('two');
+      expect(first.sessionId).toBe('fake-sess');
+      expect(second.sessionId).not.toBe(first.sessionId);
+      expect(second.sessionId).not.toBe('');
+   });
+
+   it('a turn on a session it opened returns that session; any other id gives fake-sess', async () => {
+      const h = createFakeGovernedDriver();
+      await h.driver.execute('one');
+      const second = await h.driver.execute('two');
+      const again  = await h.driver.execute('again', { sessionId: second.sessionId });
+      const other  = await h.driver.execute('other', { sessionId: 'unknown' });
+      expect(again.sessionId).toBe(second.sessionId);
+      expect(other.sessionId).toBe('fake-sess');
+   });
+
+   it('[H] counts each released session once, by release or close, in any order', async () => {
+      const h = createFakeGovernedDriver();
+      const a = await h.driver.execute('one');
+      const b = await h.driver.execute('two');
+      await h.driver.release(a.sessionId);
+      await h.driver.release(a.sessionId);
+      expect(h.released()).toBe(1);
+      await h.driver.close();
+      await h.driver.release(b.sessionId);
+      await h.driver.close();
+      expect(h.released()).toBe(2);
+   });
+
+   it('release of an unknown id or the empty id resolves and changes nothing', async () => {
+      const h = createFakeGovernedDriver();
+      const a = await h.driver.execute('one');
+      await expect(h.driver.release('nope')).resolves.toBeUndefined();
+      await expect(h.driver.release('')).resolves.toBeUndefined();
+      expect(h.released()).toBe(0);
+      const again = await h.driver.execute('again', { sessionId: a.sessionId });
+      expect(again.sessionId).toBe(a.sessionId);
+   });
+
+   it('a turn on a released session rejects with a session collapse; the others still run', async () => {
+      const h = createFakeGovernedDriver();
+      const a = await h.driver.execute('one');
+      const b = await h.driver.execute('two');
+      await h.driver.release(a.sessionId);
+      await expect(h.driver.execute('again', { sessionId: a.sessionId }))
+         .rejects.toBeInstanceOf(SessionCollapseError);
+      const other = await h.driver.execute('again', { sessionId: b.sessionId });
+      expect(other.sessionId).toBe(b.sessionId);
    });
 
    it('records the gate before the run for each approved call', async () => {

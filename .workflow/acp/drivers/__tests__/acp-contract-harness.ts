@@ -8,7 +8,14 @@ import type { Logger } from '../../shared/logger.js';
 import type { Driver, ToolCallReport } from '../governed-driver.js';
 import type { GovernedDriverHarness, StreamStep } from './governed-driver.contract.js';
 
-const SESSION = 'agent-sess-1';
+/** The session id of the nth fake agent. The first keeps the id every fake agent answers with. */
+const sessionOf = (index: number) => `agent-sess-${index + 1}`;
+
+/** The index of the agent that serves a `sessionOf` id; undefined for any other id. */
+function agentOf(sessionId: string): number | undefined {
+   const match = /^agent-sess-(\d+)$/.exec(sessionId);
+   return null === match ? undefined : Number(match[1]) - 1;
+}
 
 /** More than any contract scenario launches: each turn without a session id starts its own agent. */
 const AGENT_COUNT = 4;
@@ -61,8 +68,10 @@ const allowedOnce = (answer: any) =>
 export function createAcpHarness({ make, prepare }: AcpHarnessOptions): GovernedDriverHarness {
    const { agents, connect } = fakeAgents(AGENT_COUNT);
    const inner = make(connect, createLogger());
-   /** One script per launched agent, in launch order. */
-   const scripts: StreamStep[][] = [];
+   /** The script of the next turn each agent serves, by agent index. A turn takes it. */
+   const scripts: StreamStep[][] = agents.map(() => []);
+   /** How many agents the driver has launched: the next fresh turn is served by this one. */
+   let launched = 0;
    const allowed: ToolCallReport[] = [];
    let next: StreamStep[] = [];
    /** Index of the agent that served the latest turn. */
@@ -70,21 +79,25 @@ export function createAcpHarness({ make, prepare }: AcpHarnessOptions): Governed
 
    agents.forEach((agent, index) => {
       prepare?.(agent);
+      const session = sessionOf(index);
+      if (0 < index) { agent.respond('session/new', () => ({ sessionId: session })); }
       // A real agent exits when its input ends.
       const closeStdin = agent.handle.closeStdin;
       agent.handle.closeStdin = () => { closeStdin(); agent.exit(0); };
       agent.respond('session/prompt', async () => {
          const cancelled = agent.arrived('session/cancel').then(() => 'cancelled' as const);
-         for (const step of scripts[index] ?? []) {
+         const steps = scripts[index];
+         scripts[index] = [];
+         for (const step of steps) {
             if ('say' === step.type) {
-               await agent.notify('session/update', { sessionId: SESSION, update: chunk(step.text) });
+               await agent.notify('session/update', { sessionId: session, update: chunk(step.text) });
                continue;
             }
             const { id, report } = step;
-            await agent.notify('session/update', { sessionId: SESSION, update: streamCall(id, report) });
+            await agent.notify('session/update', { sessionId: session, update: streamCall(id, report) });
             if (true !== step.gate) { continue; }
             const asked = agent.request('session/request_permission', {
-               sessionId: SESSION, toolCall: { toolCallId: id, title: report.title }, options: OPTIONS,
+               sessionId: session, toolCall: { toolCallId: id, title: report.title }, options: OPTIONS,
             });
             const answer = await Promise.race([asked, cancelled]);
             if ('cancelled' === answer || 'cancelled' === (answer as any).result?.outcome?.outcome) {
@@ -99,8 +112,15 @@ export function createAcpHarness({ make, prepare }: AcpHarnessOptions): Governed
    const driver: Driver = {
       ...inner,
       execute: (command, options) => {
-         // A call that is aborted at entry launches nothing, so it takes no script.
-         if (true !== options?.signal?.aborted) { scripts.push(next); latest = scripts.length - 1; }
+         // A call that is aborted at entry is served by no agent, so it takes no script.
+         if (true !== options?.signal?.aborted) {
+            const requested = options?.sessionId;
+            const served    = undefined === requested ? launched++ : agentOf(requested);
+            if (undefined !== served && served < agents.length) {
+               scripts[served] = next;
+               latest          = served;
+            }
+         }
          next = [];
          return inner.execute(command, options);
       },
@@ -112,7 +132,9 @@ export function createAcpHarness({ make, prepare }: AcpHarnessOptions): Governed
          next = reports.map((report, n): StreamStep => ({ type: 'call', id: idOf(n), report, gate: true }));
       },
       stream:    steps => { next = steps; },
-      lateChunk: () => agents[latest].notify('session/update', { sessionId: SESSION, update: chunk('late') }),
+      lateChunk: () => agents[latest].notify(
+         'session/update', { sessionId: sessionOf(latest), update: chunk('late') },
+      ),
       ran:       () => [...allowed],
       released:  () => agents.filter(agent => agent.stdinClosed).length,
       project,

@@ -51,10 +51,11 @@ export const OUTPUT_END_GRACE_MS = 500;
 /** Why the driver ended a process: the `reason` of its `agent_process_ended` entry. */
 type EndReason =
    | 'deadline' | 'setup_timeout' | 'aborted_during_setup' | 'launch_failure' | 'crash'
-   | 'protocol_failure' | 'handler_failure' | 'model_unavailable' | 'verify_refused' | 'disconnect';
+   | 'protocol_failure' | 'handler_failure' | 'model_unavailable' | 'verify_refused' | 'disconnect'
+   | 'release';
 
 /** Ending a process for these reasons is the driver's own choice, not a loss. */
-const NOT_A_LOSS: readonly EndReason[] = ['aborted_during_setup', 'disconnect'];
+const NOT_A_LOSS: readonly EndReason[] = ['aborted_during_setup', 'disconnect', 'release'];
 
 /** Resolves with `promise`, or rejects with a timeout error naming `step`. Leaves no timer behind. */
 function bounded<T>(step: string, promise: Promise<T>): Promise<T> {
@@ -580,5 +581,16 @@ export function createAcpDriver(deps: AcpDriverDeps): Driver {
       return closing;
    }
 
-   return { name, supportsToolCallGovernance: true, execute, close };
+   /**
+    * Ends the process that serves one session, once. The id leaves `sessions` first, so a turn
+    * that follows collapses without waiting. An unknown or released id resolves and does nothing.
+    */
+   function release(sessionId: string): Promise<void> {
+      const proc = sessions.get(sessionId);
+      if (undefined === proc) { return Promise.resolve(); }
+      sessions.delete(sessionId);
+      return end(proc.handle, 'release', sessionId).then(() => undefined);
+   }
+
+   return { name, supportsToolCallGovernance: true, execute, close, release };
 }

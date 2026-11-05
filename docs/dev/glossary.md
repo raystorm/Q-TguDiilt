@@ -375,7 +375,8 @@ adapter to a provider.
 Driver
 : The provider-neutral adapter the Protocol Layer calls to run a turn on a Provider.  
 Supports and integrates with ACP Governance to check tool calls and only runs them on `approve`.
-Releases every process it started when closed. Drivers are listed by name in the Driver Registry,
+Releases every process it started when closed, and the process of one session when that
+session is released. Drivers are listed by name in the Driver Registry,
 each with a module that exports `createDriver`.
 
 Driver Registry
@@ -386,7 +387,8 @@ rejected. Model Dispatch reads it, and the Driver Catalog loads the drivers it n
 
 Driver Catalog
 : The working drivers built from a Driver Registry.  
-Loads each entry's module and checks it; a driver that fails is logged and left out,
+Loads each entry's module and checks it, including that the driver has `execute`, `close`
+and `release`; a driver that fails is logged and left out,
 and the others still load. Hands out drivers by name, flags a missing or failed preferred driver
 or a preferred model its driver does not list (and supplies a Notice),
 and closes every driver on shutdown.
@@ -467,6 +469,12 @@ Ending Sequence
 : How the core ends an agent: close stdin, then SIGTERM, then SIGKILL, sent to
 its process group.  
 An agent that already exited is never touched.
+
+Session Release
+: Ending the agent process that serves one session while the driver and its other sessions keep running.  
+A Driver does it through `release(sessionId)`, using the Ending Sequence; the `agent_process_ended`
+reason is `release`. It is not a loss: no diagnostic record and no relaunch entry. A later turn on
+that session fails as a session collapse. A caller releases between turns, never during one.
 
 Shutdown Handler
 : The one function that runs the disconnect once, whichever comes first: stdin

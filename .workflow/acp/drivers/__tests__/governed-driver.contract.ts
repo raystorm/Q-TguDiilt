@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import type {
    Driver, ExecuteOptions, ToolCallDecision, ToolCallReport, TurnUpdate,
 } from '../governed-driver.js';
+import { deferred, edit, exec, read, unanswered } from './contract-fixtures.js';
+import { describeReleaseChecks } from './governed-driver.release.contract.js';
 
 /**
  * One step of a streamed turn: the agent says something, or announces a call
@@ -15,7 +17,7 @@ export interface GovernedDriverHarness {
    driver: Driver;
    script(reports: ToolCallReport[]): void;
    ran():  ToolCallReport[];
-   /** How many times close() actually released the downstream agent. */
+   /** How many downstream agents were released, by `release` or by `close()`. Each counts once. */
    released(): number;
    /**
     * The report a driver is expected to hand over for the nth scripted one.
@@ -35,15 +37,6 @@ export interface ContractOptions {
 
 const REPORT_KEYS = ['id', 'kind', 'title', 'command', 'paths', 'diff', 'rawInput'];
 
-const read: ToolCallReport = { kind: 'read', title: 'Read a.ts', paths: ['/repo/a.ts'] };
-const edit: ToolCallReport = {
-   kind: 'edit', title: 'Edit a.ts', paths: ['/repo/a.ts'], diff: '- a\n+ b',
-};
-const exec: ToolCallReport = {
-   kind: 'execute', title: 'Run build', command: 'npm run build',
-   rawInput: { command: 'npm run build' },
-};
-
 const decisions = (outcomes: { decision: ToolCallDecision }[]) =>
    outcomes.map(o => o.decision);
 
@@ -51,19 +44,10 @@ const decisions = (outcomes: { decision: ToolCallDecision }[]) =>
 const expected = (h: GovernedDriverHarness, report: ToolCallReport, index = 0): ToolCallReport =>
    h.project?.(report, index) ?? report;
 
-function deferred<T = void>() {
-   let resolve!: (value: T) => void;
-   const promise = new Promise<T>(res => { resolve = res; });
-   return { promise, resolve };
-}
-
 /** Lets already-settled promises react, without timers. */
 async function flush() {
    for (let i = 0; i < 20; i++) { await Promise.resolve(); }
 }
-
-/** A decision that is never answered. */
-const unanswered = () => new Promise<ToolCallDecision>(() => {});
 
 /**
  * A check on a driver that streams. `create` makes a fresh harness for each turn
@@ -567,5 +551,7 @@ export function describeGovernedDriverContract(
             expect(h.ran()).toEqual([read]);
          });
       });
+
+      describeReleaseChecks(createHarness);
    });
 }

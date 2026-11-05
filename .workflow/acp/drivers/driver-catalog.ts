@@ -37,6 +37,7 @@ export const DRIVER_FAILURE = {
    notADriver:     'not a driver',
    nameMismatch:   'name mismatch',
    noGovernance:   'no governance',
+   missingMethod:  'missing method',
    notInRegistry:  'not in registry',
    modelNotListed: 'model not listed',
 } as const;
@@ -106,6 +107,9 @@ interface InUse { model: string; driver: string; }
 interface LoadFailure { kind: string; reason?: string; reportedName?: string; rejected?: unknown; }
 type LoadResult = { driver: Driver } | LoadFailure;
 
+/** The methods of the contract every loaded driver must have, in the order a reason names them. */
+const REQUIRED_METHODS = ['execute', 'close', 'release'] as const;
+
 /** Runs the checks on one registry entry, in order, and stops at the first that fails. */
 async function loadDriver(
    name:         string,
@@ -135,6 +139,9 @@ async function loadDriver(
    if (name !== driver.name)
    { return { kind: DRIVER_FAILURE.nameMismatch, reportedName: String(driver.name), rejected: driver }; }
    if (!declaresToolCallGovernance(driver)) { return { kind: DRIVER_FAILURE.noGovernance, rejected: driver }; }
+   const missing = REQUIRED_METHODS.filter(method => 'function' !== typeof driver[method]);
+   if (0 < missing.length)
+   { return { kind: DRIVER_FAILURE.missingMethod, reason: missing.join(', '), rejected: driver }; }
    return { driver };
 }
 

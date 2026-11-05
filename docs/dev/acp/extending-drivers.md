@@ -8,7 +8,7 @@ and registering them in the driver registry config.
 ## Driver Interface
 
 A driver is an object with a `name`, a `supportsToolCallGovernance` flag,
-an asynchronous `execute` method, and an asynchronous `close` method:
+an asynchronous `execute` method, and asynchronous `close` and `release` methods:
 
 ```typescript
 execute(command: string, options?: ExecuteOptions): Promise<DriverResult>
@@ -43,7 +43,8 @@ ends. A driver that honors it asks nothing new, discards any late answer
 `cancelled: true`. The interface marks `signal` and `cancelled`
 optional, so a driver that ignores them still conforms, but a cancel then
 leaves its session busy until `execute` settles. `close()` is required:
-it releases every process the driver started.
+it releases every process the driver started. `release(sessionId)` is
+required too: it ends the process that serves one session.
 
 Key rules:
 - Call `validateExecuteArgs(command, options)` at the top of `execute`
@@ -56,6 +57,11 @@ Key rules:
   driver started, and must be idempotent and safe to call concurrently
   (every call resolves, the downstream agent is released once). A driver
   with nothing to release resolves immediately
+- Implement `release(sessionId)`: it ends the process that serves that
+  session and resolves when it has ended. It is idempotent and safe next to
+  `close()`; an unknown or released id resolves and does nothing. A later turn
+  on a released session fails with `SessionCollapseError`. A release is not a
+  loss. A caller never releases a session during a turn
 - Report text and tool calls through `onUpdate` if the provider can
   stream; otherwise leave `onUpdate` alone and return all the text
 - Set `id` on a report when the provider has an id for the call
@@ -145,8 +151,9 @@ drivers:
 
 The Driver Catalog loads every driver the registry names and checks it:
 the module imports, exports `createDriver`, the factory returns a driver
-whose name equals the registry key, and the driver declares tool-call
-governance. Models and installed CLIs are not checked.
+whose name equals the registry key, the driver declares tool-call
+governance, and it has `execute`, `close` and `release` methods. Models and
+installed CLIs are not checked.
 
 A driver that fails is logged (entry name, resolved path, failure kind)
 and left out; the others still load. Building the catalog fails when the
