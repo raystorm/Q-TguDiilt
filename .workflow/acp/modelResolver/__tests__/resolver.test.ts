@@ -10,6 +10,7 @@ import {
 import {
    NoDriverAvailableError,
    DispatchResolutionError,
+   ModelNotFoundError,
 } from '../errors.js';
 import { loadRegistryConfig } from '../../drivers/registry.js';
 import {
@@ -329,7 +330,7 @@ describe('names every object has', () => {
       const profiles = { Builder: { model: 'm1', driver: name } };
       const config   = registryOf(TWO_DRIVERS, undefined, { profiles });
       const resolver = createDispatchResolver({ config, logger: createLogger() });
-      expect(resolver.resolve('Builder')).toEqual({ model: 'm1', driver: 'kiro', source: 'profile' });
+      expect(resolver.resolve('Builder')).toMatchObject({ model: 'm1', driver: 'kiro', source: 'profile' });
    });
 });
 
@@ -427,7 +428,7 @@ describe('Group 3 — dispatch resolver fallback chain', () => {
       };
       const resolver = createDispatchResolver({ config, logger: createLogger() });
       const result   = resolver.resolve('Builder');
-      expect(result).toEqual({ driver: 'solo', model: 'claude-opus-5', source: 'registry-default' });
+      expect(result).toMatchObject({ driver: 'solo', model: 'claude-opus-5', source: 'registry-default' });
    });
 
    it('profile has no profiles: entry at all → uses registry defaults directly', () => {
@@ -483,7 +484,7 @@ describe('Group 4 — configurable fallback behavior', () => {
       };
       const logger   = createLogger();
       const resolver = createDispatchResolver({ config, logger, fallbackMode: 'fail-fast' });
-      expect(() => resolver.resolve('Builder')).toThrow();
+      expect(() => resolver.resolve('Builder')).toThrow(ModelNotFoundError);
       const fallbackAttempts = logger.entries.filter(e => 'dispatch_fallback_attempt' === e.event);
       expect(fallbackAttempts).toHaveLength(0);
    });
@@ -514,7 +515,7 @@ describe('Group 4 — configurable fallback behavior', () => {
       };
       const logger   = createLogger();
       const resolver = createDispatchResolver({ config, logger });
-      expect(() => resolver.resolve('Builder')).toThrow(NoDriverAvailableError);
+      expect(() => resolver.resolve('Builder')).toThrow(ModelNotFoundError);
       // fail-fast: no registry-default attempt, so no DispatchResolutionError wrapping.
       const entry = logger.entries.find(e => 'dispatch_failed' === e.event);
       expect(entry?.data.registryDefaultAttempt).toBeUndefined();

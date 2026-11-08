@@ -127,7 +127,7 @@ Writes prompts and governs AI‑facing instructions.
 ### Doctor
 
 Diagnoses failures, applies minimal safe fixes, and escalates when needed.  
-**Aliases:** Dr, DR, Medic, 🩺  
+**Aliases:** Dr, Medic, 🩺  
 → [`doctor.md`](../.workflow/rules/profiles/doctor.md)
 
 ### Retrospective

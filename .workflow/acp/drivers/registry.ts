@@ -148,11 +148,14 @@ function validateProfiles(filePath: string, raw: unknown): RegistryConfig['profi
       if (null === rawEntry || 'object' !== typeof rawEntry)
       { throw new RegistryConfigInvalidError(filePath, `profiles entry "${name}" must be an object`); }
       const { model, driver } = rawEntry as Record<string, unknown>;
-      if (undefined !== model && ('string' !== typeof model))
-      { throw new RegistryConfigInvalidError(filePath, `profiles entry "${name}.model" must be a string`); }
+      if ('string' !== typeof model || '' === model)
+      {
+         throw new RegistryConfigInvalidError(
+            filePath, `profiles entry "${name}" must have a non-empty string "model"`);
+      }
       if (undefined !== driver && ('string' !== typeof driver))
       { throw new RegistryConfigInvalidError(filePath, `profiles entry "${name}.driver" must be a string`); }
-      profiles[name] = { model: (model as string) ?? '', ...(driver ? { driver: driver as string } : {}) };
+      profiles[name] = { model, ...(driver ? { driver: driver as string } : {}) };
    }
    return profiles;
 }

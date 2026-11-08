@@ -242,9 +242,7 @@ Before stating, using, or writing any factual information, classify the informat
 - Check existing rule files before creating new ones
 
 ## Saved Prompts
-- Saved prompts MUST be created AND updated in BOTH locations:
-  - `~/.aws/amazonq/prompts/` - Global user prompts (for immediate use)
-  - `.amazonq/prompts/` - Project prompts (for version control and team sharing)
+- Saved prompts MUST be created and updated in `.amazonq/prompts/`.
 
 ## Error Handling
 - Provide meaningful error messages

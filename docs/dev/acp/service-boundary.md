@@ -35,16 +35,29 @@ Entry point `protocol/index.ts` assembles the SDK stdio transport, the
 translation agent (`createAgent`), a session store, the Driver Catalog
 and dispatch resolver built from the driver registry, the governance
 engine, and a file logger, then serves the ACP client. The governance
-config and the registry are each loaded once at startup, and the catalog
-is built before the server connects. A missing or malformed config, or a
-registry or catalog that fails (missing file, unknown key, entry without
-`module`, empty `drivers:`, every driver failing, defaults that select no
-working driver), fails closed before any request is served. The registry
-failure is logged at error level as `registry_startup_failed` with the
-registry path, and the process exits non-zero. The registry path comes
-from one lookup function (`protocol/registry-location.ts`): `registry.yaml`
-in the drivers folder, found from the service's own files, with no
-launch-time setting.
+config, the profile names and the registry are each loaded once at startup,
+in that order, and the catalog is built before the server connects. A
+missing or malformed config, a profile names file that fails, or a registry
+or catalog that fails (missing file, unknown key, entry without `module`,
+profile entry without `model`, empty `drivers:`, every driver failing,
+defaults that select no working driver), fails closed before any request is
+served. The registry failure is logged at error level as
+`registry_startup_failed` with the registry path, and the process exits
+non-zero. The registry path comes from one lookup function
+(`protocol/registry-location.ts`): `registry.yaml` in the drivers folder,
+found from the service's own files, with no launch-time setting.
+
+The profile names come from `.workflow/rules/_PROFILES.md`, found the same
+way by `profilesPath()` in `protocol/profiles-location.ts`. A test replaces
+that function, as it does the registry lookup. A names file that is missing,
+cannot be read, or lists an alias twice (capitals ignored) throws
+`ProfileError`. It is logged at error level as `profile_names_startup_failed`
+(`filePath`, `problem`) before the registry is read, and the process exits
+non-zero. After the registry loads, each `profiles:` key that is not an exact,
+case-sensitive canonical name logs one warn `profile_key_unknown` (`key`);
+an alias or a different case warns too, and the service keeps starting. The
+agent reads the changeover files under `process.cwd()`, which the entry point
+passes as `workDir`.
 
 ## Transport
 
@@ -64,8 +77,9 @@ exactly one `driver.execute(...)`**.
 - `driver.execute(command, options)` runs the step on the session's
   driver (`catalog.get(record.driver)`), with the session's model in
   `options.model` (`auto` included). If the session has a prior driver
-  session, its id is passed via `options.sessionId`; a session keeps one
-  driver, so the id is only ever used with the driver that issued it.
+  session, its id is passed via `options.sessionId`. A profile activation
+  that changes the driver drops the id first (see "Profile activation"), so
+  the id is only ever used with the driver that issued it.
 - `options.onUpdate` is supplied on every turn. The agent's text and tool
   calls reach the client as the driver reports them (see "Streaming" and
   "Tool-call cards"). `DriverResult.text` is sent once at the end only
@@ -147,8 +161,8 @@ only). The session stays usable.
 - **Cancel wins.** A turn that was cancelled and also ended abnormally
   returns `cancelled`, sends no line, and logs both entries.
 - **Normal end.** A normal end is a `completed` turn that was not
-  cancelled. Only a normal end sets `endedNormally`, which stops the
-  notice from leading the next replies. An abnormal end, a cancel and a
+  cancelled. Only a normal end clears the record's `notice`, which stops
+  it from leading the next replies. An abnormal end, a cancel and a
   failure keep the notice.
 - **The agent stops by itself.** An agent that cancels a turn we did not
   cancel, or ends it with a stop reason the driver does not know, makes
@@ -203,9 +217,12 @@ exactly one `workflowId`** and tracks:
   distinct workflows.
 - `driverSessionId` — the driver's continuity id, updated after each
   turn.
-- `driver` and `model` — resolved once when the session opens.
-- `endedNormally` — true once a turn of the session has had a normal end
-  (see "How a turn ends").
+- `driver` and `model` — resolved when the session opens, and again by each
+  profile activation.
+- `profile` — the canonical name of the profile the last applied activation
+  found. A new or reopened session has none until one is applied.
+- `notice` — the one chat line the next turn leads with. Cleared when a turn
+  ends normally (see "How a turn ends").
 - `activeTurn` — the per-session in-flight flag.
 - `abort` — the abort controller of the in-flight turn; set and cleared
   together with `activeTurn`.
@@ -233,15 +250,18 @@ Only one turn runs per session at a time, and that holds through a
 cancel. A second prompt while a turn is in flight, or still winding down
 after a cancel, throws `TurnInProgressError` (`retryable: true`); the
 in-flight turn is unaffected and the client may retry after it
-completes. A session never runs two turns at once.
+completes. A session never runs two turns at once. The flag is set before
+a profile activation is resolved and cleared after the turn, so resolution,
+the release of an old driver session and the turn are one step.
 
 ### Driver selection and the notice
 
 The session store does not choose the driver. `newSession` and
-`loadSession` call `resolver.resolve()` once, with no profile, before any
-record exists. Prompts do not resolve again, so the answer cannot change
-under a running session. If the catalog has no driver of that name,
-`prompt` rejects before the turn starts and the session stays free.
+`loadSession` call `resolver.resolve()` with no profile, before any record
+exists. Only a prompt that holds a profile activation resolves again (see
+"Profile activation"), so the driver and model change under a session only
+through an activation. If the catalog has no driver of that name, `prompt`
+rejects before the turn starts and the session stays free.
 
 When the catalog has a notice (the preferred driver or model cannot be
 used), the first `agent_message_chunk` of a turn carries it, before any
@@ -249,7 +269,79 @@ other update, for new and reopened sessions alike. It repeats on every
 turn until one turn of that session ends normally (see "How a turn
 ends"). A cancelled, failed, rejected or abnormally ended turn does not
 count. Opening a session sends nothing. Without a notice the updates are
-unchanged.
+unchanged. A profile activation sets the notice again, as described next.
+
+### Profile activation
+
+`applyActivation(record, command)` in `agent.ts` applies the profile a
+prompt activates. `prompt` calls it after the active-turn flag is set and
+before it fetches the driver; it does not touch the flag. The user's text
+reaches the driver unchanged.
+
+- **Finding.** `detectActivation` (`protocol/workflow-command.ts`) looks for
+  a command: the whole word `@name` or `/name` anywhere in the text, or
+  plain `as` at the start of the text. The commands are `as`, `dr`, `epr`,
+  `start` and `receive`. The first one found decides, and case is ignored.
+  After `as`, the next word minus one trailing `,.:;` is the name. Any other
+  word is ignored without a log entry.
+- **Shortcuts.** `@dr` is Doctor and `@epr` is Enforcer, from a two-entry
+  table (`SHORTCUT_PROFILES`) in `workflow-command.ts`. Each shortcut is a
+  saved prompt that activates one fixed profile, and the service cannot see
+  inside the prompt. With the changeover commands, this table is the only
+  fixed workflow vocabulary in the service. A new profile-activating prompt
+  needs a new entry.
+- **Changeover.** `@start` reads `HANDOFF_PATH` and `@receive` reads
+  `MESSAGE_PATH`, two constants in `workflow-command.ts`
+  (`.amazonq/work/current/HANDOFF.md` and `MESSAGE.md`), under `workDir`.
+  `readChangeoverTarget` returns the first non-empty line under an exact
+  `## To` heading, read at every command and never cached. It never throws:
+  a missing file or no such line finds no profile. The path never comes
+  from the command text.
+- **Names.** `ProfileNames.resolve` returns the canonical spelling of a name
+  or alias, ignoring case, from the file loaded at startup. A word that is
+  not a name, or no target, logs `profile_unknown` and changes nothing.
+- **Applying.** The resolver is called with the canonical name. A throw
+  leaves the record as it was, and the prompt fails with an error that
+  begins `profile "<name>": `. Otherwise, a different driver releases the
+  old driver session first (`release`, awaited) and drops the continuity id;
+  the new driver starts a session with this turn. The same driver keeps the
+  id, and the model switches on the existing session. A release that fails
+  is logged as `release_failed` and the turn goes on. Then the record gets
+  the driver, model and profile. A model the agent does not offer fails the
+  turn with the existing `ModelUnavailableError`, and the record keeps the
+  new choice.
+- **Notice.** Every resolution sets `notice`. A result with a `substitution`
+  gets one line: `Profile "<p>" asks for [driver "<d>", ]model "<m>"; using
+  driver "<d2>", model "<m2>" (<reason>).` A result that matches its entry
+  has none. A profile with no entry resolves to the registry defaults and
+  gets the catalog's notice again. The line leads the next replies until a
+  turn ends normally; a new resolution replaces it.
+
+Profile events, all in `.workflow/work/acp.log` and logged after the
+activation was applied. The prompt text is never logged; an unknown name is
+redacted and cut to 64 characters.
+
+| Event                          | Level | Fields                                  |
+| ------------------------------ | ----- | --------------------------------------- |
+| `profile_unknown`              | info  | `sessionId`, `source`, `reason`, `word` |
+| `profile_activated`            | info  | `sessionId`, `profile`, `source`        |
+| `profile_reactivated`          | warn  | `sessionId`, `profile`, `previous`      |
+| `profile_switched`             | warn  | `sessionId`, `profile`, `previous`      |
+| `release_failed`               | warn  | `sessionId`, `failureKind`              |
+| `profile_names_startup_failed` | error | `filePath`, `problem`                   |
+| `profile_key_unknown`          | warn  | `key`                                   |
+
+- `profile_unknown`: `source` is `prompt` or `changeover`; `reason` is
+  `unknown name` or `no target`; `word` is set for an unknown name only.
+- `profile_activated`: logged for a changeover activation only, with
+  `source: changeover`. The switches `@start` and `@receive` make are
+  expected, so they log nothing else.
+- `profile_reactivated`: a user activation while the session already has a
+  profile; `previous` is that profile. `profile_switched` is added when the
+  new profile differs. A first user activation logs neither.
+
+Every resolution is also logged by the resolver (`dispatch_resolved`, with
+the profile and the source).
 
 ### Cancel and wind-down
 
@@ -406,6 +498,10 @@ distinct `kind` on each, keeping outcomes actionable and resumable:
 | `ProviderQuotaError`   | `provider_quota`   | Quota / rate limit; resolve and retry  |
 | `ProviderAuthError`    | `provider_auth`    | Re-login required; resolve and retry   |
 | `SessionCollapseError` | `session_collapse` | Session expired / context overflow     |
+
+`ProfileError` (`errors.ts`) is a start-up error with no `kind`: the profile
+names file is missing, cannot be read, or lists an alias twice. Its message
+says which, and names the file.
 
 `boundaryErrorKind(err)` maps quota/auth/collapse to their `kind`;
 anything else is treated as generic `internal`. Transport,

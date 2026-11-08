@@ -21,11 +21,14 @@ import {
    ToolCallReport,
    declaresToolCallGovernance,
 } from '../drivers/governed-driver.js';
+import { join } from 'node:path';
 import type { DriverCatalog } from '../drivers/driver-catalog.js';
 import { GovernanceEngine, askDetails } from '../governance/engine.js';
 import { Decision } from '../governance/types.js';
 import type { DispatchResolver } from '../modelResolver/resolver.js';
+import type { DispatchResult, DispatchSubstitution } from '../modelResolver/types.js';
 import { Logger } from '../shared/logger.js';
+import { redact } from '../shared/redact.js';
 import { AskDetails } from '../shared/types.js';
 import type {
    PromptRequest,
@@ -44,6 +47,9 @@ import {
 } from './turn-end.js';
 import { AskCard, Cards, Outcome, createCards, ownCard } from './cards.js';
 import { UpdateSink, UpdateSlot, createUpdateSink } from './update-sink.js';
+import {
+   HANDOFF_PATH, MESSAGE_PATH, ProfileNames, detectActivation, readChangeoverTarget,
+} from './workflow-command.js';
 
 /**
  * Minimal subset of the SDK's AgentContext the boundary uses to reach the
@@ -62,6 +68,10 @@ export interface AgentDeps {
    sessionStore:    SessionStore;
    logger:          Logger;
    governance:      GovernanceEngine;
+   /** The profile names and aliases a prompt may activate. */
+   profileNames:    ProfileNames;
+   /** Where the changeover files are read from. Default: the working directory of the process. */
+   workDir?:        string;
    protocolVersion: number;
 }
 
@@ -94,8 +104,18 @@ function promptText(params: PromptRequest): string {
       .trim();
 }
 
+/** The one chat line that says a profile did not get what it asked for. */
+function substitutionLine(profile: string, used: DispatchResult, substitution: DispatchSubstitution): string
+{
+   const { asked, reason } = substitution;
+   const askedDriver = undefined === asked.driver ? '' : `driver "${asked.driver}", `;
+   return `Profile "${profile}" asks for ${askedDriver}model "${asked.model}"; ` +
+      `using driver "${used.driver}", model "${used.model}" (${reason}).`;
+}
+
 export function createAgent(deps: AgentDeps) {
-   const { catalog, resolver, sessionStore, logger, governance, protocolVersion } = deps;
+   const { catalog, resolver, sessionStore, logger, governance, profileNames, protocolVersion } = deps;
+   const workDir = deps.workDir ?? process.cwd();
    let sessionSeq = 0;
    let callSeq    = 0;
    let turnSeq    = 0;
@@ -114,6 +134,69 @@ export function createAgent(deps: AgentDeps) {
       record.driverSessionId = driverSessionId;
       if (changed && '' !== driverSessionId) {
          logger.info('agent_session_linked', { sessionId, agentSessionId: driverSessionId });
+      }
+   }
+
+   /** Ends the process behind the record's driver session. A failure is logged by kind only. */
+   async function releaseDriverSession(record: SessionRecord): Promise<void> {
+      const id = record.driverSessionId;
+      if (undefined === id || '' === id) { return; }
+      try { await catalog.get(record.driver as string).release(id); }
+      catch (err) {
+         logger.warn('release_failed', {
+            sessionId: record.sessionId, failureKind: boundaryErrorKind(err) ?? 'internal',
+         });
+      }
+   }
+
+   /**
+    * Applies the profile a command activates: the driver and model it resolves to. The profile
+    * is the name typed after `as` (or a shortcut's), or, for `@start` and `@receive`, the one
+    * the changeover file names, read now and never cached. A different driver releases the old
+    * session first and starts a new one. A resolution that throws leaves the record as it was.
+    * Does not touch the active-turn flag.
+    */
+   async function applyActivation(record: SessionRecord, command: string): Promise<void> {
+      const activation = detectActivation(command);
+      if (undefined === activation) { return; }
+
+      // The path never comes from the command text.
+      const changeover = 'changeover' === activation.kind;
+      const file       = 'start' === activation.command ? HANDOFF_PATH : MESSAGE_PATH;
+      const name       = changeover ? readChangeoverTarget(join(workDir, file)) : activation.name;
+      const profile    = undefined === name ? undefined : profileNames.resolve(name);
+      if (undefined === profile) {
+         // The word is free text from the user: redacted, then capped.
+         logger.info('profile_unknown', {
+            sessionId: record.sessionId,
+            source:    changeover ? 'changeover' : 'prompt',
+            reason:    undefined === name ? 'no target' : 'unknown name',
+            ...(undefined === name ? {} : { word: redact(name).slice(0, 64) }),
+         });
+         return;
+      }
+
+      const result = resolver.resolve(profile);
+      const { driver, model, substitution } = result;
+      if (driver !== record.driver) {
+         await releaseDriverSession(record);
+         record.driverSessionId = undefined;
+      }
+      const previous = record.profile;
+      record.driver  = driver;
+      record.model   = model;
+      record.profile = profile;
+      // Set at every resolution. A profile that got what it asked for has no notice; one with
+      // no entry gets the catalog notice again.
+      if (undefined !== substitution) { record.notice = substitutionLine(profile, result, substitution); }
+      else { record.notice = 'registry-default' === result.source ? catalog.notice : undefined; }
+
+      // Logged only now, after the activation was applied.
+      const fields = { sessionId: record.sessionId, profile };
+      if (changeover) { logger.info('profile_activated', { ...fields, source: 'changeover' }); }
+      else if (undefined !== previous) {
+         logger.warn('profile_reactivated', { ...fields, previous });
+         if (previous !== profile) { logger.warn('profile_switched', { ...fields, previous }); }
       }
    }
 
@@ -321,9 +404,7 @@ export function createAgent(deps: AgentDeps) {
       // Card state lives for this turn only.
       const cards = createCards(++turnSeq);
       // Until a turn of this session ends normally, its turns lead with the notice.
-      if (undefined !== catalog.notice && !record.endedNormally) {
-         void sink.send(textUpdate(catalog.notice));
-      }
+      if (undefined !== record.notice) { void sink.send(textUpdate(record.notice)); }
 
       let sawText = false;
       const options: ExecuteOptions = {
@@ -372,7 +453,7 @@ export function createAgent(deps: AgentDeps) {
          void sink.send(textUpdate(END_LINE[abnormal]));
          return { stopReason: END_STOP_REASON[abnormal] };
       }
-      record.endedNormally = true;
+      record.notice = undefined;
       return { stopReason: 'end_turn' as const };
    }
 
@@ -394,6 +475,7 @@ export function createAgent(deps: AgentDeps) {
          const record    = sessionStore.create(sessionId);
          record.driver   = driver;
          record.model    = model;
+         record.notice   = catalog.notice;
          logger.info('session_mapped', {
             sessionId,
             workflowId: record.workflowId,
@@ -406,6 +488,7 @@ export function createAgent(deps: AgentDeps) {
          const record = sessionStore.load(params.sessionId, params.workflowId);
          record.driver = driver;
          record.model  = model;
+         record.notice = catalog.notice;
          logger.info('session_mapped', {
             sessionId:  record.sessionId,
             workflowId: record.workflowId,
@@ -431,24 +514,26 @@ export function createAgent(deps: AgentDeps) {
             throw new Error('prompt must contain non-empty text content');
          }
 
-         const driver = catalog.get(record.driver as string);
-         if (!declaresToolCallGovernance(driver)) {
-            logger.error('driver_governance_unsupported', {
-               sessionId: params.sessionId,
-               driver:    driver.name ?? 'unnamed',
-            });
-            throw new DriverGovernanceUnsupportedError(driver.name);
-         }
-
          const controller = new AbortController();
          const { signal } = controller;
          sessionStore.setActiveTurn(params.sessionId, true, controller);
-         const sink = createUpdateSink({
-            deliver:   update => cx.notify(SESSION_UPDATE, { sessionId: params.sessionId, update }),
-            logger,
-            sessionId: params.sessionId,
-         });
+         let sink: UpdateSink | undefined;
          try {
+            // The active-turn flag holds the profile, the release and the turn as one step.
+            await applyActivation(record, command);
+            const driver = catalog.get(record.driver as string);
+            if (!declaresToolCallGovernance(driver)) {
+               logger.error('driver_governance_unsupported', {
+                  sessionId: params.sessionId,
+                  driver:    driver.name ?? 'unnamed',
+               });
+               throw new DriverGovernanceUnsupportedError(driver.name);
+            }
+            sink = createUpdateSink({
+               deliver:   update => cx.notify(SESSION_UPDATE, { sessionId: params.sessionId, update }),
+               logger,
+               sessionId: params.sessionId,
+            });
             const response = await runTurn({
                sessionId: params.sessionId, record, driver, command, signal, sink, cx,
             });
@@ -457,6 +542,8 @@ export function createAgent(deps: AgentDeps) {
             return response;
          }
          catch (err) {
+            // Nothing was sent before the turn: a rejection before it is just the error.
+            if (undefined === sink) { throw err; }
             // What the turn produced reaches the IDE before the failure does.
             await sink.flush();
             // The ACP `PromptResponse.stopReason` enum has no `error` value, so
@@ -473,7 +560,7 @@ export function createAgent(deps: AgentDeps) {
             throw err;
          }
          finally {
-            sink.close();
+            sink?.close();
             sessionStore.setActiveTurn(params.sessionId, false);
          }
       },
@@ -489,6 +576,7 @@ export function createAgent(deps: AgentDeps) {
       },
 
       ask,
+      applyActivation,
 
       /**
        * Abort every turn, close every driver in the catalog, then release all

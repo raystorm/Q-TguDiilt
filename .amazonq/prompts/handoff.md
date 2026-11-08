@@ -2,7 +2,8 @@
 
 Resolve the recipient profile (`to`) in this order:
 
-1. If `{{to}}` is provided and identifies a profile, use it.
+1. If `{{to}}` is provided and identifies a profile (canonical name or alias, ignoring case),
+   use it.
 2. Otherwise, infer the profile from the conversation context.
 3. If the context does not make the intended profile clear, ask: “Which profile should receive this handoff?”
    Wait for the user’s response before proceeding.

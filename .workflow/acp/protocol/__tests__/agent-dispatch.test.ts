@@ -3,7 +3,7 @@ import { DriverGovernanceUnsupportedError } from '../errors.js';
 import { DriverNotInCatalogError } from '../../drivers/errors.js';
 import {
    catalogOf, createCx, createDriverSpy, createResolverStub, makeAgent, newSessionArgs, resolved,
-   textParam,
+   textParam, twoDrivers,
 } from './agent.helpers.js';
 
 type Agent = ReturnType<typeof makeAgent>['agent'];
@@ -12,19 +12,6 @@ const prompt = (agent: Agent, sessionId: string, text = 'go') =>
    agent.prompt({ sessionId, ...textParam(text) }, createCx());
 
 const open = async (agent: Agent) => (await agent.newSession(newSessionArgs())).sessionId;
-
-/**
- * Drivers "alpha" and "beta" behind one catalog, and a resolver that answers the
- * given (driver, model) pairs in turn, the last one for every later call.
- */
-function twoDrivers(...answers: Array<[string, string]>)
-{
-   const alpha    = createDriverSpy({ text: 'a', sessionId: 'a-1' }, 'alpha');
-   const beta     = createDriverSpy({ text: 'b', sessionId: 'b-1' }, 'beta');
-   const resolver = createResolverStub(call => resolved(...answers[Math.min(call, answers.length - 1)]));
-   const made     = makeAgent({ catalog: catalogOf({ alpha, beta }), resolver });
-   return { ...made, alpha, beta };
-}
 
 describe('dispatch once per session', () => {
    it('a new session is resolved once, and its prompt goes to that driver and model', async () => {

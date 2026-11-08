@@ -1,4 +1,6 @@
 import { createAgent } from '../agent.js';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { createSessionStore } from '../session-store.js';
 import { createGovernanceEngine } from '../../governance/engine.js';
 import {
@@ -11,10 +13,13 @@ import {
    type DriverResult, type ExecuteOptions, type ToolCallDecision, type ToolCallOutcome,
    type ToolCallReport, type TurnEnd, type TurnUpdate,
 } from '../../drivers/governed-driver.js';
-import type { DispatchResult } from '../../modelResolver/types.js';
+import type { DispatchResult, DispatchSubstitution } from '../../modelResolver/types.js';
 import { makeDriver } from '../../drivers/acp-driver-core/__tests__/acp-driver.helpers.js';
 import { SESSION } from '../../drivers/acp-driver-core/__tests__/permissions.helpers.js';
 import type { UnsafeSetting } from '../../drivers/acp-driver-core/types.js';
+import { parseProfileNames } from '../workflow-command.js';
+import { writeFile } from '../../drivers/__tests__/catalog-fixtures.js';
+import { PROFILE_FIXTURE } from './profile-fixtures.js';
 
 export { SESSION };
 
@@ -81,8 +86,13 @@ export function createDriverSpy(
 )
 {
    const seen: Array<{ command: string; options: any }> = [];
-   return {
+   const released: string[] = [];
+   const spy = {
       seen,
+      /** The ids `release` was called with, in order. */
+      released,
+      /** Runs after a release records its id. A test replaces it to hold or fail the release. */
+      onRelease: async (_id: string): Promise<void> => {},
       name:                       name,
       supportsToolCallGovernance: true,
       execute: async (command: string, options: any = {}) => {
@@ -91,8 +101,9 @@ export function createDriverSpy(
          return result;
       },
       close: async () => {},
-      release: async () => {},
+      release: async (id: string): Promise<void> => { released.push(id); await spy.onRelease(id); },
    };
+   return spy;
 }
 
 export function createLogger()
@@ -134,26 +145,43 @@ export function catalogOf(drivers: Record<string, any>, notice?: string): Driver
 export const oneDriverCatalog = (driver: any, notice?: string) =>
    catalogOf({ [driver.name]: driver }, notice);
 
-/** The answer a resolver gives: the driver, and a model (default auto). */
-export const resolved = (driver: string, model = 'auto'): DispatchResult =>
-   ({ driver, model, source: 'registry-default' });
+/** The answer a resolver gives: the driver, a model (default auto), and where it came from. */
+export const resolved = (
+   driver: string, model = 'auto', source: DispatchResult['source'] = 'registry-default',
+   substitution?: DispatchSubstitution,
+): DispatchResult =>
+   ({ driver, model, source, ...(undefined !== substitution ? { substitution } : {}) });
 
 /**
  * A resolver whose answer to the Nth call (0-based) the test scripts: a result,
- * or an error to throw. It records the profile argument of every call.
+ * or an error to throw. The answer is given the call number and the profile asked for.
+ * It records the profile argument of every call.
  */
-export function createResolverStub(answer: (call: number) => DispatchResult | Error)
+export function createResolverStub(answer: (call: number, profile?: string) => DispatchResult | Error)
 {
    const calls: Array<string | undefined> = [];
    return {
       calls,
       resolve(profile?: string): DispatchResult {
-         const made = answer(calls.length);
+         const made = answer(calls.length, profile);
          calls.push(profile);
          if (made instanceof Error) { throw made; }
          return made;
       },
    };
+}
+
+/**
+ * Drivers "alpha" and "beta" behind one catalog, and a resolver that answers the
+ * given (driver, model) pairs in turn, the last one for every later call.
+ */
+export function twoDrivers(...answers: Array<[string, string]>)
+{
+   const alpha    = createDriverSpy({ text: 'a', sessionId: 'a-1' }, 'alpha');
+   const beta     = createDriverSpy({ text: 'b', sessionId: 'b-1' }, 'beta');
+   const resolver = createResolverStub(call => resolved(...answers[Math.min(call, answers.length - 1)]));
+   const made     = makeAgent({ catalog: catalogOf({ alpha, beta }), resolver });
+   return { ...made, alpha, beta };
 }
 
 export interface Deferred<T> {
@@ -231,14 +259,18 @@ export function makeAgent(overrides: any = {})
       config: { rules: overrides.rules ?? [], default: overrides.defaultAction ?? 'ask' },
       logger,
    });
+   const profileNames = overrides.profileNames ?? parseProfileNames(PROFILE_FIXTURE, 'fixture');
+   // Default: a folder that does not exist, so no changeover file is ever found.
+   const workDir = overrides.workDir ?? join(tmpdir(), 'acp-test-no-work-dir');
    const agent = createAgent({
-      catalog, resolver, sessionStore, logger, governance, protocolVersion: PROTOCOL_VERSION,
+      catalog, resolver, sessionStore, logger, governance, profileNames,
+      workDir, protocolVersion: PROTOCOL_VERSION,
    });
    // Most tests operate on an initialized boundary. `initialize` flips the
    // internal flag synchronously (before its first await), so the guard tests
    // that pass `init: false` reliably observe an un-initialized agent.
    if (false !== overrides.init) { void agent.initialize({ protocolVersion: PROTOCOL_VERSION }); }
-   return { agent, driver, catalog, resolver, logger, sessionStore, governance };
+   return { agent, driver, catalog, resolver, logger, sessionStore, governance, profileNames, workDir };
 }
 
 export function textParam(text: string)
@@ -270,6 +302,10 @@ export const requestsOf = (cx: Cx) => cx.calls.filter(c => 'session/request_perm
 export const detailsOf  = (cx: Cx) => cx.calls.filter(c => isAskDetail(c.params?.update));
 export const eventsOf   = (logger: { entries: LogEntry[] }, event: string) =>
    logger.entries.filter(e => event === e.event);
+
+/** A changeover file under `dir` naming `profile` under `## To`. */
+export const changeover = (path: string, profile: string, dir: string) =>
+   writeFile(join(dir, path), `# Changeover\n\n## To\n${profile}\n\n## From\nBuilder\n`);
 
 /**
  * What the client was sent, one entry per call: `text:<t>`, `card:<id>` (a `tool_call`),

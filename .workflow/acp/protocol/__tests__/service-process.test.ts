@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, rmSync, statSync } from 'node:fs';
+import { existsSync, mkdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -18,7 +18,8 @@ import {
 const INITIALIZE = { protocolVersion: 1, clientCapabilities: {} };
 const SLOW_START = 30000;
 
-const promptOf = (sessionId: string) => ({ sessionId, prompt: [{ type: 'text', text: 'go' }] });
+const promptOf = (sessionId: string, text = 'go') =>
+   ({ sessionId, prompt: [{ type: 'text', text }] });
 
 type Service = ReturnType<typeof startService>;
 
@@ -108,11 +109,11 @@ const isFailure = (record: DiagnosticRecord) => 'agent_failure' === record.event
 const blockDiagnosticLog = (cwd: string) =>
    mkdirSync(join(cwd, '.workflow', 'work', 'acp-diagnostic.log'), { recursive: true });
 
-/** Initializes, opens a session and prompts once; the answer to the prompt. */
-async function promptOnce(running: Service) {
+/** Initializes, opens a session and prompts once with `text`; the answer to the prompt. */
+async function promptOnce(running: Service, text = 'go') {
    await running.request('initialize', INITIALIZE);
    const created = await running.request('session/new', { cwd: running.cwd, mcpServers: [] });
-   return running.request('session/prompt', promptOf(created.result.sessionId));
+   return running.request('session/prompt', promptOf(created.result.sessionId, text));
 }
 
 /** The text of the error a failed prompt answers with. */
@@ -192,4 +193,33 @@ describe.skipIf('win32' === process.platform)('the real service — diagnostic l
       expect(failed[0].reason).toContain('token=[redacted]');
       expect(JSON.stringify(running.log())).not.toContain(SECRET);
    }, SLOW_START);
+});
+
+/** Writes the changeover file a `@start` reads, naming `target`, in the service's working directory. */
+const handoffNaming = (target: string) => (cwd: string) => {
+   const folder = join(cwd, '.amazonq', 'work', 'current');
+   mkdirSync(folder, { recursive: true });
+   writeFileSync(join(folder, 'HANDOFF.md'), `# Handoff to ${target}\n\n## To\n${target}\n`);
+};
+
+describe.skipIf('win32' === process.platform)('the real service — profile dispatch', () => {
+   it('[H] @start dispatches the profile its changeover file names, from the working directory',
+      async () => {
+         const running = service = startService('', undefined, { prepare: handoffNaming('Planner') });
+         await promptOnce(running, '@start');
+         const resolved = running.log()
+            .filter(entry => 'dispatch_resolved' === entry.event && 'Planner' === entry.profile);
+         expect(resolved).toHaveLength(1);
+         expect(resolved[0]).toMatchObject({ source: 'profile' });
+      }, SLOW_START);
+
+   it('@start with no changeover file is logged once, and the prompt still reaches the agent',
+      async () => {
+         const running = service = startService();
+         await promptOnce(running, '@start');
+         const unknown = running.log().filter(entry => 'profile_unknown' === entry.event);
+         expect(unknown).toMatchObject([{ level: 'info', source: 'changeover', reason: 'no target' }]);
+         expect(running.log().filter(entry => undefined !== entry.profile)).toEqual([]);
+         expect(await until(() => running.stub.events().includes('prompt')), running.stderr()).toBe(true);
+      }, SLOW_START);
 });

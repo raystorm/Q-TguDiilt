@@ -11,9 +11,13 @@ preferred:
   driver: kiro
   model: claude-sonnet-5.5
 
-# profiles: Per-profile model/driver preference, keyed by profile name.
+# profiles: Per-profile model/driver preference. A key is a canonical profile
+# name, spelled and capitalized as in .workflow/rules/_PROFILES.md. An alias
+# (PE) is never a key, and a key that is not a canonical name has no effect;
+# the service logs a warning for it at startup. `model` is required.
 # `driver` is optional; when omitted, resolution falls back to registry
-# order (then the preferred driver as tie-break) for that model.
+# order (then the preferred driver as tie-break) for that model. A chat
+# takes the entry when the profile is activated.
 profiles:
   Architect:
     model: claude-opus-5.5
@@ -38,10 +42,13 @@ profiles:
 # fallbackMode: System-level setting (applies to all profiles, not
 # per-profile) controlling what happens when a profile's own model/driver
 # preference fails to resolve. 'fallback-to-default-driver' (default)
-# falls through to `preferred` above; 'fail-fast'
-# surfaces the profile's resolution failure immediately with no
-# substitution. See docs/dev/acp (model dispatch) for the full fallback
-# chain.
+# falls through to `preferred` above. 'fail-fast' does not: a driver the
+# registry does not list, or a model no driver lists, fails the prompt with
+# an error that names the profile. A driver that is listed but lacks the
+# model, while another driver lists it, is still substituted (same model,
+# other driver). In both modes the chat shows a line when a profile did not
+# get the driver or model it asked for. See docs/dev/acp (model dispatch)
+# for the full fallback chain.
 fallbackMode: fallback-to-default-driver
 
 # drivers: One entry per driver. `module` is the file that provides the

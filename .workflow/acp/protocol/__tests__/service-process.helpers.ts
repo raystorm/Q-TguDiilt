@@ -28,6 +28,8 @@ export interface ServiceLogEntry {
    level:           string;
    filePath?:       string;
    name?:           string;
+   profile?:        string;
+   source?:         string;
    reason?:         string;
    path?:           string;
    pid?:            number;

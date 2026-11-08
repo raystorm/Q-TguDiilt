@@ -13,12 +13,14 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { agent, methods, ndJsonStream, PROTOCOL_VERSION } from '@agentclientprotocol/sdk';
 import { buildDriverCatalog, type DriverCatalog } from '../drivers/driver-catalog.js';
-import { loadRegistryConfig } from '../drivers/registry.js';
+import { loadRegistryConfig, type RegistryConfig } from '../drivers/registry.js';
 import { createDispatchResolver } from '../modelResolver/resolver.js';
 import { createAgent } from './agent.js';
 import { registryPath } from './registry-location.js';
 import { createSessionStore } from './session-store.js';
 import { createShutdownHandler } from './shutdown.js';
+import { profilesPath } from './profiles-location.js';
+import { loadProfileNames, type ProfileNames } from './workflow-command.js';
 import { createGovernanceEngine } from '../governance/engine.js';
 import { createDiagnosticLog } from '../shared/diagnostic-log.js';
 import { createFileLogger, printErrorMessage } from '../shared/logger.js';
@@ -45,12 +47,25 @@ const governance = createGovernanceEngine({
    logger,
 });
 
+// Loaded once at startup, like the governance config. A names file that is missing, cannot be
+// read, or lists an alias twice stops the service here, before the registry is read.
+const profilesFile = profilesPath();
+let profileNames: ProfileNames;
+try { profileNames = loadProfileNames(profilesFile); }
+catch (err) {
+   logger.error('profile_names_startup_failed', {
+      filePath: profilesFile, problem: printErrorMessage(err),
+   });
+   throw err;
+}
+
 // Loaded once at startup, like the governance config. A missing or malformed registry, or one
 // that yields no working driver, stops the service here, before it accepts a single request.
 const registryFile = registryPath();
+let config: RegistryConfig;
 let catalog: DriverCatalog;
 try {
-   const config = loadRegistryConfig(registryFile);
+   config  = loadRegistryConfig(registryFile);
    catalog = await buildDriverCatalog({ config, registryPath: registryFile, logger, diagnostics });
 }
 catch (err) {
@@ -58,6 +73,12 @@ catch (err) {
       filePath: registryFile, problem: printErrorMessage(err),
    });
    throw err;
+}
+
+// A `profiles:` key that is not an exact canonical name never matches a profile. The service
+// still starts; the operator sees which keys to fix.
+for (const key of Object.keys(config.profiles ?? {})) {
+   if (!profileNames.canonical.includes(key)) { logger.warn('profile_key_unknown', { key }); }
 }
 
 // The resolver sees the registry as the catalog does: without the drivers that failed.
@@ -69,6 +90,9 @@ const service      = createAgent({
    sessionStore,
    logger,
    governance,
+   profileNames,
+   // Changeover files are read from the directory the service runs in, not from the log folder.
+   workDir: process.cwd(),
    protocolVersion: PROTOCOL_VERSION,
 });
 

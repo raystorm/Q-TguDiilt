@@ -134,7 +134,8 @@ into your active Amazon Q prompts directory.
 *Note*: @prompts should be selected to point to: `.amazonq/prompts`
 
 Amazon Q will copy saved prompts from the repository, to the user's prompt directory.  
-*Note:* Amazon Q will need permission to update a folder, `~/.aws/amazonq/prompts`
+*Note:* The prompts are used from `.amazonq/prompts`. The old home folder copy,
+`~/.aws/amazonq/prompts`, is no longer used.
 
 ---
 

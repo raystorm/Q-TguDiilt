@@ -16,8 +16,10 @@ export interface SessionRecord {
    model?:           string;
    driverSessionId?: string;
    activeTurn:       boolean;
-   /** True once a turn of this session has ended normally. */
-   endedNormally:    boolean;
+   /** The canonical name of the profile the last applied activation found. */
+   profile?:         string;
+   /** One chat line the next turn leads with. Cleared when a turn ends normally. */
+   notice?:          string;
    abort?:           AbortController;
 }
 
@@ -48,7 +50,6 @@ export function createSessionStore(deps: SessionStoreDeps): SessionStore {
             sessionId,
             workflowId: deps.newWorkflowId(),
             activeTurn: false,
-            endedNormally: false,
          };
          sessions.set(sessionId, record);
          return record;
@@ -56,7 +57,7 @@ export function createSessionStore(deps: SessionStoreDeps): SessionStore {
 
       load(sessionId, workflowId) {
          const record: SessionRecord = {
-            sessionId, workflowId, activeTurn: false, endedNormally: false,
+            sessionId, workflowId, activeTurn: false,
          };
          sessions.set(sessionId, record);
          return record;

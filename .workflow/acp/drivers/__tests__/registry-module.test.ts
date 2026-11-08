@@ -224,3 +224,48 @@ drivers:
       expect(config.profiles?.Builder).toEqual({ model: 'auto' });
    });
 });
+
+describe('registry loader — profile entries', () => {
+   const load = (entries: string) => writeRegistry(`profiles:\n${entries}\n${validKiro}`);
+
+   it('[H] an entry with a driver and no model throws, naming the file, the entry and "model"', () => {
+      const filePath = load('  Builder:\n    driver: kiro');
+      const message  = invalidMessage(filePath);
+      expect(message).toContain(filePath);
+      expect(message).toContain('Builder');
+      expect(message).toContain('model');
+   });
+
+   it.each([
+      ['no keys',             '{}'],
+      ['an empty model',      '{ model: "" }'],
+      ['a null model',        '{ model: null }'],
+      ['a numeric model',     '{ model: 3 }'],
+      ['a list as the model', '{ model: [m1] }'],
+      ['unknown keys only',   '{ extra: 1 }'],
+   ])('an entry with %s throws, naming the entry and "model"', (_label, entry) => {
+      const message = invalidMessage(load(`  Builder: ${entry}`));
+      expect(message).toContain('Builder');
+      expect(message).toContain('model');
+   });
+
+   it('one bad entry rejects the file, and the message names that entry only', () => {
+      const message = invalidMessage(load('  Architect:\n    model: auto\n  Builder:\n    driver: kiro'));
+      expect(message).toContain('Builder');
+      expect(message).not.toContain('Architect');
+   });
+
+   it('valid entries load as written, each with a real model, even for a driver the registry lacks', () => {
+      const config = loadRegistryConfig(load(
+         '  Architect:\n    model: auto\n' +
+         '  Builder:\n    model: m1\n    driver: kiro\n' +
+         '  Doctor:\n    model: m1\n    driver: nonesuch',
+      ));
+      expect(config.profiles).toStrictEqual({
+         Architect: { model: 'auto' },
+         Builder:   { model: 'm1', driver: 'kiro' },
+         Doctor:    { model: 'm1', driver: 'nonesuch' },
+      });
+      for (const entry of Object.values(config.profiles ?? {})) { expect(entry.model).not.toBe(''); }
+   });
+});

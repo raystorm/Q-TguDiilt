@@ -12,17 +12,24 @@
  *   active profile's `profiles:` entry first, falls back to the registry's
  *   own `preferred` defaults, and raises one
  *   combined error (wrapping both underlying failures) when both fail.
- *   `fallbackMode: 'fail-fast'` skips the registry-default attempt
- *   entirely and surfaces the profile failure immediately.
+ *   A result that differs from the entry carries a `substitution`.
+ *   `fallbackMode: 'fail-fast'` skips the registry-default attempt: a driver the
+ *   registry does not list raises `DriverNotFoundError`, a model no driver lists
+ *   raises `ModelNotFoundError`. A listed driver that lacks a model another driver
+ *   lists is substituted, as in the default mode.
  *
  * No hardcoded driver/model names anywhere in this module — everything
  * comes from the externalized YAML registry (loaded fail-closed by
  * `../drivers/registry.js`).
  */
 import { Logger, printErrorMessage } from '../shared/logger.js';
-import { loadRegistryConfig, FallbackMode, RegistryConfig } from '../drivers/registry.js';
-import { DispatchResult } from './types.js';
-import { NoDriverAvailableError, DispatchResolutionError } from './errors.js';
+import {
+   loadRegistryConfig, FallbackMode, ProfilePreference, RegistryConfig,
+} from '../drivers/registry.js';
+import { DispatchResult, DispatchSubstitution } from './types.js';
+import {
+   NoDriverAvailableError, DispatchResolutionError, DriverNotFoundError, ModelNotFoundError,
+} from './errors.js';
 
 /** The implicit fallback model, assumed supported by every driver. */
 export const AUTO_MODEL = 'auto';
@@ -95,6 +102,41 @@ export function resolveRegistryDefaults(config: RegistryConfig): { model: string
    return resolveRegistry(config, config.preferred?.model, config.preferred?.driver);
 }
 
+/** The profile's entry when `profiles:` holds it as its own entry, not a name every object has. */
+function profileEntry(config: RegistryConfig, profile: string): ProfilePreference | undefined {
+   return Object.hasOwn(config.profiles ?? {}, profile) ? config.profiles?.[profile] : undefined;
+}
+
+/** The entry as a substitution reports it: `driver` is absent when the entry has none. */
+function askedBy(entry: ProfilePreference): DispatchSubstitution['asked'] {
+   return { model: entry.model, ...(undefined !== entry.driver ? { driver: entry.driver } : {}) };
+}
+
+/** True when the registry lists `driver` (own entries only). */
+function listsDriver(config: RegistryConfig, driver: string): boolean {
+   return Object.hasOwn(config.drivers, driver);
+}
+
+/** Why a resolved entry differs from what it asked, or undefined when it matches exactly. */
+function substitutionFor(
+   config:   RegistryConfig,
+   entry:    ProfilePreference,
+   resolved: { model: string; driver: string },
+): DispatchSubstitution | undefined {
+   if (resolved.model === entry.model && (undefined === entry.driver || resolved.driver === entry.driver))
+   { return undefined; }
+   const driverGone = undefined !== entry.driver && !listsDriver(config, entry.driver);
+   return { asked: askedBy(entry), reason: driverGone ? 'driver not available' : 'model not listed' };
+}
+
+/** `fail-fast`: raises for a driver the registry does not list, then for a model no driver lists. */
+function assertListed(config: RegistryConfig, entry: ProfilePreference, profile: string): void {
+   if (undefined !== entry.driver && !listsDriver(config, entry.driver))
+   { throw new DriverNotFoundError(entry.driver, profile); }
+   if (undefined === firstDriverSupporting(config, entry.model))
+   { throw new ModelNotFoundError(entry.model, profile); }
+}
+
 export interface DispatchResolver {
    /** With no profile, goes straight to the registry defaults. */
    resolve(profile?: string): DispatchResult;
@@ -145,41 +187,43 @@ export function createDispatchResolver(options: DispatchResolverOptions): Dispat
    return {
       resolve(profile?: string): DispatchResult {
          if (undefined === profile) {
-            return resolveRegistryDefault(config, logger, undefined, {}, undefined);
+            return resolveRegistryDefault(config, logger, undefined, undefined, undefined);
          }
-         const profilePref    = config.profiles?.[profile];
-         const profileAttempt = { model: profilePref?.model, driver: profilePref?.driver };
+         const entry = profileEntry(config, profile);
 
-         if (undefined !== profilePref && '' !== profilePref.model) {
+         if (undefined !== entry && '' !== entry.model) {
             try {
-               const resolved = resolveRegistry(config, profilePref.model, profilePref.driver);
+               if ('fail-fast' === fallbackMode) { assertListed(config, entry, profile); }
+               const resolved     = resolveRegistry(config, entry.model, entry.driver);
+               const substitution = substitutionFor(config, entry, resolved);
                logger.info('dispatch_resolved', {
                   profile, model: resolved.model, driver: resolved.driver, source: 'profile',
                });
-               return { ...resolved, source: 'profile' };
+               return { ...resolved, source: 'profile', ...(undefined !== substitution ? { substitution } : {}) };
             }
             catch (profileError) {
                if ('fail-fast' === fallbackMode) {
                   logger.error('dispatch_failed', {
-                     profile, profileAttempt, profileError: printErrorMessage(profileError),
+                     profile, profileAttempt: { model: entry.model, driver: entry.driver },
+                     profileError: printErrorMessage(profileError),
                   });
                   throw profileError;
                }
-               return resolveRegistryDefault(config, logger, profile, profileAttempt, profileError);
+               return resolveRegistryDefault(config, logger, profile, entry, profileError);
             }
          }
 
-         return resolveRegistryDefault(config, logger, profile, profileAttempt, undefined);
+         return resolveRegistryDefault(config, logger, profile, undefined, undefined);
       },
    };
 }
 
 function resolveRegistryDefault(
-   config:         RegistryConfig,
-   logger:         Logger,
-   profile:        string | undefined,
-   profileAttempt: { model?: string; driver?: string },
-   profileError:   unknown,
+   config:       RegistryConfig,
+   logger:       Logger,
+   profile:      string | undefined,
+   entry:        ProfilePreference | undefined,
+   profileError: unknown,
 ): DispatchResult {
    const who                    = undefined === profile ? {} : { profile };
    const registryDefaultAttempt = { model: config.preferred?.model, driver: config.preferred?.driver };
@@ -188,7 +232,12 @@ function resolveRegistryDefault(
       logger.info('dispatch_resolved', {
          ...who, model: resolved.model, driver: resolved.driver, source: 'registry-default',
       });
-      return { ...resolved, source: 'registry-default' };
+      // A profile entry was tried and failed: the defaults stand in for it.
+      const substitution: DispatchSubstitution | undefined =
+         undefined === entry || undefined === profileError
+            ? undefined
+            : { asked: askedBy(entry), reason: 'entry could not be resolved' };
+      return { ...resolved, source: 'registry-default', ...(undefined !== substitution ? { substitution } : {}) };
    }
    catch (registryDefaultError) {
       if (undefined === profileError) {
@@ -200,10 +249,10 @@ function resolveRegistryDefault(
          throw registryDefaultError;
       }
       logger.error('dispatch_failed', {
-         ...who, profileAttempt, registryDefaultAttempt,
+         ...who, profileAttempt: { model: entry?.model, driver: entry?.driver }, registryDefaultAttempt,
          profileError:         printErrorMessage(profileError),
          registryDefaultError: printErrorMessage(registryDefaultError),
       });
-      throw new DispatchResolutionError(profileError, registryDefaultError);
+      throw new DispatchResolutionError(profileError, registryDefaultError, profile);
    }
 }

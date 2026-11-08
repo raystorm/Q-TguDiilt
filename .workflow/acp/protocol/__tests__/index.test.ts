@@ -17,6 +17,7 @@ import {
 import { DRIVER_FAILURE } from '../../drivers/driver-catalog.js';
 import { DISCONNECT_ERROR_EXIT_CODE } from '../shutdown.js';
 import { createCx, deferred, flush, newSessionArgs, textParam, type Cx } from './agent.helpers.js';
+import { PROFILE_FIXTURE } from './profile-fixtures.js';
 
 /**
  * Startup wiring of the stdio entry point. `index.ts` runs as soon as it is
@@ -34,6 +35,7 @@ const mocks = vi.hoisted(() => ({
    logFiles:       [] as string[],
    configOverride: undefined as string | undefined,
    registry:       '',
+   profiles:       undefined as string | undefined,
    service:        undefined as any,
    onDisconnect:   undefined as any,
 }));
@@ -79,6 +81,18 @@ vi.mock('../../governance/engine.js', async importOriginal => {
 
 // Where the registry file is. The real lookup is checked on its own.
 vi.mock('../registry-location.js', () => ({ registryPath: vi.fn(() => mocks.registry) }));
+
+// Where the profile names file is. Unless a test names one, the real file is read.
+vi.mock('../profiles-location.js', async importOriginal => {
+   const actual = await importOriginal<typeof import('../profiles-location.js')>();
+   return { profilesPath: vi.fn(() => mocks.profiles ?? actual.profilesPath()) };
+});
+
+// The real loader, observed.
+vi.mock('../workflow-command.js', async importOriginal => {
+   const actual = await importOriginal<typeof import('../workflow-command.js')>();
+   return { ...actual, loadProfileNames: vi.fn(actual.loadProfileNames) };
+});
 
 // The real loader and the real catalog build, observed.
 vi.mock('../../drivers/registry.js', async importOriginal => {
@@ -198,6 +212,11 @@ const BAD_REGISTRIES: Array<[string, string, string, string]> = [
       'RegistryConfigInvalidError', 'preferred.driver',
    ],
    [
+      'a profile entry without a model',
+      JSON.stringify({ drivers: { alpha: ALPHA }, profiles: { Planner: { driver: 'alpha' } } }),
+      'RegistryConfigInvalidError', 'profiles entry "Planner" must have a non-empty string "model"',
+   ],
+   [
       'an empty drivers map',
       JSON.stringify({ drivers: {} }),
       'DriverCatalogBuildError', 'no drivers',
@@ -237,12 +256,12 @@ async function serve(): Promise<void>
    await mocks.service.initialize({ protocolVersion: 1 });
 }
 
-/** Opens a session and prompts it once. Resolves with what the client was sent. */
-async function prompted(): Promise<Cx>
+/** Opens a session and prompts it once with `text`. Resolves with what the client was sent. */
+async function prompted(text = 'go'): Promise<Cx>
 {
    const cx = createCx();
    const { sessionId } = await mocks.service.newSession(newSessionArgs());
-   await mocks.service.prompt({ sessionId, ...textParam('go') }, cx);
+   await mocks.service.prompt({ sessionId, ...textParam(text) }, cx);
    return cx;
 }
 
@@ -266,6 +285,7 @@ beforeEach(() => {
    mocks.order.length      = 0;
    mocks.logFiles.length   = 0;
    mocks.configOverride    = undefined;
+   mocks.profiles          = undefined;
    forgetRecordedCalls();
    mocks.registry = registryFile({ alpha: recording('alpha') });
    vi.spyOn(Readable, 'toWeb').mockReturnValue({} as any);
@@ -310,6 +330,36 @@ describe('entry point startup — governance config', () => {
          await expect(import('../index.js')).rejects.toThrow(message);
          expect(mocks.connect).not.toHaveBeenCalled();
          expect(mocks.logEntries.some(entry => 'governance_config_error' === entry.event)).toBe(true);
+      });
+});
+
+describe('entry point startup — profile names', () => {
+   const DUPLICATE_ALIAS = [
+      '## Planner', '**Aliases:** PO', '## Doctor', '**Aliases:** po', '',
+   ].join('\n');
+
+   it.each([
+      ['a missing file', () => join(dirOf(), 'absent.md'), 'missing or cannot be read'],
+      ['a folder',       () => dirOf(),                    'missing or cannot be read'],
+      [
+         'a duplicate alias',
+         () => writeFile(join(dirOf(), '_PROFILES.md'), DUPLICATE_ALIAS),
+         'duplicate alias',
+      ],
+   ])('[H] %s stops startup, is logged with the path, never connects, reads no registry',
+      async (_name, makePath, part) => {
+         mocks.profiles = makePath();
+         const error = await startupError();
+         expect(error.name).toBe('ProfileError');
+         expect(error.message).toContain(part);
+         expect(error.message).toContain(mocks.profiles);
+         expect(mocks.connect).not.toHaveBeenCalled();
+         const { loadRegistryConfig } = await import('../../drivers/registry.js');
+         expect(loadRegistryConfig).not.toHaveBeenCalled();
+         const logged = mocks.logEntries
+            .filter(entry => 'profile_names_startup_failed' === entry.event);
+         expect(logged).toHaveLength(1);
+         expect(logged[0]).toMatchObject({ level: 'error', data: { filePath: mocks.profiles } });
       });
 });
 
@@ -434,6 +484,28 @@ describe('entry point startup — driver registry', () => {
    });
 });
 
+describe('entry point startup — profile keys', () => {
+   const keyWarnings = () => mocks.logEntries.filter(entry => 'profile_key_unknown' === entry.event);
+
+   it('[H] a key that is not a canonical name is a warning, and the service still starts', async () => {
+      const entry = { model: 'auto' };
+      mocks.registry = registryFile({ alpha: recording('alpha') }, {
+         profiles: { Architect: entry, Architet: entry, PE: entry, planner: entry },
+      });
+      await import('../index.js');
+      expect(mocks.connect).toHaveBeenCalledTimes(1);
+      expect(keyWarnings().map(warning => [warning.level, warning.data.key]))
+         .toEqual([['warn', 'Architet'], ['warn', 'PE'], ['warn', 'planner']]);
+   });
+
+   it('the keys of the shipped example registry are canonical names and add no warning', async () => {
+      mocks.registry = EXAMPLE_REGISTRY;
+      await import('../index.js');
+      expect(mocks.connect).toHaveBeenCalledTimes(1);
+      expect(keyWarnings()).toEqual([]);
+   });
+});
+
 describe('entry point startup — diagnostic log', () => {
    const diagnosticFile = () => join(process.cwd(), '.workflow', 'work', 'acp-diagnostic.log');
    const catalogOptions = async () => {
@@ -485,6 +557,25 @@ describe('entry point startup — diagnostic log', () => {
 });
 
 describe('entry point serving — drivers come from the registry', () => {
+   it('[H] reads the profile names once, before connecting, and uses them', async () => {
+      mocks.profiles = writeFile(join(dirOf(), '_PROFILES.md'), PROFILE_FIXTURE);
+      mocks.registry = registryFile(
+         { alpha: recording('alpha') }, { profiles: { PromptEngineer: { model: 'm1' } } },
+      );
+      await serve();
+      await prompted('as pe');
+      const { loadProfileNames } = await import('../workflow-command.js');
+      expect(vi.mocked(loadProfileNames).mock.calls).toEqual([[mocks.profiles]]);
+      expect(vi.mocked(loadProfileNames).mock.invocationCallOrder[0])
+         .toBeLessThan(mocks.connect.mock.invocationCallOrder[0]);
+      const resolved = mocks.logEntries
+         .filter(entry => 'dispatch_resolved' === entry.event && 'PromptEngineer' === entry.data.profile);
+      expect(resolved).toHaveLength(1);
+      expect(resolved[0].data).toMatchObject({ source: 'profile', driver: 'alpha', model: 'm1' });
+      expect(recordedCalls())
+         .toEqual([{ driver: 'alpha', call: 'execute', command: 'as pe', model: 'm1' }]);
+   });
+
    it('[H] a registry with only a custom driver serves a session on it, preferred model', async () => {
       mocks.registry = registryFile(
          { alpha: recording('alpha') }, { preferred: { driver: 'alpha', model: 'm1' } },

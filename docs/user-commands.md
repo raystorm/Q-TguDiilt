@@ -7,9 +7,8 @@ All commands are saved prompts stored in `.amazonq/prompts/`.
 
 > [!IMPORTANT]
 > Prompts are saved in `.amazonq/prompts/` inside the repository,
-> for version control, and portability. In Order to actually *use* the commands,
-> they will need to be installed to the users Amazon Q prompts directory
-> `~/.aws/amazonq/prompts`.
+> for version control, and portability. That folder is the only location;
+> the old copy in `~/.aws/amazonq/prompts` is no longer used.
 > See the [Installation Guide](../README.md#installation) for more information.
 
 Commands fall into five groups.

@@ -80,6 +80,7 @@ describe('catalog — what the dispatch resolver sees', () => {
       const result = resolverOn(catalog.resolverConfig).resolve('Builder');
       expect(result.driver).toBe('other');
       expect(result.model).toBe('m2');
+      expect(result.substitution?.reason).toBe('driver not available');
    });
 
    it('a working preferred driver is returned', async () => {

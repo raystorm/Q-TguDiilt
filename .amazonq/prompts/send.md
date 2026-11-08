@@ -1,5 +1,7 @@
 Read `.amazonq/prompts/send-template.md` for message structure.
 
+Resolve `{{to}}` as a profile (canonical name or alias, ignoring case) first.
+
 Generate message content for {{to}}.
 
 Use these values:

@@ -291,9 +291,11 @@ preferred:
   driver: kiro
   model: claude-sonnet-5
 
-# Optional: per-profile model/driver preference, keyed by profile name.
-# `driver` is optional; when omitted, resolution falls back to registry
-# order (then the preferred driver as tie-break) for that model.
+# Optional: per-profile model/driver preference. A key is a canonical
+# profile name, spelled and capitalized as in `_PROFILES.md`; an alias is
+# never a key. `model` is required. `driver` is optional; when omitted,
+# resolution falls back to registry order (then the preferred driver as
+# tie-break) for that model.
 profiles:
   Architect:
     model: claude-opus-5
@@ -304,8 +306,10 @@ profiles:
 # Optional: system-level policy (applies to all profiles) for when a
 # profile's own model/driver preference fails to resolve.
 # 'fallback-to-default-driver' (default) falls through to
-# `preferred` above; 'fail-fast' surfaces the
-# profile's resolution failure immediately with no substitution.
+# `preferred` above. 'fail-fast' fails the prompt for a driver the
+# registry does not list or a model no driver lists, but still
+# substitutes the provider when the entry's driver lacks the model and
+# another driver lists it.
 fallbackMode: fallback-to-default-driver
 
 drivers:
@@ -328,6 +332,20 @@ drivers:
 - `preferred`, `profiles`, and `fallbackMode` are all optional.
   `preferred.driver` is required when `preferred` is present;
   `preferred.model` is optional
+- A `profiles:` entry needs a non-empty string `model`; `driver` is
+  optional. An entry without a `model` fails the registry load, and the
+  error names the file and the entry
+- A `profiles:` key is a canonical profile name from `_PROFILES.md`, matched
+  exactly (capitals count). An alias such as `PE`, or a different case such
+  as `planner`, never matches a profile. The loader does not check the keys;
+  at startup the service logs one warning for each key that is not a
+  canonical name (`profile_key_unknown`) and keeps starting
+- `fallbackMode: fail-fast` keeps a profile off the `preferred` defaults. A
+  driver the registry does not list (or that failed a catalog check) raises
+  `DriverNotFoundError`, and a model no driver lists raises
+  `ModelNotFoundError`. A driver that is listed but lacks the model, while
+  another driver lists it, is substituted: the profile runs the same model on
+  the other driver and the chat names both providers, as in the default mode
 - Any other top-level key is rejected when the registry loads. The error
   names the file, every unknown key and the known keys (`drivers`,
   `preferred`, `profiles`, `fallbackMode`). Keys inside a driver or

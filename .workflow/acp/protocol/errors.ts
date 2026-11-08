@@ -62,6 +62,15 @@ export const DriverGovernanceUnsupportedError = defineError(
    }),
 );
 
+/**
+ * The profile names file cannot be used: it is missing or cannot be read, or it lists the same
+ * alias twice. The message names the file and, for a duplicate, the alias.
+ */
+export const ProfileError = defineError(
+   'ProfileError',
+   (message: string, cause?: unknown) => ({ message, cause }),
+);
+
 /** The distinct error `kind` values the boundary maps to an ACP error stop. */
 export type BoundaryErrorKind =
    | 'provider_quota'

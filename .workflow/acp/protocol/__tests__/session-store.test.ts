@@ -57,6 +57,16 @@ describe('SessionStore — session <-> workflow mapping', () => {
    });
 });
 
+describe('SessionStore — profile and notice', () => {
+   it('a created and a loaded record have no profile and no notice', () => {
+      const store = createSessionStore({ newWorkflowId: () => 'wf-1' });
+      for (const record of [store.create('sess-1'), store.load('sess-2', 'wf-2')]) {
+         expect(record.profile).toBeUndefined();
+         expect(record.notice).toBeUndefined();
+      }
+   });
+});
+
 describe('SessionStore — active-turn flag', () => {
    it('defaults to false for a new session', () => {
       const store = createSessionStore({ newWorkflowId: () => 'wf-1' });

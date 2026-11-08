@@ -16,7 +16,7 @@ May remain literal until resolved. Must be resolved before execution.
 A value that must be supplied by the AI.
 Must not remain literal. Must be resolved before execution.
 
-For full behavioral details, see the prompt files that use these placeholders: `~/.aws/amazonq/prompts/`
+For full behavioral details, see the prompt files that use these placeholders: `.amazonq/prompts/`
 
 ---
 

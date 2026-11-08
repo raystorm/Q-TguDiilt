@@ -18,12 +18,12 @@ No implicit loading. No "for reference" loading.
 - `@as PE` → Profile = "PromptEngineer", Task = "" (no task specified)
 
 **Profile name normalization:**
-- Case-insensitive matching
+- Case-insensitive matching, for canonical names and for aliases
 - Resolve aliases from _PROFILES.md
 
 **Alias resolution:**
 - Read _PROFILES.md
-- Find profile section with matching alias in "Aliases:" line
+- Find the profile whose `## ` heading or "Aliases:" entry matches, ignoring case
 - Use canonical profile name for loading
 
 **Task extraction:**
@@ -44,7 +44,7 @@ No implicit loading. No "for reference" loading.
 - Do NOT treat it as executable governance
 
 **Extract:**
-1. Find profile section (e.g., "## Planner")
+1. Find profile section (e.g., "## Planner"), ignoring case
 2. Extract "Uses:" list
 3. Parse file patterns (handle wildcards like `foundation/*`)
 

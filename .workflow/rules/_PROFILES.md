@@ -19,7 +19,7 @@ Writes code, implements features, follows formatting and architecture rules.
 ## Enforcer
 Reviews code, checks formatting, tests, and architecture alignment.
 
-**Aliases:** Verifier, Validator, 🔫 
+**Aliases:** Verifier, Validator, 🔫
 
 **Uses:**
   foundation/*, tech/*, workflow/testing.md, profiles/enforcer.md,
@@ -74,7 +74,7 @@ Defines system design, domain models, structure, and long-term direction.
 ## Analyst
 Reads code, explains behavior, traces logic, and ambiguity resolution.
 
-**Aliases:** Analyzer, Auditor, 🔍, 🔎,
+**Aliases:** Analyzer, Auditor, 🔍, 🔎
 
 **Uses:** foundation/*, architecture/*, workflow/logging.md, workflow/auto-suspend.md,
   workflow/workflow-mechanics.md, workflow/agentic-confirmation.md
@@ -99,7 +99,7 @@ Writes Governed prompts for AI agents following prompt engineering rules.
 ## Doctor
 Diagnoses failures, identifies root causes, applies minimal safe fixes, and escalates when issues exceed scope.
 
-**Aliases:** Dr, DR, Medic, 🩺
+**Aliases:** Dr, Medic, 🩺
 
 **Uses:**
   foundation/*, tech/*, workflow/testing.md, profiles/doctor.md,

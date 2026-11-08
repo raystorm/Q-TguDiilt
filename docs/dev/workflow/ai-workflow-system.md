@@ -169,7 +169,7 @@ Reads code, explains behavior, traces logic, and ambiguity resolution. (aliases:
 Writes prompts for AI agents following [Command Prompt](../glossary.md#command-prompt) patterns (aliases: PE, Prompter)
 
 **Doctor** —
-Diagnoses failures, applies minimal safe fixes, escalates when issues exceed scope (aliases: Dr, DR, Medic, 🩺)
+Diagnoses failures, applies minimal safe fixes, escalates when issues exceed scope (aliases: Dr, Medic, 🩺)
 
 **Retrospective** —
 Analyzes completed workflows, identifies improvements, highlights successes (aliases: Retro, Iterator, 🔄)
@@ -423,9 +423,8 @@ The system supports features requiring multiple sequential stories:
 
 ## Saved Prompts
 
-Saved prompts are stored in two locations and enable workflow coordination:
-- `~/.aws/amazonq/prompts/` — active user prompts (loaded by Amazon Q)
-- `.amazonq/prompts/` — project prompts (version-controlled, team-shared)
+Saved prompts are stored in `.amazonq/prompts/` (version-controlled, team-shared)
+and enable workflow coordination.
 
 Saved Prompts can be roughly divided into categories:
   * Workflow Commands,

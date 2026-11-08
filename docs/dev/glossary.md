@@ -174,7 +174,23 @@ Rules referring to "Change" apply uniformly to both commands.
 Begin
 : A rule-facing categorization that groups the commands which *activate* a Changeover.  
 The Begin category includes `@start` (linear) and `@receive` (parallel).  
-Rules referring to "Begin" apply uniformly to both commands.
+Rules referring to "Begin" apply uniformly to both commands.  
+The ACP service also uses a Begin command to find the profile to dispatch to
+(see Profile Activation).
+
+Changeover File
+: The file a Change command writes and a Begin command reads to transfer control and
+context between profiles.  
+`HANDOFF.md` (linear, written by `@handoff`, read by `@start`) or `MESSAGE.md` (side trip,
+written by `@send`, read by `@receive`). It sits in `.amazonq/work/current/`, so it is
+transient. The target profile is the first non-empty line under `## To`.
+
+Changeover File Path
+: The two fixed locations of the Changeover Files the ACP service reads for `@start` and
+`@receive`: `.amazonq/work/current/HANDOFF.md` and `.amazonq/work/current/MESSAGE.md`.  
+Held as two constants in `protocol/workflow-command.ts`, and read under the directory the
+service was started in, each time the command is sent. The path never comes from the
+command text.
 
 
 Handoff
@@ -381,9 +397,10 @@ each with a module that exports `createDriver`.
 
 Driver Registry
 : A YAML config mapping driver names to a module and the models they support.  
-Also holds per-profile preferences, the preferred driver and model
-(`preferred`), and the fallback mode. A top-level key it does not know is
-rejected. Model Dispatch reads it, and the Driver Catalog loads the drivers it names.
+Also holds per-profile preferences, keyed by Canonical Profile Name and each with a
+`model`, the preferred driver and model (`preferred`), and the fallback mode. A top-level
+key it does not know is rejected. Model Dispatch reads it, and the Driver Catalog loads
+the drivers it names.
 
 Driver Catalog
 : The working drivers built from a Driver Registry.  
@@ -394,9 +411,11 @@ or a preferred model its driver does not list (and supplies a Notice),
 and closes every driver on shutdown.
 
 Notice
-: The text a chat shows when the preferred driver or model cannot be used.  
-Names what is preferred, what is used instead, and why. It leads the first
-reply of every session, and later replies until one turn has a Normal End.
+: The text a chat shows when the preferred driver or model cannot be used, or when a
+Profile Activation got a Substitution.  
+Names what is preferred or asked for, what is used instead, and why. It leads the first
+reply of every session, and later replies until one turn has a Normal End. Each
+Profile Activation replaces it.
 
 Service Log
 : The operational log, `.workflow/work/acp.log`.  
@@ -415,8 +434,42 @@ Model Dispatch
 : Choosing the model and driver for a profile's commands.  
 Profile preference first, then the registry defaults, then an error.
 The `auto` model is the fallback when a named model does not resolve.
-A session is resolved once, when it opens, from the registry defaults (it has
-no profile yet).
+A session is resolved from the registry defaults when it opens (it has no profile),
+and again from the profile's entry by each Profile Activation.
+
+Profile Activation
+: Choosing the profile a chat runs as, which switches the chat's driver and model to that
+profile's registry entry before the turn runs.  
+The ACP service finds it in the text of a prompt: `as <name>`, `@as <name>`, `@dr`,
+`@epr`, `@start`, `@receive`, and the `/` forms. An `@` or `/` command counts anywhere in
+the text as a whole word; plain `as` counts only at the start. `@dr` (Doctor) and `@epr`
+(Enforcer) come from a two-entry table, the only fixed workflow vocabulary in the service
+besides the Begin commands. Not the Activation Layer, which is about rule loading.
+
+Canonical Profile Name
+: A profile's name as spelled in its `## ` heading in the Profile Names File.  
+The only valid key in the registry's `profiles:` section, matched exactly (capitals
+count). An alias is never a key. A prompt may use an alias or any capitalization; the
+service turns it into the canonical name before it resolves.
+
+Profile Names File
+: `.workflow/rules/_PROFILES.md`, read by the ACP service once at startup for the
+canonical names and aliases.  
+Found from the service's own files, never the working directory. A file that is missing,
+cannot be read, or lists an alias twice (capitals ignored) stops the service with a
+`ProfileError`.
+
+ProfileError
+: The one error for a bad Profile Names File: missing, unreadable, or a duplicate alias.  
+Its message says which and names the file. It is raised at start-up, so the service does
+not run.
+
+Substitution
+: What a dispatch result carries when its driver or model differs from what the profile's
+entry asked for: the entry (`asked`) and a reason.  
+The reasons are `driver not available`, `model not listed` and `entry could not be
+resolved`. The service turns it into a Notice. In `fail-fast` mode, a listed driver that
+lacks a model another driver lists is still substituted (same model, other driver).
 
 Tool Call
 : An action the AI takes: read, edit, delete, move, search, execute,
@@ -475,6 +528,7 @@ Session Release
 A Driver does it through `release(sessionId)`, using the Ending Sequence; the `agent_process_ended`
 reason is `release`. It is not a loss: no diagnostic record and no relaunch entry. A later turn on
 that session fails as a session collapse. A caller releases between turns, never during one.
+The service releases the old driver's session when a Profile Activation changes the driver.
 
 Shutdown Handler
 : The one function that runs the disconnect once, whichever comes first: stdin
