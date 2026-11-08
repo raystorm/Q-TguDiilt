@@ -142,7 +142,8 @@ It contains only system bootstrap rules:
 * correctness guarantees
 * profile activation triggers
 
-These rules are loaded by Amazon Q's native rule system in every chat.
+These rules are loaded in every chat. `.amazonq/rules/` is a legacy Amazon Q
+location that Kiro also reads; the installer is expected to move it.
 They are minimal, stable, and must not be extended by projects.
 
 To add new governance, use the Governance Layer (`.workflow/rules/`).

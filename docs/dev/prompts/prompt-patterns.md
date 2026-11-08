@@ -48,8 +48,7 @@ Follow commit-style-guide.md format.
 
 ## Context Commands Examples
 
-- `@workspace Act as Architect.` (analyzing Q feature usage)
-- `@folder Act as Builder.` (implementing in one domain)
+- `Act as Builder. Use /path/to/folder for context` (implementing in one domain)
 
 ## Story Context Example
 

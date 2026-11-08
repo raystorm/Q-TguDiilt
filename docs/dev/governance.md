@@ -35,7 +35,8 @@ Artifact shapes and invariants are defined in the Contract.
 Rules exist at three levels:
 
 1. **Activation Layer**
-    * Always loaded by Amazon Q's native rule system
+    * Always loaded in every chat (the folder is a legacy Amazon Q location
+      that Kiro also reads; the installer is expected to move it)
     * Stored in `.amazonq/rules/`
     * Minimal bootstrap: correctness guarantees,
       profile activation triggers

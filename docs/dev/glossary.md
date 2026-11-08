@@ -125,7 +125,7 @@ Uses Saved Prompts as implementation infrastructure.
 Command Prompts control workflow; Saved Prompts implement the plumbing.
 
 Activation Rule
-: A rule in `.amazonq/rules/` loaded by Amazon Q's native rule system.  
+: A rule in `.amazonq/rules/`, a legacy Amazon Q location that Kiro also reads.  
 Always active in every chat, regardless of profile.  
 Provides bootstrap behavior (correctness, profile activation triggers)  
 before any profile‑specific governance loads.
@@ -340,8 +340,9 @@ when Retrospective completes or the user closes the loop.
 
 Activation Layer
 : The minimal bootstrap rule layer stored in `.amazonq/rules/`.  
-Always loaded by Amazon Q's native rule system in every chat,  
-regardless of profile.  
+Always loaded in every chat, regardless of profile.  
+The folder is a legacy Amazon Q location that Kiro also reads;
+the installer is expected to move it.  
 Provides correctness guarantees and profile activation triggers.
 
 Governance Layer

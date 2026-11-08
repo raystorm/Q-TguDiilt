@@ -508,10 +508,9 @@ Switch profiles explicitly:
 `@start` and `@receive` also activate profiles,
 but only as continuations from changeover files.
 
-Use context commands:
-* `@workspace` — Analyze project structure
-* `@folder` — Scope to specific folder
-* `@file` — Scope to specific file
+Give context with direct paths:
+* `/path/to/folder` — Scope to a specific folder
+* `/path/to/file` — Scope to a specific file
 
 Use saved prompts:
 * `@handoff` — Handoff to next profile (optional: `to=Profile`)

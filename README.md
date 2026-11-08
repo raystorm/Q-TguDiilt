@@ -19,10 +19,14 @@ Workflows are intentionally slow and predictable because boring is stable,
 stability earns trust, and automation is earned, not assumed.
 
 > [!IMPORTANT]
-> This Workflow engine is built with and for Amazon Q.
-> It has not been used, or tested with any other AI systems.
+> Platform support:
 > 
-> Q provides several capabilities required for this engine to function:
+> - **Kiro**: supported, and in active use.
+> - **GitHub Copilot**: in development. Targeted for future support, untested,
+>   and not expected to work until ACP support is complete.
+> - **Amazon Q**: legacy. No longer supported.
+> 
+> The engine needs several capabilities from its platform:
 > 
 > - deterministic rule context loading from `.workflow/rules/`
 > - multiple isolated chat tabs, allowing simultaneous conversations with different profiles
@@ -32,16 +36,14 @@ stability earns trust, and automation is earned, not assumed.
 > 
 > These capabilities form the substrate this workflow engine depends on.
 > Without them, the system’s guarantees and behavior would not hold.
-> 
-> Everything in this repository leverages Amazon Q's rule system and prompt mechanics,
-> ensuring consistent and reliable behavior for AI‑assisted development.
 
 ![Plan Dev Loop](images/Plan-Dev-Flow.png)
 
 ---
 
 ## What This Repository Contains
-- The AI rule system (`.amazonq/rules/` and `.workflow/rules/`)
+- The AI rule system (`.workflow/rules/`, and `.amazonq/rules/`, a legacy Amazon Q
+  location that Kiro also reads)
 - Workflow mechanics and agent behaviors
 - Profiles and responsibilities
 - Communication standards (commit messages, code diffs, user stories)
@@ -98,6 +100,11 @@ User‑facing documentation (to be expanded as features land).
 
 ## Installation
 
+> [!NOTE]
+> The steps below were written for Amazon Q, a legacy platform that is no longer
+> supported. An installer is planned for Kiro and GitHub Copilot and is not
+> available yet. Step 1 applies to any platform.
+
 Follow these steps to install the Amazon Q prompts, rules, and documentation
 into your repository and activate them in your IDE.
 
@@ -113,7 +120,7 @@ Place the following directories at the root of your repository:
 - `.amazonq/` — prompt files, rules, workflow, and agent configurations
 - `docs/` — extended context and reference material
 
-Commit these folders so Amazon Q can index them.
+Commit these folders so the agent can read them.
 
 ### 2. Open your IDE with Amazon Q enabled
 
@@ -143,10 +150,9 @@ Amazon Q will copy saved prompts from the repository, to the user's prompt direc
 Once the prompts, rules, and documentation are installed,
 the workflow engine is ready to operate.
 
-  1. Open Amazon Q in your IDE
+  1. Open your agent's chat in your IDE
   2. Start with a safe analytical first task
      ```text
-     @workspace
      As Architect, analyze my repository and summarize its current structure,
      boundaries, and responsibilities.
      ```
@@ -157,7 +163,6 @@ the workflow engine is ready to operate.
       as long as you remain in the same chat  
       and the profile has not been explicitly changed.)
      ```text
-     @workspace
      identify structural gaps, missing boundaries, or incomplete features
      based on the current state of the repository. 
      Help me generate a story based on these findings.
@@ -207,7 +212,7 @@ Specialized profiles (Architect, Planner, Analyst, Developer, Reviewer, etc.)
 operate with isolated responsibilities, context windows, and explicit handoff mechanics.
 
 ### Workspace‑Aware Reasoning
-Profiles operate on real project context and use Amazon Q's `@workspace` command,
+Profiles operate on real project context,
 enabling accurate analysis, planning, and code generation grounded in the repository.
 
 ### Structured Development Loop

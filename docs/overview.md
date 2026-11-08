@@ -37,7 +37,8 @@ The documentation is organized into clear sections that mirror the architecture 
 The system uses a two-layer rule architecture:
 
 - **Activation Layer** (`.amazonq/rules/`) — minimal bootstrap rules,
-  always loaded by Amazon Q in every chat regardless of profile.
+  always loaded in every chat regardless of profile. The folder is a legacy
+  Amazon Q location that Kiro also reads; the installer is expected to move it.
   Provides correctness guarantees and profile activation triggers.
 
 - **Governance Layer** (`.workflow/rules/`) — profile-scoped rules,

@@ -93,8 +93,8 @@ It treats cognition as an engineered system, not a text hack.
 Not permanently.
 
 The architecture is **designed to be model‑agnostic and vendor‑agnostic**,
-but today it is **implemented on Amazon Q** because Q provides the governed,
-multi‑agent substrate this system needs.
+but today it **runs on Kiro**, which is supported. GitHub Copilot is in
+development. Amazon Q, the original platform, is legacy and no longer supported.
 
 The long‑term goal is full portability:
   * profile contracts should work anywhere
@@ -102,7 +102,7 @@ The long‑term goal is full portability:
   * governance should work anywhere
   * drift‑resistant cognition should work anywhere
 
-Amazon Q is the *current* implementation environment, not the architectural dependency.
+Kiro is the *current* implementation environment, not the architectural dependency.
 
 ---
 

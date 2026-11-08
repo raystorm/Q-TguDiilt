@@ -25,8 +25,7 @@ Act as <Profile>.
 - Keep focused on single responsibility
 
 ### Context Commands
-- Use `@workspace` to analyze project structure, patterns, or usage across the codebase
-- Use `@folder` or `@file` for tasks scoped to specific files/folders
+- Reference `/path/to/folder` or `/path/to/file` as context for file/folder specific tasks
 
 ---
 

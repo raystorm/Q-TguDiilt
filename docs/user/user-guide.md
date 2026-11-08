@@ -23,7 +23,7 @@ This guide focuses on *practical usage*.
 ## 1. What This System Is
 
 This workflow engine is a **governed, multi‑profile AI development workflow system**
-built on Amazon Q.  
+that runs on Kiro today.  
 
 It is a **governed cognitive workflow architecture** that synthesizes principles from
 **Harness Engineering** (*runtime boundaries and invariants*),
@@ -101,7 +101,7 @@ flowchart TB
 ## 2. How to *Run* a Workflow
 
 Once installation is complete (see [Installation Guide](../../README.md#installation)),
-open Amazon Q and begin with a safe analytical task:
+open your agent's chat and begin with a safe analytical task:
 
 After completing the initial safe analysis from the [README](../../README.md#getting-started),
 the next step is to turn that analysis into a governed workflow.
