@@ -1,10 +1,11 @@
 import { createAgent } from '../agent.js';
+import { utimesSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createSessionStore } from '../session-store.js';
 import { createGovernanceEngine } from '../../governance/engine.js';
 import {
-   type FakeStep, createFakeGovernedDriver,
+   type FakeStep, createFakeGovernedDriver, say,
 } from '../../drivers/__tests__/fake-governed-driver.js';
 import { DriverNotInCatalogError } from '../../drivers/errors.js';
 import type { DriverCatalog } from '../../drivers/driver-catalog.js';
@@ -17,7 +18,7 @@ import type { DispatchResult, DispatchSubstitution } from '../../modelResolver/t
 import { makeDriver } from '../../drivers/acp-driver-core/__tests__/acp-driver.helpers.js';
 import { SESSION } from '../../drivers/acp-driver-core/__tests__/permissions.helpers.js';
 import type { UnsafeSetting } from '../../drivers/acp-driver-core/types.js';
-import { parseProfileNames } from '../workflow-command.js';
+import { HANDOFF_PATH, parseProfileNames } from '../workflow-command.js';
 import { writeFile } from '../../drivers/__tests__/catalog-fixtures.js';
 import { PROFILE_FIXTURE } from './profile-fixtures.js';
 
@@ -362,8 +363,11 @@ export function namedTrace(cx: Cx, names: string[]): string[] {
 export type ScriptStep =
    | FakeStep
    | { step: 'wait'; label: string }
+   | { step: 'act'; fn: () => unknown }
    | { step: 'throw'; error: unknown };
 export const wait   = (label: string): ScriptStep => ({ step: 'wait', label });
+/** Runs `fn` inside the turn at this point, for example to write a file the turn would write. */
+export const act    = (fn: () => unknown): ScriptStep => ({ step: 'act', fn });
 export const throws = (error: unknown): ScriptStep => ({ step: 'throw', error });
 
 const whenAborted = (signal?: AbortSignal) => new Promise<void>(resolve => {
@@ -375,7 +379,7 @@ const whenAborted = (signal?: AbortSignal) => new Promise<void>(resolve => {
 /**
  * A driver that plays one queued script per `execute`. Steps are those of the fake governed
  * driver (`say`, `call`, `update`, `gate`, `end`) plus `wait(label)`, which halts the turn
- * until `release(label)` or the abort, and `throws(error)`. `overrides` replace fields of the
+ * until `release(label)` or the abort, `act(fn)`, and `throws(error)`. `overrides` replace fields of the
  * result. `seen` keeps every call's options, so a test can drive `onUpdate` and `onToolCall`
  * itself, or late (`lateUpdate`).
  */
@@ -383,6 +387,7 @@ export function createScriptedDriver(name = 'scripted') {
    const seen:      Array<{ command: string; options: ExecuteOptions }> = [];
    const queue:     Array<{ steps: ScriptStep[]; overrides: Partial<DriverResult> }> = [];
    const decisions: ToolCallDecision[] = [];
+   const released:  string[] = [];
    const marks = new Map<string, { reached: Deferred<void>; released: Deferred<void> }>();
    const markOf = (label: string) => {
       if (!marks.has(label)) { marks.set(label, { reached: deferred(), released: deferred() }); }
@@ -421,18 +426,23 @@ export function createScriptedDriver(name = 'scripted') {
                mark.reached.resolve();
                await Promise.race([mark.released.promise, whenAborted(options.signal)]);
             }
+            else if ('act' === item.step) { await item.fn(); }
             else { throw item.error; }
          }
          if (options.signal?.aborted) { return finish({ cancelled: true }); }
          return finish(undefined === ended ? {} : { end: ended });
       },
       close: async () => {},
-      release: async () => {},
+      release: async (id: string): Promise<void> => { released.push(id); await handle.onRelease(id); },
    };
-   return {
+   const handle = {
       driver,
       seen,
       decisions,
+      /** The ids `release` was called with, in order. */
+      released,
+      /** Runs after a release records its id. A test replaces it to hold or fail the release. */
+      onRelease: async (_id: string): Promise<void> => {},
       script: (steps: ScriptStep[], overrides: Partial<DriverResult> = {}) => {
          queue.push({ steps, overrides });
       },
@@ -441,6 +451,102 @@ export function createScriptedDriver(name = 'scripted') {
       /** Calls the `onUpdate` of the nth `execute`, as a driver would that kept it too long. */
       lateUpdate: (update: TurnUpdate, n = 0) => seen[n].options.onUpdate?.(update),
    };
+   return handle;
+}
+
+/**
+ * A chat for the changeover loop. `routes` maps each profile to a driver name, or to
+ * `[driver, model]`; there is one scripted driver for each name, under `scripted`. The resolver
+ * answers by profile. `commands` lists every command any driver received, in order.
+ * `writeHandoff` writes the handoff file under `dir` naming a profile, with a modification time
+ * `offset` ms from now (ahead by default, so it is fresh whatever the clock grain).
+ */
+export function loopRig(
+   { routes, dir, ...overrides }:
+      { routes: Record<string, string | [string, string]>; dir: string; [key: string]: any },
+) {
+   const names = [...new Set(Object.values(routes).map(route => 'string' === typeof route ? route : route[0]))];
+   const scripted: Record<string, ReturnType<typeof createScriptedDriver>> = {};
+   const commands: string[] = [];
+   for (const name of names) {
+      const each = createScriptedDriver(name);
+      const run  = each.driver.execute.bind(each.driver);
+      each.driver.execute = (command, options) => { commands.push(command); return run(command, options); };
+      scripted[name] = each;
+   }
+   const resolver = createResolverStub((_call, profile) => {
+      if (undefined === profile) { return resolved(names[0]); }
+      const route = routes[profile];
+      if (undefined === route) { return new Error(`no route for ${profile}`); }
+      return 'string' === typeof route ? resolved(route) : resolved(route[0], route[1]);
+   });
+   const catalog = catalogOf(Object.fromEntries(names.map(name => [name, scripted[name].driver])));
+   const made    = makeAgent({ catalog, resolver, workDir: dir, ...overrides });
+   const writeHandoff = (profile: string, offset?: number) => handoffFile(dir, profile, offset);
+   return { ...made, scripted, commands, writeHandoff };
+}
+
+/**
+ * Writes the handoff file under `dir` naming `profile`, with a modification time `offset` ms from
+ * now: ahead by default, so it counts as written during the turn whatever the clock grain.
+ */
+export function handoffFile(dir: string, profile: string, offset = 5000): string
+{
+   const file    = changeover(HANDOFF_PATH, profile, dir);
+   const seconds = (Date.now() + offset) / 1000;
+   utimesSync(file, seconds, seconds);
+   return file;
+}
+
+export type LoopRig = ReturnType<typeof loopRig>;
+
+/** Planner and PromptEngineer and Architect on alpha, Enforcer and Doctor on beta. */
+export const loopRoutes: Record<string, string | [string, string]> = {
+   Planner:        ['alpha', 'm1'],
+   PromptEngineer: ['alpha', 'm1'],
+   Architect:      ['alpha', 'm1'],
+   Enforcer:       ['beta',  'm2'],
+   Doctor:         ['beta',  'm2'],
+};
+export const allOnAlpha = Object.fromEntries(Object.keys(loopRoutes).map(name => [name, 'alpha']));
+
+/** The completion line a profile writes when it suggests one handoff. */
+export const nextLine = (profile: string) => `**Next**: Run \`@handoff to=${profile}\``;
+
+export const openChat = async (rig: LoopRig) => (await rig.agent.newSession(newSessionArgs())).sessionId;
+export const sendPrompt = (rig: LoopRig, sessionId: string, text: string, cx: Cx = createCx()) =>
+   rig.agent.prompt({ sessionId, ...textParam(text) }, cx);
+
+/** A turn that writes the handoff file naming `profile`, then says it did. */
+export const handoffTurn = (rig: LoopRig, profile: string) =>
+   [act(() => rig.writeHandoff(profile)), say('Handoff written.')];
+
+/** Scripts a chain on one driver: each profile suggests the next; each handoff turn writes the file. */
+export function scriptChain(rig: LoopRig, driver: string, names: string[])
+{
+   names.forEach((name, at) => {
+      const target = names[at + 1];
+      const turn   = undefined === target ? `${name} is done.` : `${name} works.\n\n${nextLine(target)}`;
+      rig.scripted[driver].script([say(turn)]);
+      if (undefined !== target) { rig.scripted[driver].script(handoffTurn(rig, target)); }
+   });
+}
+
+/** Planner (session p-1) suggests Enforcer and writes the handoff; Enforcer (session e-1) answers. */
+export function plannerToEnforcer(rig: LoopRig, enforcerOn: string)
+{
+   rig.scripted.alpha.script([say(nextLine('Enforcer'))], { sessionId: 'p-1' });
+   rig.scripted.alpha.script(handoffTurn(rig, 'Enforcer'), { sessionId: 'p-1' });
+   rig.scripted[enforcerOn].script([say('Reviewed.')], { sessionId: 'e-1' });
+}
+
+/** Holds the release of alpha's session. `reached` settles when it was asked; `hold` lets it go. */
+export function holdRelease(rig: LoopRig)
+{
+   const reached = deferred();
+   const hold    = deferred();
+   rig.scripted.alpha.onRelease = async () => { reached.resolve(); await hold.promise; };
+   return { reached: reached.promise, hold };
 }
 
 /** Plays one scripted turn on a new chat, waits for it, and returns the chat and the driver. */
@@ -539,8 +645,8 @@ export const plain = (text: string, extra: object = {}) =>
    createDriverSpy({ text, sessionId: 'drv-1', toolCalls: [], ...extra });
 
 /** An `agent_message_chunk` notification as the fake ACP agent sends it. */
-export const agentSays = (text: string) => ({
-   sessionId: SESSION,
+export const agentSays = (text: string, sessionId = SESSION) => ({
+   sessionId,
    update:    { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } },
 });
 
@@ -550,8 +656,8 @@ export const agentSays = (text: string) => ({
  * can start (`downstreams`, in start order). `done` closes the driver.
  */
 export function overRealCore(
-   { settings, notice, agents = 1 }:
-      { settings?: UnsafeSetting[]; notice?: string; agents?: number } = {},
+   { settings, notice, agents = 1, workDir }:
+      { settings?: UnsafeSetting[]; notice?: string; agents?: number; workDir?: string } = {},
 ) {
    const core       = makeDriver(agents, undefined, undefined, settings);
    const downstream = core.agents[0];
@@ -561,7 +667,7 @@ export function overRealCore(
       each.handle.closeStdin = () => { closeStdin(); each.exit(0); };
    }
    const service = makeAgent({
-      driver: core.driver, catalog: oneDriverCatalog(core.driver, notice),
+      driver: core.driver, catalog: oneDriverCatalog(core.driver, notice), workDir,
    });
    return {
       ...service, downstream, downstreams: core.agents, done: () => core.driver.close(),

@@ -97,6 +97,5 @@ Common purposes:
 - `.amazonq/work/current/MESSAGE.md` - Quick messages between profiles (gitignored, ephemeral)
 - `.amazonq/work/current/` - Current story scratch files (gitignored, ephemeral)
 - `.amazonq/work/README.md` - This file (version controlled)
-- `~/.aws/amazonq/prompts/` - Active prompts (user-specific)
 
 ---

@@ -17,6 +17,12 @@ runs your workflow. No LLM provider needs to speak ACP.
   `docs/user/acp-agents.md`
 - This repository present in your project
 
+## Installation
+
+Installation is manual today. Copy `.amazonq/`, `.workflow/` and `docs/` into your project,
+create `registry.yaml` (see "Prerequisites"), then follow "Configure the connection".
+This section is completed when the installer is built.
+
 ## Configure the connection
 
 JetBrains launches the ACP service as a subprocess. Point it at the
@@ -45,6 +51,15 @@ newline-delimited JSON. This is provided by the official ACP SDK
 (`@agentclientprotocol/sdk`); you do not configure it beyond the
 `acp.json` above.
 
+## Quickstart
+
+1. Connect the IDE (see "Configure the connection") and open a chat.
+2. Type `@as Architect analyze my repository and summarize its structure`.
+3. When the profile ends with a `**Next**` line that names one profile, the service moves the
+   workflow on. Watch the chat. Use the IDE's stop control to end it.
+
+This section is completed when the installer is built.
+
 ## What a session looks like
 
 From your side, a session follows this lifecycle:
@@ -62,6 +77,43 @@ prompt while one is still running, the service rejects it and asks you
 to retry once the current turn finishes. To interrupt a running turn,
 use your IDE's cancel action (ACP `session/cancel`); see "Stopping a
 turn".
+
+## Running a workflow
+
+You start the first profile yourself, for example `@as Planner write a story for user
+search`. From there the service takes the workflow from profile to profile in the same chat,
+inside the one prompt you sent. The IDE shows one long prompt with a continuous stream.
+
+A profile ends its last message with a line like this:
+
+```text
+**Next**: Run `@handoff to=Planner` (or `@send Doctor`)
+```
+
+When that line names exactly one profile after `@handoff`, the service takes a **changeover
+step**:
+
+1. Shows `Changeover: sending @handoff to=Planner` and sends that command to the agent. The
+   agent writes `.amazonq/work/current/HANDOFF.md`.
+2. Checks that the handoff file was written for this step and names a known profile.
+3. Shows `Changeover: sending @start` and sends it to a fresh agent session. That session
+   activates the profile named in the file, with the driver and model that profile's registry
+   entry asks for, and does the work.
+
+The service repeats this until a profile's last message does not name exactly one next
+profile, or you stop it. A profile may hand work back to an earlier one, for example Enforcer
+to PromptEngineer. The service follows whichever profile it names.
+
+- **You no longer review each handoff** before the next profile starts. Watch the chat.
+- **You can type the handoff yourself.** A prompt that holds `@handoff` or `/handoff` as a
+  whole word counts. The service then checks the file and sends `@start`. After a stop, typing
+  `@handoff to=<Profile>` makes the service take changeover steps again.
+- **Approvals still come to you.** The service never answers an approval for you. It waits
+  until you do.
+- **Side trips are not carried on.** A message that suggests only `@send` stops the service.
+- **A prompt typed while the service is moving on** is rejected as "turn in progress". The
+  workflow carries on.
+- **There is no off switch and no limit on profile changes.** Stop is the way out.
 
 ## What you see during a turn
 
@@ -93,6 +145,32 @@ text, each as a **card**.
     turn; the work may be unfinished."
   - "The agent refused to continue this turn."
 
+## When the service stops
+
+The service stops after a turn when it cannot tell what comes next. The chat says why, except
+where noted. You then type the next command.
+
+- **The last message suggested no handoff:** no line.
+- **Several next steps are suggested:** "Several next steps are suggested above. Enter the one
+  you want, for example `@handoff to=<Profile>`."
+- **The suggestion names no profile:** "The agent's next step names no profile to hand off
+  to. Enter the command you want, for example `@handoff to=<Profile>`."
+- **The profile is not known:** `"<word>" is not a known profile.` followed by the same
+  "Enter the command you want" line. The word is shown as the agent wrote it, cut at 64
+  characters.
+- **The handoff file was not written:** "The handoff file was not written for this turn, or
+  it names a different profile (.amazonq/work/current/HANDOFF.md)."
+- **A turn ended early or failed:** the usual line or error, then "The changeover loop
+  stopped." This second line appears only when the service sent a command in that prompt, or
+  you typed a handoff.
+- **You pressed Stop:** no line. Nothing further is sent.
+
+What each agent does when its context window fills is not known yet. If a turn ends early or
+fails, the service stops as above. To carry on in a fresh chat, save the context with
+`@suspend` and restore it with `@resume` in the new chat.
+
+For causes and fixes, see [Troubleshooting a workflow run](acp-troubleshooting.md).
+
 ## Approvals
 
 When a step needs your approval, the service first shows you the
@@ -107,6 +185,8 @@ Use your IDE's stop (cancel) action to end a running turn. The service
 passes the stop on to the provider, shows any text produced so far, and
 ends the turn as cancelled. The session stays usable.
 
+- **In a workflow:** Stop ends the changeover steps at once and nothing further is sent. Stop
+  is the only way to end them; a word typed in the chat does not.
 - **Winding down:** the session stays busy until the provider has
   finished. A new prompt sent right after Stop can be rejected as "turn
   in progress"; wait a moment and retry.
@@ -135,7 +215,8 @@ version-controlled.
   `turn_cancelled`) and errors with context. It can hold text from the
   service itself, such as start-up and configuration messages. It never
   holds text from an agent or a provider, or your prompts, replies, titles,
-  diffs or tool input.
+  diffs or tool input. In a workflow it also records `changeover_sent` (each command the
+  service sent) and `loop_stopped` (why the service stopped), with no agent text.
 - **`acp-diagnostic.log`** is the diagnostic log. When an agent fails, the
   service writes one record about it: why it failed, the exit code or
   signal, and the last lines the agent printed. A failure is an agent that
@@ -160,6 +241,8 @@ still runs. `acp.log` gets one warning, and no records and no
 
 ## Troubleshooting
 
+- **The workflow stopped, or did not move on** — see
+  [Troubleshooting a workflow run](acp-troubleshooting.md).
 - **The IDE cannot start the service** — verify `command`/`args` in
   `~/.jetbrains/acp.json` and that Node.js is on your PATH.
 - **The service stops at start** — the registry is missing or unusable.

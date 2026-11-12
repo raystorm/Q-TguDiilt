@@ -155,6 +155,33 @@ specifics cannot be shown, you are not asked and the action is denied.
 If governance cannot evaluate an action, it asks you (noting that) and
 denies if asking fails.
 
+## Workflow runs
+
+Changeover steps never answer an ask. The service waits for you, then goes on.
+
+The engine's own files are asks every time with the shipped rules: `.amazonq/workflow.log`,
+`.amazonq/.timestamp-temp`, everything under `.amazonq/work/` (the handoff file included) and
+everything under `.amazonq/suspended/`. The shipped config has no rule for them and ends in
+`default: ask`. It cannot name your project, because a rule's `path` must be an absolute
+prefix.
+
+To stop being asked, add rules with your project's absolute path **above** any broader rule.
+For a project at `/home/me/project`:
+
+```yaml
+- path: /home/me/project/.amazonq/work
+  action: approve
+- path: /home/me/project/.amazonq/suspended
+  action: approve
+- path: /home/me/project/.amazonq/workflow.log
+  action: approve
+- path: /home/me/project/.amazonq/.timestamp-temp
+  action: approve
+```
+
+A rule with `path` and no `kind` covers read, edit, delete, move and search under it. Shell
+commands the agent uses to write these files are still checked by `pattern` rules.
+
 ## Paths
 
 - **`..` is never auto-approved.** A path with a `..` segment, such as

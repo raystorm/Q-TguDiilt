@@ -69,8 +69,9 @@ SDK). A JetBrains IDE launches the entry point as a subprocess via
 
 ## Translation seam (`agent.ts`)
 
-The seam is deliberately narrow: **one `session/prompt` turn maps to
-exactly one `driver.execute(...)`**.
+The seam is deliberately narrow: **one turn maps to exactly one
+`driver.execute(...)`**. A `session/prompt` runs one turn, or several when
+changeover steps follow (see "Changeover step").
 
 - Inbound ACP prompt content (text blocks) is concatenated into a single
   command string.
@@ -343,6 +344,91 @@ redacted and cut to 64 characters.
 Every resolution is also logged by the resolver (`dispatch_resolved`, with
 the profile and the source).
 
+### Changeover step
+
+After a turn that ended normally, the service can move the workflow to the next profile on its
+own. That is a changeover step. `prompt` wraps its turns in `runLoop` (`agent.ts`), which
+repeats steps until one cannot be taken. `runTurn` runs one turn: the notice, one
+`driver.execute`, and the text the driver did not stream. All steps of a prompt run under the
+prompt's one active-turn flag, abort signal and update sink, so the IDE sees one long prompt.
+The steps keep no state of their own, and there is no off switch and no hop cap.
+
+After each turn:
+
+- A turn that was cancelled stops the steps (`cancelled`). A turn that ended abnormally stops
+  them (`abnormal_end`). A failed delivery to the IDE stops them (`failed`), because they
+  would otherwise run unseen. The abort signal is read after every wait.
+- If the last command was a handoff (typed by the user, found by `detectHandoff`, or sent by
+  the service), `checkHandoff` runs, then `applyActivation(record, '@start', { fresh: true })`.
+  `@start` always runs in a fresh downstream session. The old one is released after the
+  profile is resolved. A profile that cannot be resolved keeps the old session.
+- Otherwise `parseCompletionBlock` reads the turn's text. One distinct known target sends
+  `@handoff to=<Profile>` (canonical name) in the same session. Anything else stops.
+
+Each command the service sends is shown first as its own paragraph, "Changeover: sending
+`<command>`", and reaches the provider as plain prompt text. The service gives no approvals.
+An ask uses the existing ask flow and the service waits for the user.
+
+**Completion block.** The block is the last line that begins with `**Next**` at its first
+character, and every line after it. Lines between triple-backtick fences are ignored. Only
+single-backtick code spans are read; text outside a span, bold and headings are never read.
+
+- A span is a handoff suggestion when it starts with `@handoff` or `/handoff` (any case, whole
+  word). It is a side trip when it starts with `@send` or `/send`. Side-trip spans never
+  continue the steps.
+- The profile name is what follows `to=` (any case), or the rest of the span when there is no
+  `to=`. `@handoff Planner` and `@handoff to=Planner` are the same suggestion. One trailing
+  `,` `.` `:` or `;` is removed. Names match profile names and aliases exactly, ignoring case.
+  There is no fuzzy matching.
+- Stop reasons, in order of testing: no handoff and no send span is `no_suggestion`. Send
+  spans only is `no_target`. Two or more distinct suggestions is `several_suggestions`; a bare
+  span counts as one. One bare span is `no_target`. One unknown name is `unknown_profile`.
+
+**Handoff check.** Before `@start`, `checkHandoff` (`protocol/handoff-check.ts`) requires that
+the file was modified at or after the start of the handoff turn (modification time only), that
+`## To` names a known profile, and, for a handoff the service sent, that it is that profile.
+A typed prompt counts as a handoff when `@handoff` or `/handoff` is a whole word anywhere in
+it. Its arguments are not read.
+
+**Stop reasons.** One vocabulary in code, chat and log: `no_suggestion`, `several_suggestions`,
+`no_target`, `unknown_profile`, `handoff_not_written`, `abnormal_end`, `failed`, `cancelled`.
+The first four come from the completion block.
+
+- `several_suggestions`, `no_target`, `unknown_profile` and `handoff_not_written` each send one
+  chat line. The unknown name is shown as the agent wrote it, cut at 64 characters.
+- `abnormal_end` and `failed` send "The changeover loop stopped." only when the service sent a
+  command in the prompt, or the prompt was a typed handoff.
+- `no_suggestion`, `cancelled` and a failed delivery send no line.
+
+**Profile hop.** `profileHop` counts profile changes. A `@handoff` and its `@start` share one
+number. A typed handoff's `@start` is hop 1.
+
+| Event             | Level | Fields                                             |
+| ----------------- | ----- | -------------------------------------------------- |
+| `changeover_sent` | info  | `sessionId`, `from`, `to`, `trigger`, `profileHop` |
+| `loop_stopped`    | info  | `sessionId`, `reason`, `profileHop`, `word`        |
+
+`changeover_sent` is logged once per command sent; `from` is left out when the chat has no
+profile yet, and `trigger` is `handoff` or `start`. `loop_stopped` is logged once per prompt
+that reached its first turn; `word` is set for an unknown profile, redacted and cut at 64
+characters. Neither holds agent text.
+
+**Late tool calls.** A tool call a driver reports after its turn ended is denied without
+evaluation and logged as `governance_outcome` with `reason: turn_ended` (see "Failure
+handling").
+
+**Extension points.**
+
+- `protocol/completion-block.ts`: the grammar above (`parseCompletionBlock`).
+- `protocol/handoff-check.ts`: the check before `@start` (`checkHandoff`).
+- `detectHandoff` in `protocol/workflow-command.ts`: what counts as a typed handoff.
+- `runLoop`, `runTurn` and `applyActivation` in `protocol/agent.ts`: the steps.
+
+The parser and the check take the profile names from the same source as profile activation.
+The service sends plain prompt text, so a skill or custom tool is reached through the agent
+(which expands the saved prompt) or through a driver (see `extending-drivers.md`). The steps
+need no change for either.
+
 ### Cancel and wind-down
 
 `prompt` creates an `AbortController` when it sets the active-turn flag
@@ -463,8 +549,10 @@ Anything but an explicit allow denies, and the session stays usable:
 |                                         | follows a failed detail   |                    |
 | Governance evaluation throws            | ask, with a `note`; deny  | `evaluation_error` |
 |                                         | if the ask fails          |                    |
+| Tool call after the turn ended          | deny; not evaluated       | `turn_ended`       |
 
 There is no timeout and no retry. The IDE's error text is never logged.
+A tool call reported after its turn ended is logged at info level with `answeredBy: failure`.
 
 After a cancel, failures are part of the cancel:
 
@@ -514,6 +602,8 @@ prompt text are written to logs.
 
 ## Known limits
 
+- **One handoff file.** There is one `HANDOFF.md` per working folder. Two chats that take
+  changeover steps at the same time share it.
 - **Session id after an agent's own stop.** When the agent cancels a turn
   by itself, or ends it with a stop reason the driver does not know, the
   driver throws and the service never learns that turn's downstream

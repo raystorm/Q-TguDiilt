@@ -373,10 +373,10 @@ until disconnect, unless the core ends it earlier (cancel deadline, crash,
 timeout).
 
 Turn
-: One prompt and its response: a single ACP `session/prompt` (ACP calls it a
-prompt turn), run as exactly one `driver.execute(...)`.  
-A session runs at most one turn at a time.  
-A turn ends completed (a Normal End or one of three abnormal ends),
+: One step of a prompt, run as exactly one `driver.execute(...)`.  
+An ACP `session/prompt` (ACP calls it a prompt turn) runs one Turn, or several when
+Changeover Steps follow. A session runs at most one at a time.  
+A Turn ends completed (a Normal End or one of three abnormal ends),
 cancelled (the user stopped it), or failed.
 
 Wind-down
@@ -471,6 +471,25 @@ entry asked for: the entry (`asked`) and a reason.
 The reasons are `driver not available`, `model not listed` and `entry could not be
 resolved`. The service turns it into a Notice. In `fail-fast` mode, a listed driver that
 lacks a model another driver lists is still substituted (same model, other driver).
+
+Changeover Step
+: What the Protocol Layer does after a Normal End to move a workflow to the next profile on its
+own: it sends `@handoff to=<Profile>` when the Completion Block names one known profile, or it
+checks the handoff file and sends `@start` in a fresh session.  
+A prompt repeats steps until one cannot be taken. Steps keep no state, have no off switch and
+no limit on Profile Hops. The user's stop ends them. A suggestion to `@send` stops them; Side
+Trips are not carried.
+
+Completion Block
+: The end of a profile's last message where it names the next step: the last line that begins
+with `**Next**`, and every line after it.  
+Only single-backtick code spans are read. One span that starts with `@handoff` or `/handoff`
+and names a known profile is the one suggestion a Changeover Step follows.
+
+Profile Hop
+: One change of profile made by Changeover Steps.  
+A `@handoff` and its `@start` share one number; a typed handoff's `@start` is hop 1. Logged as
+`profileHop`.
 
 Tool Call
 : An action the AI takes: read, edit, delete, move, search, execute,

@@ -2,7 +2,8 @@
  * ACP Service Boundary — translation seam between the ACP protocol (handled
  * by @agentclientprotocol/sdk) and the provider-neutral driver layer.
  *
- * One `session/prompt` turn maps to exactly one `driver.execute(...)`. The
+ * One `session/prompt` runs one turn, a `driver.execute(...)`, and then the changeover loop: it
+ * carries a workflow from one profile to the next with further turns. The
  * boundary sends the agent's text as it arrives (once at the end for a driver
  * that cannot stream), through one per-prompt sink that keeps order, shows every
  * tool call as a card whose title ends with how governance decided it, surfaces
@@ -47,8 +48,10 @@ import {
 } from './turn-end.js';
 import { AskCard, Cards, Outcome, createCards, ownCard } from './cards.js';
 import { UpdateSink, UpdateSlot, createUpdateSink } from './update-sink.js';
+import { BlockStopReason, parseCompletionBlock } from './completion-block.js';
+import { checkHandoff } from './handoff-check.js';
 import {
-   HANDOFF_PATH, MESSAGE_PATH, ProfileNames, detectActivation, readChangeoverTarget,
+   HANDOFF_PATH, MESSAGE_PATH, ProfileNames, detectActivation, detectHandoff, readChangeoverTarget,
 } from './workflow-command.js';
 
 /**
@@ -92,6 +95,54 @@ const textUpdate = (text: string) => ({
    sessionUpdate: 'agent_message_chunk',
    content:       { type: 'text', text },
 });
+
+/** Why the changeover loop stopped. The first four come from the completion block. */
+type LoopStop = BlockStopReason | 'handoff_not_written' | 'abnormal_end' | 'failed' | 'cancelled';
+
+/**
+ * What a prompt and its loop share: whether the service sent a command, whether a send failed,
+ * how many profile changes the loop made, and why it stopped (`failed` until it says otherwise).
+ */
+interface LoopState {
+   moved: boolean; deliveryFailed: boolean; profileHop: number; stop: LoopStop; word?: string;
+}
+
+/** A chat line of its own: it never joins the text before or after it. */
+const paragraph = (text: string) => `\n\n${text}\n\n`;
+
+/** The line that announces a command the service sends. */
+const changeoverLine = (command: string) => paragraph(`Changeover: sending \`${command}\``);
+
+const ENTER_COMMAND = 'Enter the command you want, for example `@handoff to=<Profile>`.';
+
+/**
+ * The chat line that says why the loop stopped, or undefined when the stop has none. The word
+ * (an unknown profile) is shown as the agent wrote it, capped at 64 characters. A failure or an
+ * abnormal end shows a line only when the service sent a command in this prompt: an ordinary
+ * prompt keeps its own end line.
+ */
+function stopLine(reason: LoopStop, word: string | undefined, moved: boolean): string | undefined
+{
+   switch (reason) {
+      case 'several_suggestions':
+         return 'Several next steps are suggested above. Enter the one you want, '
+            + 'for example `@handoff to=<Profile>`.';
+      case 'no_target':
+         return `The agent's next step names no profile to hand off to. ${ENTER_COMMAND}`;
+      case 'unknown_profile': {
+         const shown = (word ?? '').slice(0, 64).replace(/\r\n|\r|\n/g, ' ');
+         return `"${shown}" is not a known profile. ${ENTER_COMMAND}`;
+      }
+      case 'handoff_not_written':
+         return 'The handoff file was not written for this turn, or it names a different profile '
+            + `(${HANDOFF_PATH}).`;
+      case 'abnormal_end':
+      case 'failed':
+         return moved ? 'The changeover loop stopped.' : undefined;
+      default:
+         return undefined;
+   }
+}
 
 /** Extracts the concatenated text of an ACP prompt content array. */
 function promptText(params: PromptRequest): string {
@@ -153,12 +204,16 @@ export function createAgent(deps: AgentDeps) {
     * Applies the profile a command activates: the driver and model it resolves to. The profile
     * is the name typed after `as` (or a shortcut's), or, for `@start` and `@receive`, the one
     * the changeover file names, read now and never cached. A different driver releases the old
-    * session first and starts a new one. A resolution that throws leaves the record as it was.
-    * Does not touch the active-turn flag.
+    * session first and starts a new one; `fresh` does that even when the driver is the same.
+    * The release comes after the resolution succeeded, so a resolution that throws leaves the
+    * record as it was. Does not touch the active-turn flag. Resolves true when a profile was
+    * applied, false when the command names none that can be found.
     */
-   async function applyActivation(record: SessionRecord, command: string): Promise<void> {
+   async function applyActivation(
+      record: SessionRecord, command: string, options: { fresh?: boolean } = {},
+   ): Promise<boolean> {
       const activation = detectActivation(command);
-      if (undefined === activation) { return; }
+      if (undefined === activation) { return false; }
 
       // The path never comes from the command text.
       const changeover = 'changeover' === activation.kind;
@@ -173,12 +228,12 @@ export function createAgent(deps: AgentDeps) {
             reason:    undefined === name ? 'no target' : 'unknown name',
             ...(undefined === name ? {} : { word: redact(name).slice(0, 64) }),
          });
-         return;
+         return false;
       }
 
       const result = resolver.resolve(profile);
       const { driver, model, substitution } = result;
-      if (driver !== record.driver) {
+      if (driver !== record.driver || true === options.fresh) {
          await releaseDriverSession(record);
          record.driverSessionId = undefined;
       }
@@ -198,6 +253,17 @@ export function createAgent(deps: AgentDeps) {
          logger.warn('profile_reactivated', { ...fields, previous });
          if (previous !== profile) { logger.warn('profile_switched', { ...fields, previous }); }
       }
+      return true;
+   }
+
+   /** The record's driver. One that cannot govern tool calls is refused. */
+   function governedDriver(sessionId: string, record: SessionRecord): Driver {
+      const driver = catalog.get(record.driver as string);
+      if (!declaresToolCallGovernance(driver)) {
+         logger.error('driver_governance_unsupported', { sessionId, driver: driver.name ?? 'unnamed' });
+         throw new DriverGovernanceUnsupportedError(driver.name);
+      }
+      return driver;
    }
 
    function requireInitialized(): void {
@@ -392,14 +458,24 @@ export function createAgent(deps: AgentDeps) {
       finally { slot.release(); }
    }
 
+   /** The answer to a tool call a driver reports after its turn ended: deny, logged, never evaluated. */
+   function denyAfterTurn(sessionId: string): Promise<ToolCallDecision> {
+      logger.info('governance_outcome', {
+         sessionId, callId: ++callSeq, action: 'deny', answeredBy: 'failure', reason: 'turn_ended',
+      });
+      return Promise.resolve('deny');
+   }
+
    /**
     * One turn: the notice, one `execute`, and the text the driver did not stream. Everything
-    * it sends goes through the prompt's sink. Returns the ACP stop reason.
+    * it sends goes through the prompt's sink. Returns the ACP stop reason and the agent's text
+    * of the turn, in order (not the notice, not the end line). Once the driver has returned or
+    * thrown, what it still reports through this turn's callbacks is ignored.
     */
    async function runTurn(turn: {
       sessionId: string; record: SessionRecord; driver: Driver; command: string;
       signal: AbortSignal; sink: UpdateSink; cx: ClientContext;
-   }): Promise<{ stopReason: StopReason }> {
+   }): Promise<{ stopReason: StopReason; text: string }> {
       const { sessionId, record, driver, command, signal, sink, cx } = turn;
       // Card state lives for this turn only.
       const cards = createCards(++turnSeq);
@@ -407,13 +483,19 @@ export function createAgent(deps: AgentDeps) {
       if (undefined !== record.notice) { void sink.send(textUpdate(record.notice)); }
 
       let sawText = false;
+      let said    = '';
+      let live    = true;
       const options: ExecuteOptions = {
          signal,
          model:      record.model,
-         onToolCall: report => handleToolCall(sessionId, report, cx, signal, sink, cards),
+         onToolCall: report => live
+            ? handleToolCall(sessionId, report, cx, signal, sink, cards)
+            : denyAfterTurn(sessionId),
          onUpdate:   update => {
+            if (!live) { return; }
             if ('text' !== update.type) { void sink.send(cards.render(update)); return; }
             sawText = true;
+            said   += update.text;
             void sink.send(textUpdate(update.text));
          },
       };
@@ -432,8 +514,11 @@ export function createAgent(deps: AgentDeps) {
          logger.info('turn_cancelled', {
             sessionId, failureKind: boundaryErrorKind(err) ?? 'internal',
          });
-         return { stopReason: 'cancelled' as const };
+         return { stopReason: 'cancelled' as const, text: said };
       }
+      finally { live = false; }
+
+      const text = sawText ? said : result.text;
 
       // An abnormal end is logged whether or not the turn was cancelled; a cancel wins.
       const abnormal = abnormalEnd(result.end);
@@ -443,7 +528,7 @@ export function createAgent(deps: AgentDeps) {
          if ('' !== result.sessionId) { linkDriverSession(record, sessionId, result.sessionId); }
          sendUnstreamed(result.text);
          logger.info('turn_cancelled', { sessionId });
-         return { stopReason: 'cancelled' as const };
+         return { stopReason: 'cancelled' as const, text };
       }
 
       linkDriverSession(record, sessionId, result.sessionId);
@@ -451,10 +536,88 @@ export function createAgent(deps: AgentDeps) {
       // The line follows the turn's text. An abnormal end is not a normal end: the notice stays.
       if (undefined !== abnormal) {
          void sink.send(textUpdate(END_LINE[abnormal]));
-         return { stopReason: END_STOP_REASON[abnormal] };
+         return { stopReason: END_STOP_REASON[abnormal], text };
       }
       record.notice = undefined;
-      return { stopReason: 'end_turn' as const };
+      return { stopReason: 'end_turn' as const, text };
+   }
+
+   /**
+    * The changeover loop. Runs the user's command, then, after every turn that ended normally,
+    * the step the workflow calls for. The last command was a handoff, typed or sent: the
+    * handoff file is checked and `@start` runs in a fresh session. Otherwise the completion
+    * block of the turn's text names the next profile and `@handoff to=<profile>` runs in the
+    * same session, or the loop stops. A cancel, an abnormal end or a failed delivery stops it
+    * too. The signal is read after every wait. The loop keeps no state of its own. Returns the
+    * ACP stop reason of the last turn that ran, or `cancelled`.
+    */
+   async function runLoop(loop: {
+      sessionId: string; record: SessionRecord; driver: Driver; command: string; startedAt: number;
+      signal: AbortSignal; sink: UpdateSink; cx: ClientContext; state: LoopState;
+   }): Promise<{ stopReason: StopReason }> {
+      const { sessionId, record, signal, sink, cx, state } = loop;
+      let { driver, command, startedAt } = loop;
+      // Whether the last command was a handoff, and the profile the service sent it to.
+      let afterHandoff = detectHandoff(command);
+      let sentTo: string | undefined;
+      // The command about to go out, for the log; `counts` when it is a new profile change.
+      let sent: { trigger: 'handoff' | 'start'; from?: string; to?: string; counts: boolean };
+
+      /** Ends the loop: shows the line for `reason`, if it has one. */
+      const stop = async (reason: LoopStop, stopReason: StopReason, word?: string) => {
+         state.stop = reason;
+         state.word = word;
+         const line = stopLine(reason, word, state.moved);
+         if (undefined !== line) { await sink.send(textUpdate(paragraph(line))); }
+         return { stopReason };
+      };
+
+      for (;;) {
+         const turn = await runTurn({ sessionId, record, driver, command, signal, sink, cx });
+         if ('cancelled' === turn.stopReason) { return stop('cancelled', 'cancelled'); }
+         if ('end_turn' !== turn.stopReason) { return stop('abnormal_end', turn.stopReason); }
+         await sink.flush();
+         if (signal.aborted) { return stop('cancelled', 'cancelled'); }
+         if (state.deliveryFailed) { return stop('failed', 'end_turn'); }
+
+         if (afterHandoff) {
+            const file    = join(workDir, HANDOFF_PATH);
+            const checked = checkHandoff({ file, startedAt, names: profileNames, expected: sentTo });
+            if (!checked.ok) {
+               return undefined === checked.word
+                  ? stop('handoff_not_written', 'end_turn')
+                  : stop('unknown_profile', 'end_turn', checked.word);
+            }
+            const from = record.profile;
+            if (!await applyActivation(record, '@start', { fresh: true })) {
+               return stop('handoff_not_written', 'end_turn');
+            }
+            if (signal.aborted) { return stop('cancelled', 'cancelled'); }
+            driver       = governedDriver(sessionId, record);
+            // A start after a handoff the user typed is that handoff's profile change.
+            sent         = { trigger: 'start', from, to: record.profile, counts: undefined === sentTo };
+            command      = '@start';
+            afterHandoff = false;
+            sentTo       = undefined;
+         }
+         else {
+            const block = parseCompletionBlock(turn.text, profileNames);
+            if ('continue' !== block.kind) { return stop(block.reason, 'end_turn', block.word); }
+            sent         = { trigger: 'handoff', from: record.profile, to: block.target, counts: true };
+            command      = `@handoff to=${block.target}`;
+            afterHandoff = true;
+            sentTo       = block.target;
+         }
+         if (!await sink.send(textUpdate(changeoverLine(command)))) { return stop('failed', 'end_turn'); }
+         if (signal.aborted) { return stop('cancelled', 'cancelled'); }
+         state.moved = true;
+         if (sent.counts) { state.profileHop += 1; }
+         logger.info('changeover_sent', {
+            sessionId, ...(undefined === sent.from ? {} : { from: sent.from }),
+            to: sent.to, trigger: sent.trigger, profileHop: state.profileHop,
+         });
+         startedAt   = Date.now();
+      }
    }
 
    return {
@@ -517,25 +680,27 @@ export function createAgent(deps: AgentDeps) {
          const controller = new AbortController();
          const { signal } = controller;
          sessionStore.setActiveTurn(params.sessionId, true, controller);
+         // A typed handoff counts as a command the loop moved on.
+         const state: LoopState = {
+            moved: detectHandoff(command), deliveryFailed: false, profileHop: 0, stop: 'failed',
+         };
          let sink: UpdateSink | undefined;
          try {
+            // A typed handoff is checked against the time the prompt began.
+            const startedAt = Date.now();
             // The active-turn flag holds the profile, the release and the turn as one step.
             await applyActivation(record, command);
-            const driver = catalog.get(record.driver as string);
-            if (!declaresToolCallGovernance(driver)) {
-               logger.error('driver_governance_unsupported', {
-                  sessionId: params.sessionId,
-                  driver:    driver.name ?? 'unnamed',
-               });
-               throw new DriverGovernanceUnsupportedError(driver.name);
-            }
+            const driver = governedDriver(params.sessionId, record);
             sink = createUpdateSink({
-               deliver:   update => cx.notify(SESSION_UPDATE, { sessionId: params.sessionId, update }),
+               deliver:   async update => {
+                  try { await cx.notify(SESSION_UPDATE, { sessionId: params.sessionId, update }); }
+                  catch (err) { state.deliveryFailed = true; throw err; }
+               },
                logger,
                sessionId: params.sessionId,
             });
-            const response = await runTurn({
-               sessionId: params.sessionId, record, driver, command, signal, sink, cx,
+            const response = await runLoop({
+               sessionId: params.sessionId, record, driver, command, startedAt, signal, sink, cx, state,
             });
             // The prompt resolves only after every update was delivered.
             await sink.flush();
@@ -546,6 +711,8 @@ export function createAgent(deps: AgentDeps) {
             if (undefined === sink) { throw err; }
             // What the turn produced reaches the IDE before the failure does.
             await sink.flush();
+            const line = stopLine('failed', undefined, state.moved);
+            if (undefined !== line) { await sink.send(textUpdate(paragraph(line))); }
             // The ACP `PromptResponse.stopReason` enum has no `error` value, so
             // provider quota/auth, session collapse, and generic mid-turn
             // failures are surfaced as JSON-RPC errors: the SDK converts a
@@ -560,6 +727,13 @@ export function createAgent(deps: AgentDeps) {
             throw err;
          }
          finally {
+            // One entry for every prompt whose sink was built; an error means the stop is `failed`.
+            if (undefined !== sink) {
+               logger.info('loop_stopped', {
+                  sessionId: params.sessionId, reason: state.stop, profileHop: state.profileHop,
+                  ...(undefined === state.word ? {} : { word: redact(state.word).slice(0, 64) }),
+               });
+            }
             sink?.close();
             sessionStore.setActiveTurn(params.sessionId, false);
          }

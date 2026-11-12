@@ -3,7 +3,7 @@ import { existsSync, mkdirSync } from 'node:fs';
 import { basename, isAbsolute, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-   detectActivation, loadProfileNames, parseProfileNames, readChangeoverTarget,
+   detectActivation, detectHandoff, loadProfileNames, parseProfileNames, readChangeoverTarget,
 } from '../workflow-command.js';
 import { profilesPath } from '../profiles-location.js';
 import { ProfileError } from '../errors.js';
@@ -123,6 +123,35 @@ describe('finding a changeover activation', () => {
    });
 });
 
+describe('finding a typed handoff', () => {
+   const HANDOFFS = [
+      '@handoff', '/handoff', '@HANDOFF', '/HaNdOfF', 'yes, confirmed. @handoff',
+      'confirmed\n@handoff to=po', '  @handoff  ', 'hello /handoff to=Planner',
+   ];
+   const NOT_WHOLE_WORDS = [
+      '@handoffs', '@handoff-all', 'handoff', 'me@handoff.io', '@hand', 'x/handoff/y',
+      '/handoff/x', '@@handoff',
+   ];
+   const WITH_ARGUMENTS = ['@handoff to=Nobody', '@handoff to='];
+   const NOT_HANDOFFS = ['go', '', 'as Planner write it', '@start', '@send Doctor'];
+
+   it.each(HANDOFFS)('finds %j as a typed handoff', text => {
+      expect(detectHandoff(text)).toBe(true);
+   });
+
+   it.each(NOT_WHOLE_WORDS)('[H] %j is not a whole word, so not a handoff', text => {
+      expect(detectHandoff(text)).toBe(false);
+   });
+
+   it.each(WITH_ARGUMENTS)('%j is a handoff: its arguments are not read', text => {
+      expect(detectHandoff(text)).toBe(true);
+   });
+
+   it.each(NOT_HANDOFFS)('%j is not a handoff', text => {
+      expect(detectHandoff(text)).toBe(false);
+   });
+});
+
 describe('text that is not an activation', () => {
    // Plain `as` counts only at the start of the text; `@` and `/` forms count anywhere.
    const NOT_AT_THE_START = ['please run as Planner', 'I work as Planner', 'hello\nas Planner'];
@@ -156,6 +185,7 @@ describe('text that is not an activation', () => {
       '/planner', '/Enforcer', '/', '@', '/ ', '@ ',
       '/bad Planner', '@bad Planner', 'hello /bad', 'hello @not-real', 'hello /bad-command now',
       '/bad then plain text', '@bad\n@not-real\n/also-bad',
+      'confirmed @handoff', '@handoff to=po',
    ];
 
    it.each(NOT_AT_THE_START)('[H] %j does not start the text with the command', text => {

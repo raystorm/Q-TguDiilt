@@ -47,4 +47,4 @@ Begin work as the target profile immediately after loading HANDOFF.md.
 
 When your work is complete, display:
 
-**Next**: Run `@handoff` to [next profile in the workflow]
+**Next**: Run `@handoff to=[next profile in the workflow]`

@@ -182,6 +182,8 @@ means no rule matched. A denial forced by a missing field has no
 
 The diff, the raw request and the title are never logged. The handler's
 `governance_outcome` entry is described in the service boundary doc.
+A tool call a driver reports after its turn ended is not evaluated. It is denied and logged
+as `governance_outcome` with `reason: turn_ended`.
 
 ## Known gaps
 
