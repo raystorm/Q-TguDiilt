@@ -20,6 +20,8 @@ Confirmation Required: [Yes | No]
 
 **This output is MANDATORY. File operations without visible classification are prohibited.**
 
+**Exception:** Status Files (`workflow/status-format.md`) need no classification block.
+
 **When classification is unclear, the user MUST be asked.**
 
 After classification, if confirmation is required:

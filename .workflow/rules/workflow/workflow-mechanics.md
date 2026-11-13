@@ -35,6 +35,9 @@ This completion summary is **not** the Changeover summary.
 Profiles must **never** execute the proposed command.  
 Only the user may trigger `@handoff`, `@send`, or close the tab.
 
+Immediately before this message, write the status file per
+`workflow/status-format.md` (`ready` when a Changeover is next, `complete` when none).
+
 **When Changeover is next:**
 ```
 [Profile] [Task] complete.  
@@ -83,7 +86,8 @@ When the user triggers a Change command, profiles must:
 2. IF the command was `@handoff`:
    Remove stale files from `.amazonq/work/current/`
    (all files except the newly written `HANDOFF.md` and its listed artifacts)
-3. Display the next user command
+3. Update the status file per `workflow/status-format.md`
+4. Display the next user command
 
 **Example:**
 ```Markdown
@@ -582,6 +586,7 @@ Rules:
 - `.amazonq/suspended/` - Saved context capsules 
 - `.amazonq/work/` - technical AI-facing workflow artifacts
 - `.amazonq/work/current/` - current work cycle
+- `.amazonq/work/status/` - profile status files
 
 ### Workflow Files
 

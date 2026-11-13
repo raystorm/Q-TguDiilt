@@ -20,6 +20,7 @@ Follow the canonical shape defined in
 - Write any additional supporting files to `.amazonq/work/current/` directory only
 - Clean `.amazonq/work/current/` per Change invariant
   (remove stale files, keep HANDOFF.md and listed artifacts)
+- Update the status file per Change invariant (`.workflow/rules/workflow/status-format.md`)
 - Display: "---\n**Next**: Open a new tab and run `@start` to continue as [Profile Name from the To field]"
 
 Do NOT switch profiles.

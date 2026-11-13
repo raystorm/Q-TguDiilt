@@ -9,6 +9,7 @@ Follow the canonical changeover shape defined in
 
 ## After Writing
 
+- Update the status file per Change invariant (`.workflow/rules/workflow/status-format.md`)
 - Display: "---\n**Next**: Open new tab and run `@receive`"
 
 Do not change your current profile.

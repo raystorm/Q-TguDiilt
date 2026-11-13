@@ -5,8 +5,8 @@
 Provides implementation details for FEATURE.md cleanup when all stories in a
 multi-story feature are complete.
 
-Checks story completion status and conditionally deletes FEATURE.md only when
-all stories are marked complete.
+Checks story completion status and conditionally deletes FEATURE.md and the
+status files only when all stories are marked complete.
 
 ## When Profiles Load This
 
@@ -26,6 +26,7 @@ Load this prompt when:
 - Check if FEATURE.md exists
 - Verify all stories complete
 - Conditional deletion logic
+- Delete all status files, keeping `.gitkeep`
 
 **Error Handling:**
 - Graceful degradation patterns
@@ -67,6 +68,9 @@ const allComplete = stories.every(s =>
 // Delete FEATURE.md
 fsWrite({ command: 'delete', path: '.amazonq/work/FEATURE.md' });
 console.log('FEATURE.md deleted - all 3 stories complete');
+
+// Delete status files, keep .gitkeep
+deleteStatusFilesExceptGitkeep();
 ```
 
 ### Example 2: Stories Incomplete
@@ -131,11 +135,12 @@ console.log('No FEATURE.md found, skipping feature cleanup');
 
 ## Related Prompts
 
-- **`@_cleanupWorkflow`** - Handles workflow.log and work/current/ cleanup
-  (separate concern)
+- **`@_cleanupWorkflow`** - Handles workflow.log, work/current/ and closing-workflow
+  status file cleanup (separate concern)
 - **`@_cleanupAutoSuspend`** - Handles auto-suspend cleanup (called by
   cleanupWorkflow)
 
 ## Files Referenced
 
 - `.amazonq/work/FEATURE.md` - Multi-story feature tracker
+- `.amazonq/work/status/` - Status files (all deleted with FEATURE.md; `.gitkeep` kept)

@@ -192,6 +192,21 @@ Held as two constants in `protocol/workflow-command.ts`, and read under the dire
 service was started in, each time the command is sent. The path never comes from the
 command text.
 
+Status File
+: A profile's own record of whether it is working, waiting for the user, ready to change
+over, or done.  
+One file per profile and workflow, `.amazonq/work/status/<profile>-<workflowId>.json`. It
+holds the profile, the workflowId, the status (`started`, `waiting`, `ready` or
+`complete`) and, once the work is done, the next command (`handoff` or `send`) and its
+target profile. It sits in a Working Directory, so it is transient.  
+It is written so that a reader such as the ACP service need not decide from the chat text
+whether a profile is finished: the text prompts a look, the file confirms. It carries data
+only and no timestamp; how recent it is comes from its modification time.  
+A `@handoff` removes the other `complete` files of the same workflow. The Retrospective
+cleanup removes the files of the closing workflow, and the feature cleanup removes all of
+them once every story is complete.  
+Two instances of one profile in one workflow share a file name, so the later writer wins.
+A reader then sees a stop, never a wrong handoff.
 
 Handoff
 : The intentional transfer of control, responsibility, and context  

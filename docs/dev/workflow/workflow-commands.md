@@ -36,6 +36,8 @@ Trigger current profile to create HANDOFF.md for linear workflow progression.
 - Requests user confirmation
 - Waits for approval
 - Writes HANDOFF.md after approval
+- Writes the profile's status file and removes the other completed status files of
+  the workflow (see Status File in `docs/dev/glossary.md`)
 - Displays next command for user
 
 **Example:**
@@ -66,6 +68,7 @@ Trigger current profile to create MESSAGE.md for side trip work.
 - Requests user confirmation
 - Waits for approval
 - Writes MESSAGE.md after approval
+- Writes the profile's status file (`waiting`)
 - Current profile remains active
 - User opens new tab for side trip
 
@@ -95,6 +98,7 @@ Read HANDOFF.md and activate profile specified in "To:" field.
 - Extracts profile from "To:" field
 - Activates that profile
 - Displays Context Status block (MANDATORY)
+- Writes the profile's `started` status file
 - Loads context and begins work
 - Ignores prior conversation history
 
@@ -129,6 +133,7 @@ Read MESSAGE.md and activate profile specified in "To:" field.
 - Extracts profile from "To:" field
 - Activates that profile
 - Displays Context Status block (MANDATORY)
+- Writes the profile's `started` status file
 - Loads context and begins work
 - Used in new chat tab for isolated work
 
@@ -320,6 +325,7 @@ Explicit profile activation command.
 - Explicit goal or task is optional
 - Does not read HANDOFF.md or MESSAGE.md
 - Does not output Context Status block (no changeover file)
+- Writes the profile's `started` status file
 
 **Syntax:**
 ```

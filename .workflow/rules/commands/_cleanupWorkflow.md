@@ -6,6 +6,9 @@ When command `@_cleanupWorkflow` is received then process the following workflow
 
 ### 1. Delete workflow.log
 
+Before deleting, resolve the closing workflowId as `workflow/logging.md` resolves it for
+the running Retrospective. Operation 4 uses it.
+
 ```bash
 rm .amazonq/workflow.log
 ```
@@ -53,12 +56,23 @@ Steps:
 2. For each file, process `@_cleanupAutoSuspend` operations
 3. Verify all auto-suspend files removed
 
+### 4. Delete Status Files of the Closing Workflow
+
+Delete only the files in `.amazonq/work/status/` whose name ends with
+`-<workflowId>.json` (naming: `workflow/status-format.md`). Files of other workflows and
+`.gitkeep` stay.
+
+```bash
+rm -f .amazonq/work/status/*-<workflowId>.json
+```
+
 ## Error Handling
 
 Graceful degradation:
 - If workflow.log doesn't exist: Log and continue
 - If work/current/ empty: Skip silently
 - If no auto-suspend files: Skip silently
+- If .amazonq/work/status/ is missing or has no match: Skip silently
 - Never fail on cleanup errors
 
 ```typescript
@@ -76,6 +90,7 @@ try {
 - [ ] All auto-suspend files deleted from `.amazonq/suspended/`
 - [ ] All auto-suspend entries removed from INDEX.md
 - [ ] No orphaned `.tmp` files remain
+- [ ] Status files of the closing workflow deleted
 
 ## HANDOFF.md Exception Handling
 

@@ -47,12 +47,22 @@ rm .amazonq/work/FEATURE.md
 - Any story marked "Not Started"
 - Uncertain about completion status
 
+### 4. Delete All Status Files (Only if All Complete)
+
+Under the same condition as Operation 3, delete every file in `.amazonq/work/status/`
+except `.gitkeep`.
+
+```bash
+find .amazonq/work/status -type f ! -name .gitkeep -delete
+```
+
 ## Error Handling
 
 Graceful degradation:
 - If FEATURE.md doesn't exist: Skip silently
 - If can't parse stories: Ask user before deleting
-- If uncertain about completion: Keep FEATURE.md
+- If uncertain about completion: Keep FEATURE.md and the status files
+- If .amazonq/work/status/ is missing: Skip silently
 - Never delete FEATURE.md with incomplete stories
 
 ```typescript
@@ -78,5 +88,6 @@ try {
 ## Verification
 
 - [ ] If all stories complete: FEATURE.md deleted
+- [ ] If all stories complete: status files deleted
 - [ ] If stories incomplete: FEATURE.md preserved
 - [ ] Decision logged (deleted or preserved)

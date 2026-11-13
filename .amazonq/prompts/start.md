@@ -45,6 +45,7 @@ Begin work as the target profile immediately after loading HANDOFF.md.
 
 ## Handoff Completion
 
-When your work is complete, display:
+When your work is complete, write the status file per
+`.workflow/rules/workflow/status-format.md`, then display:
 
 **Next**: Run `@handoff to=[next profile in the workflow]`

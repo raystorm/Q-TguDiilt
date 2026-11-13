@@ -4,8 +4,9 @@
 
 Provides implementation details for end-of-workflow cleanup operations.
 
-Deletes workflow.log, cleans work/current/ directory, and removes all
-auto-suspend files when workflow or story cycle completes.
+Deletes workflow.log, cleans work/current/ directory, removes all
+auto-suspend files, and removes the status files of the closing workflow
+when workflow or story cycle completes.
 
 ## When Profiles Load This
 
@@ -26,6 +27,7 @@ Load this prompt when:
 - Delete workflow.log
 - Delete work/current/ files (with HANDOFF.md exceptions)
 - Delete all auto-suspend files (calls `@_cleanupAutoSuspend`)
+- Delete the closing workflow's status files (`*-<workflowId>.json`)
 
 **Error Handling:**
 - Graceful degradation patterns
@@ -68,7 +70,10 @@ autoSuspendFiles.forEach(file => {
   cleanupTempFiles(file);
 });
 
-// 4. Verify cleanup
+// 4. Delete status files of the closing workflow
+deleteStatusFiles(workflowId);
+
+// 5. Verify cleanup
 console.log('Cleanup complete. Workflow session closed.');
 ```
 
@@ -86,6 +91,9 @@ cleanWorkCurrentDirectory();
 
 // 3. Delete auto-suspend files
 cleanupAllAutoSuspend();
+
+// 4. Delete status files of the closing workflow
+deleteStatusFiles(workflowId);
 
 // FEATURE.md stays in .amazonq/work/ (not in work/current/)
 ```
@@ -121,3 +129,4 @@ toDelete.forEach(f => deleteFile(f));
 - `.amazonq/workflow.log` - Workflow event log
 - `.amazonq/work/current/` - Current workflow artifacts
 - `.amazonq/suspended/auto-*.md` - Auto-suspend files
+- `.amazonq/work/status/*-<workflowId>.json` - Status files of the closing workflow

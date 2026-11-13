@@ -40,13 +40,14 @@ If `.amazonq/work/current/MESSAGE.md` does not exist:
 
 Begin work as the target profile immediately after loading MESSAGE.md.
 
-Do not modify work files. Do not change handoff state.
+Do not modify work files, except the status file. Do not change handoff state.
 
 ---
 
 ## Message Completion
 
-When your work is complete, display:
+When your work is complete, write the status file per
+`.workflow/rules/workflow/status-format.md`, then display:
 
 **When Changeover is next:**
 ```

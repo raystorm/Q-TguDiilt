@@ -369,9 +369,9 @@ in an already‑loaded rule.
 
 * `_autoSuspend` — auto‑suspend implementation patterns and file format
 * `_cleanupAutoSuspend` — delete auto‑suspend files after workflow completion
-* `_cleanupFeature` — clean up FEATURE.md after feature completion
+* `_cleanupFeature` — clean up FEATURE.md and status files after feature completion
 * `_cleanupSuspend` — clean up suspended context files
-* `_cleanupWorkflow` — clean up workflow.log and work/current/ artifacts
+* `_cleanupWorkflow` — clean up workflow.log, work/current/ artifacts and status files
 * `_rename` — large‑scale rename implementation patterns
 * `_troubleshootFeatureTracking` — diagnose FEATURE.md tracking issues
 

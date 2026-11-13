@@ -90,6 +90,12 @@ context between profiles.
 Workflow Artifact.
 : Shape: `workflow/changeover-format.md`.
 
+Status File
+: A profile's record of its own state: `started`, `waiting`, `ready` or `complete`.
+: `.amazonq/work/status/<profile>-<workflowId>.json`, in a Working Directory, so it is
+a Transient Workflow Artifact.
+: Shape: `workflow/status-format.md`.
+
 Thread
 : An isolated workflow execution context with its own workflowId and state.
 

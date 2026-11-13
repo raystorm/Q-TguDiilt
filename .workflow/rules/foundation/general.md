@@ -71,8 +71,9 @@ When a profile activates (via @as, @start, or @receive), it MUST complete these 
 
 1. **Output Context Status block** (if activated from changeover)
 2. **Output CANARY message**
-3. **Apply loaded rules** (all governance active before task execution)
-4. **Then begin task work** (following all loaded rules including confirmation sequence)
+3. **Write the `started` status file** (Follow workflow/status-format.md)
+4. **Apply loaded rules** (all governance active before task execution)
+5. **Then begin task work** (following all loaded rules including confirmation sequence)
 
 This applies even when task is provided during activation command.
 
