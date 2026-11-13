@@ -9,7 +9,7 @@ import {
    createResolverStub, eventsOf, flush, handoffFile, handoffTurn as writes, holdRelease, loopRig,
    loopRoutes as ROUTES, newSessionArgs, nextLine as next, openChat as open, overRealCore,
    plannerToEnforcer as scriptPlannerToEnforcer, readReport, resolved, scriptChain,
-   sendPrompt as send, textParam, textsIn, throws, updatesOf, wait,
+   readyFile, sendPrompt as send, suggests, textParam, textsIn, throws, updatesOf, wait,
 } from './agent.helpers.js';
 
 const dirOf = useTempDir();
@@ -20,7 +20,8 @@ describe('the changeover loop: steps', () => {
    it('carries a workflow from one profile to the next inside one prompt', async () => {
       const rig = makeRig();
       const { alpha, beta } = rig.scripted;
-      alpha.script([say(`Done.\n\n${next('Enforcer')}`)], { sessionId: 'p-1' });
+      alpha.script([act(() => rig.writeStatus('Planner', 'Enforcer')), say(`Done.\n\n${next('Enforcer')}`)],
+         { sessionId: 'p-1' });
       alpha.script(writes(rig, 'Enforcer'), { sessionId: 'p-1' });
       beta.script([say('Reviewed.')], { sessionId: 'e-1' });
 
@@ -53,7 +54,7 @@ describe('the changeover loop: steps', () => {
       const rig = makeRig();
       const { alpha, beta } = rig.scripted;
       alpha.script([say('Planner is done.')]);
-      alpha.script([say(`Answer.\n\n${next('Enforcer')}`)]);
+      alpha.script([act(() => rig.writeStatus('Planner', 'Enforcer')), say(`Answer.\n\n${next('Enforcer')}`)]);
       alpha.script(writes(rig, 'Enforcer'));
       beta.script([say('Reviewed.')]);
       beta.script([say('A follow-up answer with no completion line.')]);
@@ -74,7 +75,9 @@ describe('the changeover loop: steps', () => {
       const { alpha, beta } = rig.scripted;
       alpha.script([say('Pick one.\n\n**Next**: `@handoff to=Enforcer` or `@handoff to=Architect`')]);
       alpha.script(writes(rig, 'Planner'));
-      alpha.script([say(`Planner again.\n\n${next('Enforcer')}`)]);
+      alpha.script([
+         act(() => rig.writeStatus('Planner', 'Enforcer')), say(`Planner again.\n\n${next('Enforcer')}`),
+      ]);
       alpha.script(writes(rig, 'Enforcer'));
       beta.script([say('Reviewed.')]);
       const sessionId = await open(rig);
@@ -132,7 +135,7 @@ describe('the changeover loop: steps', () => {
    it.each(FOLLOWED)('[H] %s suggesting %s is followed', async (from, to) => {
       const rig = makeRig(ALL_ON_ALPHA);
       const { alpha } = rig.scripted;
-      alpha.script([say(next(to))]);
+      alpha.script(suggests(rig, from, to));
       alpha.script(writes(rig, to));
       alpha.script([say('Done.')]);
 
@@ -144,7 +147,7 @@ describe('the changeover loop: steps', () => {
    it('[H] the text of the handoff turn is not read', async () => {
       const rig = makeRig();
       const { alpha, beta } = rig.scripted;
-      alpha.script([say(next('Enforcer'))]);
+      alpha.script(suggests(rig, 'Planner', 'Enforcer'));
       alpha.script([
          act(() => rig.writeHandoff('Enforcer')),
          say('Created.\n\n**Next**: Open a new tab and run `@start` (or `@handoff to=Doctor`)'),
@@ -159,9 +162,9 @@ describe('the changeover loop: steps', () => {
    it('after the start turn the next step comes from the completion line', async () => {
       const rig = makeRig();
       const { alpha, beta } = rig.scripted;
-      alpha.script([say(next('Enforcer'))]);
+      alpha.script(suggests(rig, 'Planner', 'Enforcer'));
       alpha.script(writes(rig, 'Enforcer'));
-      beta.script([say(`Reviewed.\n\n${next('Architect')}`)]);
+      beta.script([act(() => rig.writeStatus('Enforcer', 'Architect')), say(`Reviewed.\n\n${next('Architect')}`)]);
       beta.script(writes(rig, 'Architect'));
       alpha.script([say('Built.')]);
 
@@ -176,7 +179,9 @@ describe('the changeover loop: steps', () => {
       const rig = makeRig();
       const { alpha, beta } = rig.scripted;
       rig.writeHandoff('Planner');
-      alpha.script([say(`Planner starts.\n\n${next('Enforcer')}`)], { sessionId: 'p-1' });
+      alpha.script([
+         act(() => rig.writeStatus('Planner', 'Enforcer')), say(`Planner starts.\n\n${next('Enforcer')}`),
+      ], { sessionId: 'p-1' });
       alpha.script(writes(rig, 'Enforcer'));
       beta.script([say('Reviewed.')]);
 
@@ -207,7 +212,7 @@ describe('the changeover loop: steps', () => {
       const rig = makeRig();
       const { alpha, beta } = rig.scripted;
       const cx  = createCx();
-      alpha.script([say(next('Enforcer'))]);
+      alpha.script(suggests(rig, 'Planner', 'Enforcer'));
       alpha.script(writes(rig, 'Enforcer'));
       beta.script([say('Reviewed.')]);
 
@@ -223,7 +228,7 @@ describe('the changeover loop: steps', () => {
    it('the name sent is the canonical one', async () => {
       const rig = makeRig(ALL_ON_ALPHA);
       const { alpha } = rig.scripted;
-      alpha.script([say(next('pe'))]);
+      alpha.script([act(() => rig.writeStatus('Planner', 'PromptEngineer')), say(next('pe'))]);
       alpha.script(writes(rig, 'PromptEngineer'));
       alpha.script([say('Done.')]);
 
@@ -307,7 +312,7 @@ describe('the changeover loop: a fresh session for every start', () => {
          ? new ProfileError('profile "Enforcer": it has no entry') : resolved('alpha', 'm1'));
       const rig = loopRig({ routes: { Planner: ['alpha', 'm1'] }, dir: dirOf(), resolver });
       const { alpha } = rig.scripted;
-      alpha.script([say(next('Enforcer'))], { sessionId: 'p-1' });
+      alpha.script(suggests(rig, 'Planner', 'Enforcer'), { sessionId: 'p-1' });
       alpha.script(writes(rig, 'Enforcer'), { sessionId: 'p-1' });
       alpha.script([say('Still here.')]);
       const sessionId = await open(rig);
@@ -326,7 +331,7 @@ describe('the changeover loop: a fresh session for every start', () => {
    it('a handoff to the same profile still starts a fresh session', async () => {
       const rig = makeRig();
       const { alpha } = rig.scripted;
-      alpha.script([say(next('Planner'))], { sessionId: 'p-1' });
+      alpha.script(suggests(rig, 'Planner', 'Planner'), { sessionId: 'p-1' });
       alpha.script(writes(rig, 'Planner'), { sessionId: 'p-1' });
       alpha.script([say('Again.')], { sessionId: 'p-2' });
 
@@ -339,7 +344,7 @@ describe('the changeover loop: a fresh session for every start', () => {
    it('an empty session id is not released', async () => {
       const rig = makeRig();
       const { alpha, beta } = rig.scripted;
-      alpha.script([say(next('Enforcer'))], { sessionId: '' });
+      alpha.script(suggests(rig, 'Planner', 'Enforcer'), { sessionId: '' });
       alpha.script(writes(rig, 'Enforcer'), { sessionId: '' });
       beta.script([say('Reviewed.')]);
 
@@ -356,7 +361,7 @@ describe('the changeover loop: one activation step for every command', () => {
       const { alpha, beta } = rig.scripted;
       const sessionId = await open(rig);
       let during: object | undefined;
-      alpha.script([say(next('Enforcer'))]);
+      alpha.script(suggests(rig, 'Planner', 'Enforcer'));
       alpha.script([
          act(() => {
             during = { calls: [...rig.resolver.calls], profile: rig.sessionStore.get(sessionId)?.profile };
@@ -391,7 +396,7 @@ describe('the changeover loop: one activation step for every command', () => {
          })
          : resolved('alpha', 'm1'));
       const rig = loopRig({ routes: { Planner: 'alpha', Enforcer: 'beta' }, dir: dirOf(), resolver });
-      rig.scripted.alpha.script([say(next('Enforcer'))]);
+      rig.scripted.alpha.script(suggests(rig, 'Planner', 'Enforcer'));
       rig.scripted.alpha.script(writes(rig, 'Enforcer'));
       return rig;
    };
@@ -464,7 +469,7 @@ describe('the changeover loop: long loops and isolation between turns', () => {
       const rig = makeRig();
       const { alpha, beta } = rig.scripted;
       const cx  = createCx();
-      alpha.script([say(next('Enforcer'))]);
+      alpha.script(suggests(rig, 'Planner', 'Enforcer'));
       alpha.script(writes(rig, 'Enforcer'));
       beta.script([wait('w'), say('Reviewed.')]);
       const sessionId = await open(rig);
@@ -493,7 +498,7 @@ describe('the changeover loop: long loops and isolation between turns', () => {
       const card = (title: string) => [
          call({ id: 'c1', kind: 'read', title }), update({ id: 'c1', title: `${title} done` }),
       ];
-      alpha.script([...card('Read a'), say(next('Enforcer'))]);
+      alpha.script([act(() => rig.writeStatus('Planner', 'Enforcer')), ...card('Read a'), say(next('Enforcer'))]);
       alpha.script(writes(rig, 'Enforcer'));
       beta.script([...card('Read b'), say('Reviewed.')]);
 
@@ -508,7 +513,7 @@ describe('the changeover loop: long loops and isolation between turns', () => {
       const rig = makeRig();
       const { alpha, beta } = rig.scripted;
       const cx  = createCx();
-      alpha.script([say(next('Enforcer'))]);
+      alpha.script(suggests(rig, 'Planner', 'Enforcer'));
       alpha.script(writes(rig, 'Enforcer'));
       beta.script([], { text: 'Reviewed once.' });
 
@@ -569,6 +574,7 @@ describe('the changeover loop: over the real driver core', () => {
          return { stopReason: 'end_turn' };
       });
       const { sessionId } = await agent.newSession(newSessionArgs());
+      readyFile(dirOf(), 'Planner', 'Enforcer');
 
       const response = await agent.prompt({ sessionId, ...textParam('as Planner go') }, createCx());
 

@@ -90,8 +90,10 @@ A profile ends its last message with a line like this:
 **Next**: Run `@handoff to=Planner` (or `@send Doctor`)
 ```
 
-When that line names exactly one profile after `@handoff`, the service takes a **changeover
-step**:
+When that line names exactly one profile after `@handoff`, the service first checks that the
+profile marked itself ready. Before it wrote that line, the profile wrote a status file in
+`.amazonq/work/status/`. The service goes on only when exactly one file written during this turn
+says `ready` and hands off to the profile the line named. Then it takes a **changeover step**:
 
 1. Shows `Changeover: sending @handoff to=Planner` and sends that command to the agent. The
    agent writes `.amazonq/work/current/HANDOFF.md`.
@@ -101,13 +103,15 @@ step**:
    entry asks for, and does the work.
 
 The service repeats this until a profile's last message does not name exactly one next
-profile, or you stop it. A profile may hand work back to an earlier one, for example Enforcer
-to PromptEngineer. The service follows whichever profile it names.
+profile, the profile did not mark itself ready, or you stop it. A profile may hand work back
+to an earlier one, for example Enforcer to PromptEngineer. The service follows whichever
+profile it names.
 
 - **You no longer review each handoff** before the next profile starts. Watch the chat.
 - **You can type the handoff yourself.** A prompt that holds `@handoff` or `/handoff` as a
-  whole word counts. The service then checks the file and sends `@start`. After a stop, typing
-  `@handoff to=<Profile>` makes the service take changeover steps again.
+  whole word counts. The service then checks the handoff file and sends `@start`; it does not
+  look at the status file. After a stop, typing `@handoff to=<Profile>` makes the service take
+  changeover steps again.
 - **Approvals still come to you.** The service never answers an approval for you. It waits
   until you do.
 - **Side trips are not carried on.** A message that suggests only `@send` stops the service.
@@ -160,6 +164,17 @@ where noted. You then type the next command.
   characters.
 - **The handoff file was not written:** "The handoff file was not written for this turn, or
   it names a different profile (.amazonq/work/current/HANDOFF.md)."
+- **The profile did not mark itself ready:** no line. You see only the agent's own text. The
+  `status_check` entry in `.workflow/work/acp.log` has an `outcome` that says why:
+  - `missing`: the profile wrote no status file, or the chat has no profile.
+  - `stale`: the profile's status file was not written during this turn.
+  - `ambiguous`: more than one status file of the profile was written during this turn.
+  - `invalid`: the status file cannot be read or does not follow the format.
+  - `not_ready`: the status file says the profile is still working or waiting, for example
+    for your answer to a question.
+  - `mismatch`: the status file hands off to another profile, or by another command.
+
+  Type `@handoff to=<Profile>` yourself to go on.
 - **A turn ended early or failed:** the usual line or error, then "The changeover loop
   stopped." This second line appears only when the service sent a command in that prompt, or
   you typed a handoff.
@@ -216,7 +231,9 @@ version-controlled.
   service itself, such as start-up and configuration messages. It never
   holds text from an agent or a provider, or your prompts, replies, titles,
   diffs or tool input. In a workflow it also records `changeover_sent` (each command the
-  service sent) and `loop_stopped` (why the service stopped), with no agent text.
+  service sent), `loop_stopped` (why the service stopped), `status_check` (each status check
+  and its outcome) and `status_read_failed` (a status folder or file that could not be read,
+  with the error code), with no agent text and nothing from a status file.
 - **`acp-diagnostic.log`** is the diagnostic log. When an agent fails, the
   service writes one record about it: why it failed, the exit code or
   signal, and the last lines the agent printed. A failure is an agent that

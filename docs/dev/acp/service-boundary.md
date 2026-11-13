@@ -362,8 +362,9 @@ After each turn:
   the service), `checkHandoff` runs, then `applyActivation(record, '@start', { fresh: true })`.
   `@start` always runs in a fresh downstream session. The old one is released after the
   profile is resolved. A profile that cannot be resolved keeps the old session.
-- Otherwise `parseCompletionBlock` reads the turn's text. One distinct known target sends
-  `@handoff to=<Profile>` (canonical name) in the same session. Anything else stops.
+- Otherwise `parseCompletionBlock` reads the turn's text. Anything but one distinct known target
+  stops. For one target, `checkStatus` runs. Only a `confirmed` result sends
+  `@handoff to=<Profile>` (canonical name) in the same session; any other result stops.
 
 Each command the service sends is shown first as its own paragraph, "Changeover: sending
 `<command>`", and reaches the provider as plain prompt text. The service gives no approvals.
@@ -390,15 +391,70 @@ the file was modified at or after the start of the handoff turn (modification ti
 A typed prompt counts as a handoff when `@handoff` or `/handoff` is a whole word anywhere in
 it. Its arguments are not read.
 
+**Status check.** Before the steps continue, `checkStatus` (`protocol/status-check.ts`) reads the
+status files in `STATUS_DIR` (`.amazonq/work/status`, a constant in `workflow-command.ts`, under
+`workDir`). The prose of the turn only triggers the read; the file confirms. A file never causes
+a handoff by itself. The profiles write the files, named `<profile>-<workflowId>.json`; the
+service only reads, and never writes, renames or deletes in the folder. The check runs only when
+the completion block names one known target. It does not run after a handoff turn or before any
+other stop, and a typed handoff skips it. It is synchronous and never throws.
+
+The first step that applies decides the outcome:
+
+| Outcome     | When                                                                             |
+| ----------- | -------------------------------------------------------------------------------- |
+| `missing`   | No folder, no file of this profile, or the chat has no profile (nothing is read) |
+| `stale`     | Files of this profile exist, but none was modified since the turn started        |
+| `ambiguous` | More than one file of this profile was modified since the turn started           |
+| `invalid`   | The one fresh file is too large, unreadable, or not what the format allows       |
+| `not_ready` | `status` is anything but `ready`                                                 |
+| `mismatch`  | `next.command` is not `handoff`, or `next.to` is not the block's target          |
+| `confirmed` | None of the above                                                                |
+
+- **Which files count.** Names that start with `<profile>-` and end with `.json`, compared as
+  written, case included. `<profile>` is the canonical name of the chat's profile. Everything
+  else in the folder is never read: `.gitkeep`, other profiles' files, directories.
+- **Fresh.** Modified at or after the start of the turn, by modification time only; the text of
+  a file never decides freshness. A stale file is not read and does not count, so a leftover from
+  an earlier turn or workflow never confirms and never makes a fresh file `ambiguous`. A
+  follow-up turn, or a hop back to the same profile, needs a new write.
+- **Ambiguity across workflows.** The workflow id is part of the file name, so two workflows
+  that run the same profile at once leave two fresh files. The check does not choose between
+  them; it stops.
+- **What is read.** At most `STATUS_MAX_BYTES` (16384) bytes; a larger file is `invalid`. Only
+  `schema` (must be `1`), `profile` (must be the chat's profile), `status`, `next.command` and
+  `next.to`. Other fields, including `workflowId`, are not read. No value is run or used as a
+  path. A `ready` file needs a `next.command` and a `next.to` that are non-empty strings, or it is
+  `invalid`.
+- **What confirms.** `status` exactly `ready`, `next.command` exactly `handoff`, and `next.to`
+  resolving through the profile names to the target the block named, so an alias confirms. A
+  `complete` file never confirms, even with `next` kept, and `send` is a `mismatch`.
+- **Read errors.** A folder or file that is not there is `missing` and silent. Any other error
+  gives `failureCode`, the error's `code` (`ENOTDIR`, `EISDIR`, `EACCES`, or `UNKNOWN`): `missing`
+  for the folder, `invalid` for a listed file.
+
+A result other than `confirmed` ends the steps with the stop reason `status_not_confirmed`. It
+sends no chat line, so the user sees only the agent's own text.
+
+| Event                | Level | Fields                            |
+| -------------------- | ----- | --------------------------------- |
+| `status_check`       | info  | `sessionId`, `profile`, `outcome` |
+| `status_read_failed` | warn  | `sessionId`, `code`               |
+
+`status_check` is logged once per check, with `profile` left out when the chat has none.
+`status_read_failed` comes first when `failureCode` is set, at most once per check. Neither
+holds agent text or anything from a status file: no value, path or error message, only the
+session id, the profile, the outcome and the error code.
+
 **Stop reasons.** One vocabulary in code, chat and log: `no_suggestion`, `several_suggestions`,
-`no_target`, `unknown_profile`, `handoff_not_written`, `abnormal_end`, `failed`, `cancelled`.
-The first four come from the completion block.
+`no_target`, `unknown_profile`, `handoff_not_written`, `status_not_confirmed`, `abnormal_end`,
+`failed`, `cancelled`. The first four come from the completion block.
 
 - `several_suggestions`, `no_target`, `unknown_profile` and `handoff_not_written` each send one
   chat line. The unknown name is shown as the agent wrote it, cut at 64 characters.
 - `abnormal_end` and `failed` send "The changeover loop stopped." only when the service sent a
   command in the prompt, or the prompt was a typed handoff.
-- `no_suggestion`, `cancelled` and a failed delivery send no line.
+- `no_suggestion`, `status_not_confirmed`, `cancelled` and a failed delivery send no line.
 
 **Profile hop.** `profileHop` counts profile changes. A `@handoff` and its `@start` share one
 number. A typed handoff's `@start` is hop 1.
@@ -421,10 +477,11 @@ handling").
 
 - `protocol/completion-block.ts`: the grammar above (`parseCompletionBlock`).
 - `protocol/handoff-check.ts`: the check before `@start` (`checkHandoff`).
+- `protocol/status-check.ts`: the check before the steps continue (`checkStatus`).
 - `detectHandoff` in `protocol/workflow-command.ts`: what counts as a typed handoff.
 - `runLoop`, `runTurn` and `applyActivation` in `protocol/agent.ts`: the steps.
 
-The parser and the check take the profile names from the same source as profile activation.
+The parser and the checks take the profile names from the same source as profile activation.
 The service sends plain prompt text, so a skill or custom tool is reached through the agent
 (which expands the saved prompt) or through a driver (see `extending-drivers.md`). The steps
 need no change for either.
@@ -604,6 +661,10 @@ prompt text are written to logs.
 
 - **One handoff file.** There is one `HANDOFF.md` per working folder. Two chats that take
   changeover steps at the same time share it.
+- **Status files.** A profile has one status file per workflow, so the same profile running
+  twice at once in one workflow shares it, and the later writer wins. Links are followed,
+  including to files outside the workspace. Modification times are compared to the millisecond,
+  so file-system clock grain at the start of a turn can matter.
 - **Session id after an agent's own stop.** When the agent cancels a turn
   by itself, or ends it with a stop reason the driver does not know, the
   driver throws and the service never learns that turn's downstream

@@ -18,7 +18,7 @@ import type { DispatchResult, DispatchSubstitution } from '../../modelResolver/t
 import { makeDriver } from '../../drivers/acp-driver-core/__tests__/acp-driver.helpers.js';
 import { SESSION } from '../../drivers/acp-driver-core/__tests__/permissions.helpers.js';
 import type { UnsafeSetting } from '../../drivers/acp-driver-core/types.js';
-import { HANDOFF_PATH, parseProfileNames } from '../workflow-command.js';
+import { HANDOFF_PATH, STATUS_DIR, parseProfileNames } from '../workflow-command.js';
 import { writeFile } from '../../drivers/__tests__/catalog-fixtures.js';
 import { PROFILE_FIXTURE } from './profile-fixtures.js';
 
@@ -460,6 +460,7 @@ export function createScriptedDriver(name = 'scripted') {
  * answers by profile. `commands` lists every command any driver received, in order.
  * `writeHandoff` writes the handoff file under `dir` naming a profile, with a modification time
  * `offset` ms from now (ahead by default, so it is fresh whatever the clock grain).
+ * `writeStatus` writes the `ready` status file of a profile that hands off to `to`, dated the same way.
  */
 export function loopRig(
    { routes, dir, ...overrides }:
@@ -483,7 +484,8 @@ export function loopRig(
    const catalog = catalogOf(Object.fromEntries(names.map(name => [name, scripted[name].driver])));
    const made    = makeAgent({ catalog, resolver, workDir: dir, ...overrides });
    const writeHandoff = (profile: string, offset?: number) => handoffFile(dir, profile, offset);
-   return { ...made, scripted, commands, writeHandoff };
+   const writeStatus  = (profile: string, to: string, offset?: number) => readyFile(dir, profile, to, {}, offset);
+   return { ...made, scripted, commands, writeHandoff, writeStatus };
 }
 
 /**
@@ -496,6 +498,31 @@ export function handoffFile(dir: string, profile: string, offset = 5000): string
    const seconds = (Date.now() + offset) / 1000;
    utimesSync(file, seconds, seconds);
    return file;
+}
+
+/**
+ * Writes `content` as `fileName` in the status folder under `dir` (text, or an object as the
+ * profiles write a status file), with a modification time `offset` ms from now: ahead by
+ * default, as `handoffFile`.
+ */
+export function statusFile(dir: string, fileName: string, content: string | object, offset = 5000): string
+{
+   const text    = 'string' === typeof content ? content : `${JSON.stringify(content, null, 2)}\n`;
+   const file    = writeFile(join(dir, STATUS_DIR, fileName), text);
+   const seconds = (Date.now() + offset) / 1000;
+   utimesSync(file, seconds, seconds);
+   return file;
+}
+
+/** A valid `ready` file of `profile` that hands off to `to`; `overrides` replace top-level fields. */
+export function readyFile(
+   dir: string, profile: string, to: string, overrides: Record<string, unknown> = {}, offset?: number,
+): string
+{
+   const content = {
+      schema: 1, profile, workflowId: 'wf-test', status: 'ready', next: { command: 'handoff', to }, ...overrides,
+   };
+   return statusFile(dir, `${profile}-wf-test.json`, content, offset);
 }
 
 export type LoopRig = ReturnType<typeof loopRig>;
@@ -521,21 +548,47 @@ export const sendPrompt = (rig: LoopRig, sessionId: string, text: string, cx: Cx
 export const handoffTurn = (rig: LoopRig, profile: string) =>
    [act(() => rig.writeHandoff(profile)), say('Handoff written.')];
 
+/** A turn in which `from` marks itself ready, then suggests `to`, as a profile does when its work is done. */
+export const suggests = (rig: LoopRig, from: string, to: string) =>
+   [act(() => rig.writeStatus(from, to)), say(nextLine(to))];
+
+/**
+ * How Planner's status file can fail to confirm a handoff to Enforcer, by outcome. Each entry leaves the
+ * status folder under `dir` in that state; run it inside the Planner turn that suggests Enforcer.
+ */
+export const unconfirmed: Array<[string, (rig: LoopRig, dir: string) => void]> = [
+   ['missing',   () => {}],
+   ['stale',     rig => { rig.writeStatus('Planner', 'Enforcer', -60_000); }],
+   ['ambiguous', (rig, dir) => {
+      rig.writeStatus('Planner', 'Enforcer');
+      statusFile(dir, 'Planner-wf-b.json', 'not json');
+   }],
+   ['invalid',   (_rig, dir) => { statusFile(dir, 'Planner-wf-test.json', 'not json'); }],
+   ['not_ready', (_rig, dir) => {
+      readyFile(dir, 'Planner', 'Enforcer', { status: 'started', next: undefined });
+   }],
+   ['mismatch',  rig => { rig.writeStatus('Planner', 'Architect'); }],
+];
+
 /** Scripts a chain on one driver: each profile suggests the next; each handoff turn writes the file. */
 export function scriptChain(rig: LoopRig, driver: string, names: string[])
 {
    names.forEach((name, at) => {
       const target = names[at + 1];
       const turn   = undefined === target ? `${name} is done.` : `${name} works.\n\n${nextLine(target)}`;
-      rig.scripted[driver].script([say(turn)]);
+      const ready  = undefined === target ? [] : [act(() => rig.writeStatus(name, target))];
+      rig.scripted[driver].script([...ready, say(turn)]);
       if (undefined !== target) { rig.scripted[driver].script(handoffTurn(rig, target)); }
    });
 }
 
-/** Planner (session p-1) suggests Enforcer and writes the handoff; Enforcer (session e-1) answers. */
+/**
+ * Planner (session p-1) marks itself ready, suggests Enforcer and writes the handoff; Enforcer
+ * (session e-1) answers.
+ */
 export function plannerToEnforcer(rig: LoopRig, enforcerOn: string)
 {
-   rig.scripted.alpha.script([say(nextLine('Enforcer'))], { sessionId: 'p-1' });
+   rig.scripted.alpha.script(suggests(rig, 'Planner', 'Enforcer'), { sessionId: 'p-1' });
    rig.scripted.alpha.script(handoffTurn(rig, 'Enforcer'), { sessionId: 'p-1' });
    rig.scripted[enforcerOn].script([say('Reviewed.')], { sessionId: 'e-1' });
 }

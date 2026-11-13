@@ -50,8 +50,9 @@ import { AskCard, Cards, Outcome, createCards, ownCard } from './cards.js';
 import { UpdateSink, UpdateSlot, createUpdateSink } from './update-sink.js';
 import { BlockStopReason, parseCompletionBlock } from './completion-block.js';
 import { checkHandoff } from './handoff-check.js';
+import { StatusCheck, checkStatus } from './status-check.js';
 import {
-   HANDOFF_PATH, MESSAGE_PATH, ProfileNames, detectActivation, detectHandoff, readChangeoverTarget,
+   HANDOFF_PATH, MESSAGE_PATH, ProfileNames, STATUS_DIR, detectActivation, detectHandoff, readChangeoverTarget,
 } from './workflow-command.js';
 
 /**
@@ -96,8 +97,12 @@ const textUpdate = (text: string) => ({
    content:       { type: 'text', text },
 });
 
-/** Why the changeover loop stopped. The first four come from the completion block. */
-type LoopStop = BlockStopReason | 'handoff_not_written' | 'abnormal_end' | 'failed' | 'cancelled';
+/**
+ * Why the changeover loop stopped. The first four come from the completion block;
+ * `status_not_confirmed` means the status file did not say the profile is ready.
+ */
+type LoopStop =
+   BlockStopReason | 'handoff_not_written' | 'status_not_confirmed' | 'abnormal_end' | 'failed' | 'cancelled';
 
 /**
  * What a prompt and its loop share: whether the service sent a command, whether a send failed,
@@ -546,10 +551,11 @@ export function createAgent(deps: AgentDeps) {
     * The changeover loop. Runs the user's command, then, after every turn that ended normally,
     * the step the workflow calls for. The last command was a handoff, typed or sent: the
     * handoff file is checked and `@start` runs in a fresh session. Otherwise the completion
-    * block of the turn's text names the next profile and `@handoff to=<profile>` runs in the
-    * same session, or the loop stops. A cancel, an abnormal end or a failed delivery stops it
-    * too. The signal is read after every wait. The loop keeps no state of its own. Returns the
-    * ACP stop reason of the last turn that ran, or `cancelled`.
+    * block of the turn's text names the next profile; when the profile's status file confirms
+    * it is ready, `@handoff to=<profile>` runs in the same session, or the loop stops. A
+    * cancel, an abnormal end or a failed delivery stops it too. The signal is read after every
+    * wait. The loop keeps no state of its own. Returns the ACP stop reason of the last turn
+    * that ran, or `cancelled`.
     */
    async function runLoop(loop: {
       sessionId: string; record: SessionRecord; driver: Driver; command: string; startedAt: number;
@@ -603,6 +609,21 @@ export function createAgent(deps: AgentDeps) {
          else {
             const block = parseCompletionBlock(turn.text, profileNames);
             if ('continue' !== block.kind) { return stop(block.reason, 'end_turn', block.word); }
+            // The prose only triggers the read. The file decides. A session with no profile has no file to match.
+            const status: StatusCheck = undefined === record.profile
+               ? { outcome: 'missing' }
+               : checkStatus({
+                  dir: join(workDir, STATUS_DIR), profile: record.profile, startedAt, names: profileNames,
+                  expected: block.target,
+               });
+            if (undefined !== status.failureCode) {
+               logger.warn('status_read_failed', { sessionId, code: status.failureCode });
+            }
+            logger.info('status_check', {
+               sessionId, ...(undefined === record.profile ? {} : { profile: record.profile }),
+               outcome: status.outcome,
+            });
+            if ('confirmed' !== status.outcome) { return stop('status_not_confirmed', 'end_turn'); }
             sent         = { trigger: 'handoff', from: record.profile, to: block.target, counts: true };
             command      = `@handoff to=${block.target}`;
             afterHandoff = true;

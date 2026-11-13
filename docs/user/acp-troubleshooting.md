@@ -15,9 +15,12 @@ The chat lines are listed under "When the service stops" in `acp-jetbrains.md`. 
 - **"The changeover loop stopped.":** the turn ended early or failed. Read the line or error
   above it. The text already shown stays. Send a prompt to carry on in the same profile, or
   type a handoff.
-- **No line at all:** the profile's last message suggested no handoff, or you pressed Stop. If
-  the profile should have handed off, its last message must end with a line such as
-  ``**Next**: Run `@handoff to=Planner` ``. Type the handoff yourself.
+- **No line at all:** the profile's last message suggested no handoff, the profile did not mark
+  itself ready, or you pressed Stop. If the profile should have handed off, its last message
+  must end with a line such as ``**Next**: Run `@handoff to=Planner` ``, and the profile must
+  have written its status file with `ready` first. Look for `status_check` in
+  `.workflow/work/acp.log`; its `outcome` says what the service found (see "When the service
+  stops" in `acp-jetbrains.md`). Type the handoff yourself.
 
 ## The handoff file was not written
 

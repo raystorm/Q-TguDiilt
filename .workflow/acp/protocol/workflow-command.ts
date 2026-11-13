@@ -12,6 +12,8 @@ import { ProfileError } from './errors.js';
 /** The changeover files, under the directory the service starts agents in. Held here, in one place. */
 export const HANDOFF_PATH = '.amazonq/work/current/HANDOFF.md';
 export const MESSAGE_PATH = '.amazonq/work/current/MESSAGE.md';
+/** The profiles' status files, under the same directory. */
+export const STATUS_DIR   = '.amazonq/work/status';
 
 export type ActivationCommand = 'as' | 'dr' | 'epr' | 'start' | 'receive';
 

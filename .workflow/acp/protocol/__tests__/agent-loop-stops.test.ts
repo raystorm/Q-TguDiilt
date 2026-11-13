@@ -6,9 +6,9 @@ import type { TurnEnd } from '../../drivers/governed-driver.js';
 import { SessionCollapseError, TurnInProgressError } from '../errors.js';
 import { ABNORMAL_END_EVENT, END_LINE } from '../turn-end.js';
 import {
-   type Cx, allow, createCx, createHeldDriver, deferred, editReport, eventsOf, flush, handoffTurn,
+   type Cx, act, allow, createCx, createHeldDriver, deferred, editReport, eventsOf, flush, handoffTurn,
    holdRelease, loopRig, loopRoutes, makeAgent, nextLine, openChat, plannerToEnforcer, reject,
-   requestsOf, scriptChain, sendPrompt, startTurn, textsIn, throws, wait, watch,
+   requestsOf, scriptChain, sendPrompt, startTurn, suggests, textsIn, throws, wait, watch,
 } from './agent.helpers.js';
 
 const dirOf = useTempDir();
@@ -30,7 +30,7 @@ describe('the changeover loop: what the user sees', () => {
       const rig = makeRig();
       const { alpha, beta } = rig.scripted;
       const cx  = createCx();
-      alpha.script([say(nextLine('Enforcer'))]);
+      alpha.script(suggests(rig, 'Planner', 'Enforcer'));
       alpha.script(handoffTurn(rig, 'Enforcer'));
       beta.script([say('Reviewed.')]);
       const release = cx.holdNotify(1);
@@ -49,7 +49,9 @@ describe('the changeover loop: what the user sees', () => {
       const rig = makeRig();
       const { alpha, beta } = rig.scripted;
       const cx  = createCx();
-      alpha.script([say(`Work done.\n\n${nextLine('Enforcer')}`)]);
+      alpha.script([
+         act(() => rig.writeStatus('Planner', 'Enforcer')), say(`Work done.\n\n${nextLine('Enforcer')}`),
+      ]);
       alpha.script(handoffTurn(rig, 'Enforcer'));
       beta.script([say('Reviewed.')]);
 
@@ -127,7 +129,7 @@ describe('the changeover loop: what the user sees', () => {
    ) => {
       const rig = makeRig();
       const cx  = createCx();
-      rig.scripted.alpha.script([say(nextLine('Enforcer'))]);
+      rig.scripted.alpha.script(suggests(rig, 'Planner', 'Enforcer'));
       rig.scripted.alpha.script([...handoffTurn(rig, 'Enforcer'), end(reason)]);
 
       const response = await sendPrompt(rig, await openChat(rig), 'as Planner go', cx);
@@ -141,7 +143,7 @@ describe('the changeover loop: what the user sees', () => {
       const rig   = makeRig();
       const cx    = createCx();
       const error = new Error('boom');
-      rig.scripted.alpha.script([say(nextLine('Enforcer'))]);
+      rig.scripted.alpha.script(suggests(rig, 'Planner', 'Enforcer'));
       rig.scripted.alpha.script([say('Writing.'), throws(error)]);
 
       await expect(sendPrompt(rig, await openChat(rig), 'as Planner go', cx)).rejects.toBe(error);
@@ -199,7 +201,7 @@ describe('the changeover loop: cancel, asks and disconnect', () => {
    it('[H] a cancel during a hop ends the loop and sends nothing more', async () => {
       const rig = makeRig();
       const cx  = createCx();
-      rig.scripted.alpha.script([say(nextLine('Enforcer'))]);
+      rig.scripted.alpha.script(suggests(rig, 'Planner', 'Enforcer'));
       rig.scripted.alpha.script([wait('w')]);
       const sessionId = await openChat(rig);
       const turn = sendPrompt(rig, sessionId, 'as Planner go', cx);
@@ -247,7 +249,7 @@ describe('the changeover loop: cancel, asks and disconnect', () => {
       const rig    = makeRig();
       const answer = deferred<unknown>();
       const cx     = createCx({ respond: () => answer.promise });
-      rig.scripted.alpha.script([say(nextLine('Enforcer'))]);
+      rig.scripted.alpha.script(suggests(rig, 'Planner', 'Enforcer'));
       rig.scripted.alpha.script([gate(editReport)]);
       const sessionId = await openChat(rig);
       const turn = sendPrompt(rig, sessionId, 'as Planner go', cx);
@@ -276,7 +278,7 @@ describe('the changeover loop: cancel, asks and disconnect', () => {
       const rig    = makeRig();
       const answer = deferred<unknown>();
       const cx     = createCx({ respond: () => answer.promise });
-      rig.scripted.alpha.script([say(nextLine('Enforcer'))]);
+      rig.scripted.alpha.script(suggests(rig, 'Planner', 'Enforcer'));
       rig.scripted.alpha.script([gate(editReport), ...handoffTurn(rig, 'Enforcer')]);
       rig.scripted.beta.script([say('Reviewed.')]);
       const turn  = sendPrompt(rig, await openChat(rig), 'as Planner go', cx);
@@ -296,9 +298,12 @@ describe('the changeover loop: cancel, asks and disconnect', () => {
    it('a denial is not a stop', async () => {
       const rig = makeRig();
       const cx  = createCx({ permission: reject });
-      rig.scripted.alpha.script([say(nextLine('Enforcer'))]);
+      rig.scripted.alpha.script(suggests(rig, 'Planner', 'Enforcer'));
       rig.scripted.alpha.script(handoffTurn(rig, 'Enforcer'));
-      rig.scripted.beta.script([gate(editReport), say(`Reviewed.\n\n${nextLine('Architect')}`)]);
+      rig.scripted.beta.script([
+         act(() => rig.writeStatus('Enforcer', 'Architect')), gate(editReport),
+         say(`Reviewed.\n\n${nextLine('Architect')}`),
+      ]);
       rig.scripted.beta.script(handoffTurn(rig, 'Architect'));
       rig.scripted.alpha.script([say('Built.')]);
 
@@ -311,7 +316,7 @@ describe('the changeover loop: cancel, asks and disconnect', () => {
       const rig = makeRig();
       const cx  = createCx();
       const report = { ...editReport, id: 'c1' };
-      rig.scripted.alpha.script([gate(report), say(nextLine('Enforcer'))]);
+      rig.scripted.alpha.script([gate(report), ...suggests(rig, 'Planner', 'Enforcer')]);
       rig.scripted.alpha.script([gate(report), ...handoffTurn(rig, 'Enforcer')]);
       rig.scripted.beta.script([say('Reviewed.')]);
 
@@ -324,7 +329,7 @@ describe('the changeover loop: cancel, asks and disconnect', () => {
 
    it('[H] a second prompt is rejected while a turn runs, and the loop is unaffected', async () => {
       const rig = makeRig();
-      rig.scripted.alpha.script([wait('w'), say(nextLine('Enforcer'))]);
+      rig.scripted.alpha.script([wait('w'), ...suggests(rig, 'Planner', 'Enforcer')]);
       rig.scripted.alpha.script(handoffTurn(rig, 'Enforcer'));
       rig.scripted.beta.script([say('Reviewed.')]);
       const sessionId = await openChat(rig);
@@ -342,7 +347,7 @@ describe('the changeover loop: cancel, asks and disconnect', () => {
       const rig = makeRig();
       const { alpha, beta } = rig.scripted;
       const closed = [vi.spyOn(alpha.driver, 'close'), vi.spyOn(beta.driver, 'close')];
-      alpha.script([say(nextLine('Enforcer'))]);
+      alpha.script(suggests(rig, 'Planner', 'Enforcer'));
       alpha.script([wait('w')]);
       const turn = sendPrompt(rig, await openChat(rig), 'as Planner go');
       await alpha.reached('w');
@@ -361,7 +366,7 @@ describe('the changeover loop: cancel, asks and disconnect', () => {
       const chatA = await openChat(rig);
       const turnA = sendPrompt(rig, chatA, 'as Planner go');
       await alpha.reached('a');
-      alpha.script([say(nextLine('Enforcer'))], { sessionId: 'b-1' });
+      alpha.script(suggests(rig, 'Planner', 'Enforcer'), { sessionId: 'b-1' });
       alpha.script([wait('b'), ...handoffTurn(rig, 'Enforcer')], { sessionId: 'b-1' });
       beta.script([say('Reviewed.')]);
       const turnB = sendPrompt(rig, await openChat(rig), 'as Planner go');
@@ -393,7 +398,7 @@ describe('the changeover loop: failures and abnormal ends', () => {
    it('a turn that throws ends the prompt with its error, once, and the chat stays usable', async () => {
       const rig   = makeRig();
       const error = new Error('boom');
-      rig.scripted.alpha.script([say(nextLine('Enforcer'))]);
+      rig.scripted.alpha.script(suggests(rig, 'Planner', 'Enforcer'));
       rig.scripted.alpha.script(handoffTurn(rig, 'Enforcer'));
       rig.scripted.beta.script([throws(error)]);
       rig.scripted.beta.script([say('Back.')]);
@@ -414,7 +419,7 @@ describe('the changeover loop: failures and abnormal ends', () => {
 
    it.each(FAILURES)('[H] the error %s reaches the IDE as it is, and its kind is logged', async (error, kind) => {
       const rig = makeRig();
-      rig.scripted.alpha.script([say(nextLine('Enforcer'))]);
+      rig.scripted.alpha.script(suggests(rig, 'Planner', 'Enforcer'));
       rig.scripted.alpha.script(handoffTurn(rig, 'Enforcer'));
       rig.scripted.beta.script([throws(error)]);
 

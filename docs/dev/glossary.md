@@ -200,8 +200,8 @@ holds the profile, the workflowId, the status (`started`, `waiting`, `ready` or
 `complete`) and, once the work is done, the next command (`handoff` or `send`) and its
 target profile. It sits in a Working Directory, so it is transient.  
 It is written so that a reader such as the ACP service need not decide from the chat text
-whether a profile is finished: the text prompts a look, the file confirms. It carries data
-only and no timestamp; how recent it is comes from its modification time.  
+whether a profile is finished: the text prompts a look, the file confirms (see Status Check).
+It carries data only and no timestamp; how recent it is comes from its modification time.  
 A `@handoff` removes the other `complete` files of the same workflow. The Retrospective
 cleanup removes the files of the closing workflow, and the feature cleanup removes all of
 them once every story is complete.  
@@ -489,8 +489,8 @@ lacks a model another driver lists is still substituted (same model, other drive
 
 Changeover Step
 : What the Protocol Layer does after a Normal End to move a workflow to the next profile on its
-own: it sends `@handoff to=<Profile>` when the Completion Block names one known profile, or it
-checks the handoff file and sends `@start` in a fresh session.  
+own: it sends `@handoff to=<Profile>` when the Completion Block names one known profile and the
+Status Check confirms it, or it checks the handoff file and sends `@start` in a fresh session.  
 A prompt repeats steps until one cannot be taken. Steps keep no state, have no off switch and
 no limit on Profile Hops. The user's stop ends them. A suggestion to `@send` stops them; Side
 Trips are not carried.
@@ -499,7 +499,18 @@ Completion Block
 : The end of a profile's last message where it names the next step: the last line that begins
 with `**Next**`, and every line after it.  
 Only single-backtick code spans are read. One span that starts with `@handoff` or `/handoff`
-and names a known profile is the one suggestion a Changeover Step follows.
+and names a known profile is the one suggestion a Changeover Step follows, once the Status
+Check confirms it.
+
+Status Check
+: What the Protocol Layer does before a Changeover Step sends `@handoff`: it reads the Status
+Files of the session's profile and goes on only when exactly one fresh file says `ready` and
+hands off to the profile the Completion Block named.  
+The Completion Block prompts the read; the file confirms. The result is one of seven outcomes,
+decided in this order: `missing`, `stale`, `ambiguous`, `invalid`, `not_ready`, `mismatch`,
+`confirmed`. Only `confirmed` goes on; any other ends the steps with the stop reason
+`status_not_confirmed`, no chat line and a `status_check` log entry. Fresh means modified at or
+after the start of the turn. The check only reads, and a typed handoff skips it.
 
 Profile Hop
 : One change of profile made by Changeover Steps.  
