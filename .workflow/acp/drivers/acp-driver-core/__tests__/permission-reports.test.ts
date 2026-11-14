@@ -1,8 +1,10 @@
+import { fileURLToPath } from 'node:url';
 import { describe, it, expect } from 'vitest';
-import { evaluateToolCall } from '../../../governance/engine.js';
+import { evaluateToolCall, loadGovernanceConfig } from '../../../governance/engine.js';
 import type { ToolCallReport } from '../../governed-driver.js';
 import { createToolCallTable } from '../permissions.js';
 import { flush, makeDriver } from './acp-driver.helpers.js';
+import { CAPTURED_REQUESTS } from './captured-requests.js';
 import { SESSION, APPROVE_BY_DEFAULT, scriptFor, runTurn } from './permissions.helpers.js';
 
 describe('permission reports: correlation', () => {
@@ -274,5 +276,122 @@ describe('permission reports: content', () => {
       expect(reports[0].rawInput).toEqual(rawInput);
       expect(Object.keys(reports[0]).every(key =>
          ['id', 'kind', 'title', 'command', 'paths', 'diff', 'rawInput'].includes(key))).toBe(true);
+   });
+});
+
+describe('permission reports: command and commands', () => {
+   const config = loadGovernanceConfig(
+      fileURLToPath(new URL('../../../governance/config.yaml', import.meta.url)),
+   );
+
+   /** The report for one execute request that carries `rawInput`. */
+   async function reportFor(rawInput: unknown) {
+      const { reports } = await runTurn(async ({ ask }) => {
+         await ask({ toolCallId: 'c', kind: 'execute', rawInput });
+      });
+      return reports[0];
+   }
+
+   it.each(CAPTURED_REQUESTS)(
+      '[H] the captured request %j reaches governance with its command and raw input',
+      async rawInput => {
+         const report = await reportFor(rawInput);
+         expect(report.command).toBe(rawInput.command);
+         expect(report.rawInput).toEqual(rawInput);
+      },
+   );
+
+   it.each<[string, unknown, string]>([
+      ['no commands',                       { command: 'ls' },                                    'ls'],
+      ['commands equal to the command',     { command: 'ls', commands: ['ls'] },                  'ls'],
+      ['an empty commands',                 { command: 'ls', commands: [] },                      'ls'],
+      ['entries in the reverse order',
+         { command: 'touch a && git checkout main', commands: ['git checkout', 'touch'] },
+         'touch a && git checkout main'],
+      ['the same entry twice',              { command: 'touch a', commands: ['touch', 'touch'] }, 'touch a'],
+      ['spaces around the command',         { command: ' ls ', commands: ['ls'] },                ' ls '],
+      ['an entry that is only a substring', { command: 'echo ls', commands: ['ls'] },             'echo ls'],
+   ])('%s: the whole command is kept, as received', async (_label, rawInput, command) => {
+      expect((await reportFor(rawInput)).command).toBe(command);
+   });
+
+   it.each<[string, unknown]>([
+      ['commands only',                     { commands: ['ls'] }],
+      ['an entry not in the command',       { command: 'ls', commands: ['ls', 'rm -rf .'] }],
+      ['a command that is not the entry',   { command: 'rm -rf .', commands: ['ls'] }],
+      ['commands as a string',              { command: 'ls', commands: 'ls' }],
+      ['commands as null',                  { command: 'ls', commands: null }],
+      ['commands as a number',              { command: 'ls', commands: 42 }],
+      ['commands as an array-like object',  { command: 'ls', commands: { 0: 'ls', length: 1 } }],
+      ['a number as an entry',              { command: 'ls', commands: [42] }],
+      ['null as an entry',                  { command: 'ls', commands: [null] }],
+      ['an array as an entry',              { command: 'ls', commands: [['ls']] }],
+      ['a blank entry',                     { command: 'ls', commands: [''] }],
+      ['a whitespace-only entry',           { command: 'ls', commands: ['   '] }],
+      ['one good entry and one bad',        { command: 'ls', commands: ['ls', 42] }],
+      ['a bad entry first, a good last',    { command: 'ls', commands: ['rm -rf .', 'ls'] }],
+      ['a number first, a good one last',   { command: 'ls', commands: [42, 'ls'] }],
+      ['a bad entry in the middle',         { command: 'ls', commands: ['ls', 'rm -rf .', 'ls'] }],
+      ['an entry in another case',          { command: 'ls', commands: ['LS'] }],
+      ['an entry with extra whitespace',    { command: 'ls', commands: ['ls '] }],
+      ['a blank entry, a spaced command',   { command: 'ls -la', commands: [' '] }],
+      ['a blank command, empty list',       { command: '   ', commands: [] }],
+      ['a number command, empty list',      { command: 42, commands: [] }],
+   ])('[H] %s leaves the command missing, and governance denies', async (_label, rawInput) => {
+      const report = await reportFor(rawInput);
+      expect(report).not.toHaveProperty('command');
+      expect(evaluateToolCall(APPROVE_BY_DEFAULT, report))
+         .toMatchObject({ action: 'deny', reason: 'missing_command' });
+   });
+
+   it('[H] a commands list of 1000 entries is checked in full', async () => {
+      const entries = Array.from({ length: 1000 }, () => 'ls');
+      expect((await reportFor({ command: 'ls', commands: entries })).command).toBe('ls');
+      expect(await reportFor({ command: 'ls', commands: [...entries.slice(1), 'rm'] }))
+         .not.toHaveProperty('command');
+   });
+
+   it('a commands list adds no field of its own to the report', async () => {
+      const without = await reportFor({ command: 'touch x' });
+      const listed  = await reportFor({ command: 'touch x', commands: ['touch'] });
+      expect(Object.keys(listed)).toEqual(Object.keys(without));
+   });
+
+   it('the request that follows an announced call keeps its command', async () => {
+      const { reports } = await runTurn(async ({ call, ask }) => {
+         await call({
+            toolCallId: 'X', kind: 'execute', rawInput: { command: 'touch x', description: 'Create x' },
+         });
+         await ask({ toolCallId: 'X', rawInput: { command: 'touch x', commands: ['touch'] } });
+      });
+      expect(reports[0].command).toBe('touch x');
+   });
+
+   it.each<[string, unknown]>([
+      ['a request that disagrees with its commands', { command: 'rm -rf .', commands: ['ls'] }],
+      ['a request with commands only',               { commands: ['ls'] }],
+   ])('[H] %s does not fall back to the announced command', async (_label, rawInput) => {
+      const { reports } = await runTurn(async ({ call, ask }) => {
+         await call({ toolCallId: 'X', kind: 'execute', rawInput: { command: 'ls -la' } });
+         await ask({ toolCallId: 'X', rawInput });
+      });
+      expect(reports[0]).not.toHaveProperty('command');
+      expect(evaluateToolCall(APPROVE_BY_DEFAULT, reports[0]))
+         .toMatchObject({ action: 'deny', reason: 'missing_command' });
+   });
+
+   it.each(['ls && rm -rf build', 'ls; rm -rf build', 'ls $(rm -rf build)'])(
+      '[H] the command %j with commands ["ls"] reaches governance whole and is not approved',
+      async command => {
+         const report = await reportFor({ command, commands: ['ls'] });
+         expect(report.command).toBe(command);
+         expect(evaluateToolCall(config, report).action).not.toBe('approve');
+      },
+   );
+
+   it('[H] a redirect with an empty commands list is kept, and the shipped config asks about it', async () => {
+      const report = await reportFor({ command: 'echo hi > out.txt', commands: [] });
+      expect(report.command).toBe('echo hi > out.txt');
+      expect(evaluateToolCall(config, report).action).toBe('ask');
    });
 });

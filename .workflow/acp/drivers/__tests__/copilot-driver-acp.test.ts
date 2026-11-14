@@ -165,7 +165,9 @@ describe('Copilot permission requests', () => {
     * One turn in which Copilot asks to run `command`, in the recorded request shape.
     * Returns what the agent was answered.
     */
-   async function askToRun(command: string, decide: (report: ToolCallReport) => Promise<ToolCallDecision>) {
+   async function askToRun(
+      command: string, decide: (report: ToolCallReport) => Promise<ToolCallDecision>, commands = [command],
+   ) {
       const { driver, agents } = makeCopilot();
       const agent = agents[0];
       let outcome: unknown;
@@ -174,7 +176,7 @@ describe('Copilot permission requests', () => {
             sessionId: SESSION,
             toolCall:  {
                toolCallId: 'call_1', kind: 'execute', status: 'pending', title: 'Create marker',
-               rawInput: { command, commands: [command] },
+               rawInput: { command, commands },
             },
             options: OPTIONS,
          })) as any).result.outcome;
@@ -213,6 +215,39 @@ describe('Copilot permission requests', () => {
             decisions.push(evaluateToolCall(config, report).action);
             return 'deny';
          });
+         expect(seen[0].command).toBe(command);
+         expect(decisions).toHaveLength(1);
+         expect(decisions[0]).not.toBe('approve');
+      },
+   );
+
+   it('[H] a request whose commands are leading words reports the whole command and raw input', async () => {
+      const seen: ToolCallReport[] = [];
+      await askToRun('touch x', async report => { seen.push(report); return 'deny'; }, ['touch']);
+      expect(seen).toStrictEqual([{
+         id: 'call_1', kind: 'execute', title: 'Create marker', command: 'touch x',
+         rawInput: { command: 'touch x', commands: ['touch'] },
+      }]);
+   });
+
+   it.each([
+      ['approve', { outcome: 'selected', optionId: 'allow_once' }],
+      ['deny',    { outcome: 'selected', optionId: 'reject_once' }],
+   ] as Array<[ToolCallDecision, unknown]>)('[H] with leading-word commands a %s selects the once option, '
+      + 'never allow_always', async (decision, expected) => {
+      expect(await askToRun('touch x', async () => decision, ['touch'])).toEqual(expected);
+   });
+
+   it.each(['ls && rm -rf build', 'ls; rm -rf build'])(
+      '[H] the compound command "%s" with leading-word commands reaches governance whole and is not approved',
+      async command => {
+         const decisions: string[] = [];
+         const seen: ToolCallReport[] = [];
+         await askToRun(command, async report => {
+            seen.push(report);
+            decisions.push(evaluateToolCall(config, report).action);
+            return 'deny';
+         }, ['ls']);
          expect(seen[0].command).toBe(command);
          expect(decisions).toHaveLength(1);
          expect(decisions[0]).not.toBe('approve');

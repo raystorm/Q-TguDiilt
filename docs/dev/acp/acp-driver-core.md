@@ -140,10 +140,17 @@ arrives:
   non-empty string. Otherwise the report has no `id` key.
 - Kind: the nine report kinds; anything else, including `switch_mode`, is
   `other`.
-- Command: only `rawInput.command`, exactly as received. If `commands` is
-  present it must be exactly `[command]`; any other shape leaves the
-  command missing, so governance denies. The title is never used as the
-  command.
+- Command: only `rawInput.command`, exactly as received: a non-blank
+  string, kept whole and not trimmed. `commands` is a consistency check
+  and never becomes the command. When present it must be an array, empty
+  allowed, whose every entry is a non-blank string that occurs in
+  `command` as an exact, case-sensitive substring. Order and repeats do
+  not matter, and an entry need not be a prefix. Any other shape leaves
+  the command missing, so governance denies. The title is never used as
+  the command. Copilot (seen on 1.0.108 and 1.0.112) sends `commands` as
+  leading words of the command (`touch`, `npx tsc`), or `[]` when only a
+  redirect needed approval. Nothing caps the number of entries; see
+  `docs/dev/acp/security-review.md`.
 - Paths: locations first, then diff blocks, each once, as given and not
   normalised. Empty and blank paths are skipped. Diff text is
   `--- path / old / +++ path / new` per diff block.

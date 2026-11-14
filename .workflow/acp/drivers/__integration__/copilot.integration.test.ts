@@ -188,15 +188,19 @@ describe.skipIf('win32' === process.platform)('cancel with the real copilot (liv
          sessionId, ...textParam('Run the shell command `sleep 30; ls .`, then say done.'),
       }, session.cx);
 
-      const asked   = () => 0 < requestsOf(session.cx).length;
-      const running = () => asked() || 0 < eventsOf(session.logger, 'governance_unrequested').length;
-      let settled = false;
-      void turn.then(() => { settled = true; }, () => { settled = true; });
-      await until(() => running() || settled, REQUEST_WAIT_MS);
-      console.log('live path:', asked() ? 'asked' : 'ran without a request');
-      expect(settled).toBe(false);
-      expect(running()).toBe(true);
+      const asked     = () => 0 < requestsOf(session.cx).length;
+      // Copilot sends no `in_progress`: a call it runs without a request is announced as it starts.
+      const announced = () => session.cx.calls.some(call => {
+         const command = call.params?.update?.rawInput?.command;
+         return 'string' === typeof command && command.includes('sleep 30');
+      });
+      let ended: string | undefined;
+      void turn.then(stop => { ended = stop.stopReason; }, () => { ended = 'threw'; });
+      await until(() => announced() || undefined !== ended, REQUEST_WAIT_MS);
+      expect(announced(), `no sleep 30 call was announced; turn ended: ${ended ?? 'no'}`).toBe(true);
       await realSleep(3000);
+      expect(ended, `the turn ended before the cancel: ${ended}`).toBeUndefined();
+      console.log('live path:', asked() ? 'asked' : 'ran without a request');
       const cancelledAt = Date.now();
       await session.agent.cancel({ sessionId });
       const stop = await turn;
@@ -207,6 +211,7 @@ describe.skipIf('win32' === process.platform)('cancel with the real copilot (liv
       }));
       expect(stop.stopReason).toBe('cancelled');
       expect(took).toBeLessThan(CANCEL_DEADLINE_MS + SLACK_MS);
+      expect(eventsOf(session.logger, 'agent_cancel_deadline')).toEqual([]);
 
       const next = await session.agent.prompt({
          sessionId, ...textParam('Reply with the single word: ok. Do not use any tools.'),
@@ -249,17 +254,27 @@ describe.skipIf('linux' !== process.platform)('closing the Copilot driver leaves
       const driver = createCopilotAcpDriver({
          logger: createMockLogger(), diagnostics: createDiagnostics(),
       });
-      let asked = false;
+      let asked     = false;
+      let announced = false;
+      let ended     = false;
       const turn = driver.execute('Run the shell command `sleep 30; ls .`, then say done.', {
          onToolCall: async report => {
             asked = true;
             return report.command?.includes('sleep 30') ? 'approve' : 'deny';
          },
-      }).catch(() => undefined);
-      await until(() => asked, ASK_WAIT_MS);
-      await realSleep(3000);
+         onUpdate: update => {
+            if ('tool_call' === update.type && update.command?.includes('sleep 30')) { announced = true; }
+         },
+      }).catch(() => undefined).finally(() => { ended = true; });
+      try {
+         await until(() => announced || ended, ASK_WAIT_MS);
+         expect(announced, `no sleep 30 call was announced; turn ended: ${ended}`).toBe(true);
+         await realSleep(3000);
+         expect(ended, 'the turn ended before the close').toBe(false);
+      }
+      catch (err) { await driver.close(); throw err; }
       const before = agents();
-      console.log('live before close:', JSON.stringify({ asked, processes: before.length }));
+      console.log('live before close:', JSON.stringify({ asked, announced, processes: before.length }));
       expect(before.length).toBeGreaterThan(0);
 
       await driver.close();

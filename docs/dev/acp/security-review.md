@@ -26,6 +26,7 @@ each finding, its tier, and whether it was fixed or accepted.
 | A thin request with no stream record                     |           | Accepted            |
 | Agent-side approvals (Kiro rules, autopilot)             |           | Accepted            |
 | An agent changing a command after approval               |           | Accepted            |
+| The `commands` check has no cap on entries               |           | Accepted            |
 | Redaction is not guaranteed                              |           | Accepted            |
 | Agent output persists in the diagnostic log              |           | Accepted            |
 | Paths in the service log are not redacted                |           | Accepted            |
@@ -127,6 +128,18 @@ preset, which is backlogged.
   service cannot see stay an accepted risk.
 - **Changed commands.** Nothing stops an agent changing a call's command
   after it was approved.
+- **Time taken by the `commands` check.** The core keeps a command when
+  every entry of `commands` occurs in `command`, with one search of
+  `command` per entry. Nothing caps the entries or the message size, so
+  the time grows with entries times command length. Measured with distinct
+  entries that match near the end of the command: 10,000 entries against
+  a 200 KB command took about 0.7 s, 50,000 against 1 MB about 18 s, and
+  the same command with no `commands` 0.2 ms. Copilot sends one or two
+  short entries; a request that large needs stacked commands or whole
+  files. No tier applies: the tiers rank paths to `approve`, and this
+  check can only turn a kept command into a missing one, so the effect is
+  a delay and never an approval. Outcome: accepted. A cap on the entry
+  count, failing closed, would bound it.
 - **Redaction.** Error text goes through a pattern-based redaction. It is
   a safeguard, not a guarantee (see `docs/user/acp-agents.md`).
 - **Diagnostic log.** Output from an agent and error text from a provider

@@ -50,7 +50,7 @@ are asked about, so the service's governance rules apply.
 
 ## Copilot
 
-The latest version tested is 1.0.98; that is not a requirement.
+The latest version tested is 1.0.112; that is not a requirement.
 
 - The service launches Copilot with `copilot --acp --stdio` and no flag
   that pre-approves or limits tools.

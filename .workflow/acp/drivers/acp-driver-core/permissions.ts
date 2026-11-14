@@ -86,15 +86,18 @@ function kindOf(kind: string | undefined): ToolCallKind {
 }
 
 /**
- * The command, exactly as received. `commands`, when present, must be exactly
- * `[command]`; any other shape leaves the command missing, so governance denies.
+ * The command, exactly as received: `command` must be a non-blank string. `commands` only checks it.
+ * When present it must be an array, empty allowed, of non-blank strings that each occur in `command`
+ * as an exact substring. Any other shape leaves the command missing, so governance denies.
  */
 function commandOf(rawInput: unknown): string | undefined {
    if (null === rawInput || 'object' !== typeof rawInput) { return undefined; }
    const { command, commands } = rawInput as { command?: unknown; commands?: unknown };
    if ('string' !== typeof command || '' === command.trim()) { return undefined; }
    if (undefined === commands) { return command; }
-   return Array.isArray(commands) && 1 === commands.length && command === commands[0] ? command : undefined;
+   const agrees = (entry: unknown) =>
+      'string' === typeof entry && '' !== entry.trim() && command.includes(entry);
+   return Array.isArray(commands) && commands.every(agrees) ? command : undefined;
 }
 
 /** Paths from the locations, then from the diff blocks; each once, as given. */
