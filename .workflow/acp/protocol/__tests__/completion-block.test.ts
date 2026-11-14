@@ -15,11 +15,12 @@ const parse = (text: string) => parseCompletionBlock(text, NAMES);
 const line = (command: string) => `**Next**: Run \`${command}\``;
 
 const continues = (target: string) => ({ kind: 'continue', target });
+const sends     = (target: string) => ({ kind: 'send', target });
 const stops     = (reason: string, word?: string) => ({ kind: 'stop', reason, word });
 
 describe('reading the completion block', () => {
    it('the standard completion line continues with the profile it names', () => {
-      const text = 'Done.\n\n**Next**: Run `@handoff to=Planner` (or `@send Doctor`)';
+      const text = 'Done.\n\n**Next**: Run `@handoff to=Planner`';
       expect(parse(text)).toEqual(continues('Planner'));
    });
 
@@ -79,17 +80,73 @@ describe('reading the completion block', () => {
       expect(parse(line('Planner'))).toEqual(stops('no_suggestion'));
    });
 
-   it('a send span never starts a handoff', () => {
-      expect(parse(line('@send Doctor'))).toEqual(stops('no_target'));
-      expect(parse(line('@send to=Doctor'))).toEqual(stops('no_target'));
-      expect(parse('**Next**: `@send to=Doctor` or `@handoff to=Planner`'))
-         .toEqual(continues('Planner'));
+   it('a send span is a send and never a handoff', () => {
+      expect(parse(line('@send Doctor'))).toEqual(sends('Doctor'));
+      expect(parse(line('@send to=Doctor'))).toEqual(sends('Doctor'));
    });
 
-   it('a slash send span never starts a handoff either', () => {
-      expect(parse(line('/send Doctor'))).toEqual(stops('no_target'));
-      expect(parse('**Next**: `/send to=Doctor` or `/handoff to=Planner`'))
-         .toEqual(continues('Planner'));
+   it('a slash send span is a send too', () => {
+      expect(parse(line('/send Doctor'))).toEqual(sends('Doctor'));
+   });
+
+   // text of the span, the canonical name it stands for
+   const SEND_SPANS: Array<[string, string]> = [
+      ['@send Doctor', 'Doctor'], ['@send to=Doctor', 'Doctor'], ['/send to=Doctor', 'Doctor'],
+      ['@send Dr', 'Doctor'], ['@SEND to=doctor.', 'Doctor'], ['@send   to=Medic', 'Doctor'],
+      ['/SEND PE', 'PromptEngineer'], ['@send To=td;', 'TestDesigner'],
+   ];
+
+   it.each(SEND_SPANS)('[H] the span `%s` is a send to %s', (span, target) => {
+      expect(parse(line(span))).toEqual(sends(target));
+   });
+
+   // label, text
+   const BOTH: Array<[string, string]> = [
+      ['a send before a handoff',           '**Next**: `@send to=Doctor` or `@handoff to=Planner`'],
+      ['the slash forms',                   '**Next**: `/send to=Doctor` or `/handoff to=Planner`'],
+      ['the same profile for both',         '**Next**: `@handoff to=Planner` or `@send to=Planner`'],
+      ['a bare handoff and a send',         '**Next**: `@handoff` or `@send Doctor`'],
+      ['an unknown handoff and a send',     '**Next**: `@handoff to=Nobody` or `@send Doctor`'],
+      ['a handoff and a bare send',         '**Next**: `@handoff to=Planner` or `@send`'],
+      ['a handoff and an unknown send',     '**Next**: `@handoff to=Planner` or `@send Nobody`'],
+      ['two handoffs and a send',           '**Next**: `@handoff Planner` or `@handoff Enforcer` or `@send Dr`'],
+      ['two sends and a handoff',           '**Next**: `@send Doctor` or `@send PE` or `@handoff to=Planner`'],
+      ['a send on a later line',            '**Next**: `@handoff to=Planner`\n- `@send Doctor`'],
+   ];
+
+   it.each(BOTH)('[H] a handoff and a send together stop: %s', (_label, text) => {
+      expect(parse(text)).toEqual(stops('several_suggestions'));
+   });
+
+   it('two spellings of one send target are one suggestion; two profiles are two', () => {
+      expect(parse('**Next**: `@send Doctor` or `@send Dr` or `/send to=medic`')).toEqual(sends('Doctor'));
+      expect(parse('**Next**: `@send Doctor` or `@send PE`')).toEqual(stops('several_suggestions'));
+   });
+
+   // label, text, result
+   const SEND_STOPS: Array<[string, string, object]> = [
+      ['a bare span',        line('@send'),                           stops('no_target')],
+      ['an empty to=',       line('@send to='),                       stops('no_target')],
+      ['an unknown name',    line('@send Nobody'),                    stops('unknown_profile', 'Nobody')],
+      ['known and bare',     '**Next**: `@send Doctor` and `@send`',  stops('several_suggestions')],
+      ['known and unknown',  '**Next**: `@send Doctor` or `@send X`', stops('several_suggestions')],
+      ['two bare spans',     '**Next**: `@send` or `@send`',          stops('no_target')],
+   ];
+
+   it.each(SEND_STOPS)('[H] a send that cannot be followed stops: %s', (_label, text, result) => {
+      expect(parse(text)).toEqual(result);
+   });
+
+   // label, text
+   const NOT_SENDS: Array<[string, string]> = [
+      ['above the marker line',     'Run `@send Doctor` first.\n**Next**: Close this tab.'],
+      ['in a fenced block',         '**Next**: choose\n```\n`@send Doctor`\n```'],
+      ['in a double-backtick span', '**Next**: ``@send Doctor``'],
+      ['in plain text',             '**Next**: run @send Doctor'],
+   ];
+
+   it.each(NOT_SENDS)('[H] only code spans count: a send %s is not a send', (_label, text) => {
+      expect(parse(text)).toEqual(stops('no_suggestion'));
    });
 
    it('the at and slash forms of one handoff are one suggestion', () => {
@@ -101,8 +158,13 @@ describe('reading the completion block', () => {
    const EXAMPLES: Array<[string, string, object]> = [
       [
          'the standard line',
-         '**Next**: Run `@handoff to=Planner` (or `@send Doctor`)',
+         '**Next**: Run `@handoff to=Planner`',
          continues('Planner'),
+      ],
+      [
+         'a handoff with a send alternative',
+         '**Next**: Run `@handoff to=Planner` (or `@send Doctor`)',
+         stops('several_suggestions'),
       ],
       [
          'a branching line with two handoffs',
@@ -221,6 +283,9 @@ describe('reading the completion block', () => {
       ['many marker lines',              '**Next**\n'.repeat(50_000)],
       ['many fence lines',               '**Next**\n' + '```\n'.repeat(50_000)],
       ['many spans on one line',         '**Next**: ' + '`@handoff to=Planner` '.repeat(50_000)],
+      ['many send spans on one line',    '**Next**: ' + '`@send to=Doctor` '.repeat(50_000)],
+      ['many send spans, then a tick',   '**Next**: ' + '`@send Doctor` '.repeat(50_000) + '`'],
+      ['many send lines',                '**Next**\n' + '- `@send Doctor`\n'.repeat(50_000)],
    ];
 
    it.each(HOSTILE)('[H] hostile input (%s) is answered within a second', (_label, text) => {

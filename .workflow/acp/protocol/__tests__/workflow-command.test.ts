@@ -3,7 +3,8 @@ import { existsSync, mkdirSync } from 'node:fs';
 import { basename, isAbsolute, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-   detectActivation, detectHandoff, loadProfileNames, parseProfileNames, readChangeoverTarget,
+   detectActivation, detectHandoff, detectSend, loadProfileNames, parseProfileNames,
+   readChangeoverTarget,
 } from '../workflow-command.js';
 import { profilesPath } from '../profiles-location.js';
 import { ProfileError } from '../errors.js';
@@ -149,6 +150,45 @@ describe('finding a typed handoff', () => {
 
    it.each(NOT_HANDOFFS)('%j is not a handoff', text => {
       expect(detectHandoff(text)).toBe(false);
+   });
+});
+
+describe('finding a typed send', () => {
+   const SENDS = [
+      '@send', '/send', '@SEND', '/SeNd', 'yes, confirmed. @send',
+      'confirmed\n@send to=po', '  @send  ', 'hello /send to=Doctor',
+   ];
+   const NOT_WHOLE_WORDS = [
+      '@sender', '@send-all', 'send', 'me@send.io', '@sen', 'x/send/y', '/send/x', '@@send', '/sends',
+   ];
+   const WITH_ARGUMENTS = ['@send to=Nobody', '@send to=', '@send to=Doctor task="check it"'];
+   const NOT_SENDS = ['go', '', 'as Planner write it', '@start', '@receive', '@handoff to=Doctor'];
+
+   it.each(SENDS)('finds %j as a typed send', text => {
+      expect(detectSend(text)).toBe(true);
+   });
+
+   it.each(NOT_WHOLE_WORDS)('[H] %j is not a whole word, so not a send', text => {
+      expect(detectSend(text)).toBe(false);
+   });
+
+   it.each(WITH_ARGUMENTS)('%j is a send: its arguments are not read', text => {
+      expect(detectSend(text)).toBe(true);
+   });
+
+   it.each(NOT_SENDS)('%j is not a send', text => {
+      expect(detectSend(text)).toBe(false);
+   });
+
+   it('[H] a text that holds both words is found by both detectors', () => {
+      const text = 'please @handoff to=Planner, or else @send to=Doctor';
+      expect(detectSend(text)).toBe(true);
+      expect(detectHandoff(text)).toBe(true);
+   });
+
+   it('[H] a typed send is not an activation', () => {
+      expect(detectActivation('@send to=Doctor')).toBeUndefined();
+      expect(detectActivation('/send to=Doctor')).toBeUndefined();
    });
 });
 

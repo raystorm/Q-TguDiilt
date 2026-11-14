@@ -42,14 +42,14 @@ Immediately before this message, write the status file per
 ```
 [Profile] [Task] complete.  
 [Summary of results]  
-**Next**: Run `@handoff to=[next profile in the workflow]` (or `@send [next profile in the workflow]`)  
+**Next**: Run `@handoff to=[next profile in the workflow]` (or `@send to=[next profile in the workflow]`)  
 ```
 
 **When no Changeover (side trip completion):**
 ```
 [Profile] [Task] complete.  
 [Summary of results]  
-Close this tab and return to [source profile] tab.  
+Close this tab and return to [trip starter] tab.  
 ```
 
 *The message MUST appear as one message, with no pause, no STOP, and no wait.*
@@ -304,6 +304,17 @@ Profile A continues with results
 - Parallel work
 - Original profile paused
 - Returns to original profile after
+
+### Trip Starter
+
+- The trip starter is the profile whose `@send` wrote the first message of the side trip.
+- A profile activated by `@receive` takes the trip starter from the message it received: the
+  `Trip starter:` line of its Context Capsule, or, when it has none, its `## From`.
+- A message written by a profile activated by `@receive` MUST begin its Context Capsule with
+  `Trip starter: [profile]`.
+- A profile activated by `@receive` ends its completion with "Close this tab and return to
+  [trip starter] tab." when no next profile follows. When one follows, its `**Next**` line
+  names only `@send to=[next profile]`, never `@handoff`.
 
 ---
 

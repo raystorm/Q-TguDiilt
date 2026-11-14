@@ -3,9 +3,9 @@
  *
  * The block is the last line that begins with `**Next**` and every line after it, without
  * fenced code. Only single-backtick code spans on those lines are read. A span that starts
- * with `@handoff` or `/handoff` suggests a handoff; a `@send` or `/send` span is a side trip
- * and never continues the loop. Agent text is untrusted: every step is linear in the size of
- * the text, and nothing here throws.
+ * with `@handoff` or `/handoff` suggests a handoff; one with `@send` or `/send` suggests a
+ * side trip. Agent text is untrusted: every step is linear in the size of the text, and
+ * nothing here throws.
  */
 import type { ProfileNames } from './workflow-command.js';
 
@@ -18,9 +18,10 @@ export type BlockStopReason =
 
 export type CompletionBlock =
    | { kind: 'continue'; target: string }
+   | { kind: 'send'; target: string }
    | { kind: 'stop'; reason: BlockStopReason; word?: string };
 
-/** One distinct handoff suggestion: a known target, an unknown word, or neither (a bare span). */
+/** One distinct suggestion: a known target, an unknown word, or neither (a bare span). */
 interface Suggestion { target?: string; word?: string }
 
 /** The lines from the last marker line to the end; none when no line begins with the marker. */
@@ -72,43 +73,51 @@ const stop = (reason: BlockStopReason, word?: string): CompletionBlock =>
    undefined === word ? { kind: 'stop', reason } : { kind: 'stop', reason, word };
 
 /**
- * The step the completion block of `text` suggests. One distinct known target continues. The
- * rest stops, for the first reason that applies: no handoff and no send span (`no_suggestion`),
- * send spans only (`no_target`), two or more distinct handoff suggestions
- * (`several_suggestions`), one bare span (`no_target`), one unknown name (`unknown_profile`,
- * with the name as looked up). Names match profile names and aliases exactly, ignoring case.
+ * Adds the suggestion that `argument` makes to `found`. Keyed so that spellings of one profile are
+ * one suggestion: `b` for bare, `k` plus the canonical name for a known one, `u` plus the
+ * lower-case name for an unknown one.
+ */
+function note(found: Map<string, Suggestion>, argument: string, names: ProfileNames): void
+{
+   const name = nameIn(argument);
+   if ('' === name) { if (!found.has('b')) { found.set('b', {}); } return; }
+   const target = names.resolve(name);
+   const key    = undefined === target ? `u${name.toLowerCase()}` : `k${target}`;
+   if (!found.has(key)) { found.set(key, undefined === target ? { word: name } : { target }); }
+}
+
+/**
+ * The step the completion block of `text` suggests. One distinct known handoff target continues,
+ * and one distinct known send target is a send. The rest stops, for the first reason that applies:
+ * no handoff and no send span (`no_suggestion`), a handoff span and a send span together, or two
+ * or more distinct suggestions of one command (`several_suggestions`), one bare span
+ * (`no_target`), one unknown name (`unknown_profile`, with the name as looked up). Names match
+ * profile names and aliases exactly, ignoring case.
  */
 export function parseCompletionBlock(text: string, names: ProfileNames): CompletionBlock
 {
-   // Keyed so that spellings of one profile are one suggestion: `b` for bare, `k` plus the
-   // canonical name for a known one, `u` plus the lower-case name for an unknown one.
    const handoffs = new Map<string, Suggestion>();
-   const note     = (key: string, suggestion: Suggestion) => {
-      if (!handoffs.has(key)) { handoffs.set(key, suggestion); }
-   };
-   let sends  = 0;
-   let fenced = false;
+   const sends    = new Map<string, Suggestion>();
+   let fenced     = false;
 
    for (const line of blockLines(text)) {
       if (line.trim().startsWith(FENCE)) { fenced = !fenced; continue; }
       if (fenced) { continue; }
       for (const span of spansOf(line)) {
-         const argument = argumentOf(span, 'handoff');
-         if (undefined === argument) {
-            if (undefined !== argumentOf(span, 'send')) { sends++; }
-            continue;
-         }
-         const name = nameIn(argument);
-         if ('' === name) { note('b', {}); continue; }
-         const target = names.resolve(name);
-         if (undefined === target) { note(`u${name.toLowerCase()}`, { word: name }); }
-         else { note(`k${target}`, { target }); }
+         const handoff = argumentOf(span, 'handoff');
+         if (undefined !== handoff) { note(handoffs, handoff, names); continue; }
+         const send = argumentOf(span, 'send');
+         if (undefined !== send) { note(sends, send, names); }
       }
    }
 
-   if (0 === handoffs.size) { return stop(0 === sends ? 'no_suggestion' : 'no_target'); }
-   if (1 < handoffs.size) { return stop('several_suggestions'); }
-   const [only] = handoffs.values();
-   if (undefined !== only.target) { return { kind: 'continue', target: only.target }; }
+   if (0 === handoffs.size && 0 === sends.size) { return stop('no_suggestion'); }
+   if (0 < handoffs.size && 0 < sends.size) { return stop('several_suggestions'); }
+   const found = 0 < handoffs.size ? handoffs : sends;
+   if (1 < found.size) { return stop('several_suggestions'); }
+   const [only] = found.values();
+   if (undefined !== only.target) {
+      return 0 < handoffs.size ? { kind: 'continue', target: only.target } : { kind: 'send', target: only.target };
+   }
    return undefined === only.word ? stop('no_target') : stop('unknown_profile', only.word);
 }

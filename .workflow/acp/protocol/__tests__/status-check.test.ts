@@ -1,10 +1,12 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import {
    chmodSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, symlinkSync, utimesSync,
    writeFileSync,
 } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { checkStatus, STATUS_MAX_BYTES, type StatusOutcome } from '../status-check.js';
+import {
+   checkStatus, STATUS_MAX_BYTES, type StatusCommand, type StatusOutcome,
+} from '../status-check.js';
 import { parseProfileNames, STATUS_DIR } from '../workflow-command.js';
 import { useTempDir, writeFile } from '../../drivers/__tests__/catalog-fixtures.js';
 import { PROFILE_FIXTURE } from './profile-fixtures.js';
@@ -20,6 +22,9 @@ const STALE   = -60 * SECOND;
 const AS_ROOT = 0 === process.getuid?.();
 
 const MARKER = 'SECRET-FILE-TEXT';
+
+// The command the running tests check for. The group of tests that runs sets it before each test.
+let checked: StatusCommand = 'handoff';
 
 /** Sets the modification time of `file` to `offset` milliseconds from `STARTED`. */
 function touch(file: string, offset: number): string
@@ -47,12 +52,21 @@ const ready = (overrides: Record<string, unknown> = {}): Record<string, unknown>
    ...overrides,
 });
 
+/**
+ * A file the checked command confirms: a `ready` file that names Enforcer by that command, or, for
+ * `end`, a `complete` file with no `next`.
+ */
+const valid = (overrides: Record<string, unknown> = {}): Record<string, unknown> =>
+   'end' === checked
+      ? ready({ status: 'complete', next: undefined, ...overrides })
+      : ready({ next: { command: checked, to: 'Enforcer' }, ...overrides });
+
 /** Writes `content` as `name` in the status folder, `offset` ms from `STARTED` (fresh by default). */
-const put = (name: string, content: Content = ready(), offset = SECOND) =>
+const put = (name: string, content: Content = valid(), offset = SECOND) =>
    touch(writeFile(join(statusDir(), name), textOf(content)), offset);
 
-const check = (profile = 'Planner', expected = 'Enforcer') =>
-   checkStatus({ dir: statusDir(), profile, startedAt: STARTED, names: NAMES, expected });
+const check = (profile = 'Planner', expected = 'Enforcer', command: StatusCommand = checked) =>
+   checkStatus({ dir: statusDir(), profile, startedAt: STARTED, names: NAMES, command, expected });
 
 /** The status folder as it is: names, texts and modification times; undefined when there is none. */
 function snapshot()
@@ -128,26 +142,37 @@ const NOT_READY: Content[] = [
    ready({ status: null }),
 ];
 
+// The commands a `ready` file may not hold when `handoff` or `send` is checked: the other one, and
+// spellings that are not exact.
+const WRONG_COMMANDS = {
+   handoff: ['send', 'Handoff', 'HANDOFF', 'none'],
+   send:    ['handoff', 'Send', 'SEND', 'none'],
+};
+
 // A `ready` file that does not agree with the prose (Enforcer).
-const MISMATCH: Content[] = [
-   ...['send', 'Handoff', 'HANDOFF', 'none'].map(command => ready({ next: { command, to: 'Enforcer' } })),
+const mismatch = (command: 'handoff' | 'send'): Content[] => [
+   ...WRONG_COMMANDS[command].map(wrong => ready({ next: { command: wrong, to: 'Enforcer' } })),
    ...['Architect', 'Nobody', 'x'.repeat(200), '../../etc/passwd']
-      .map(to => ready({ next: { command: 'handoff', to } })),
+      .map(to => ready({ next: { command, to } })),
 ];
 
-describe('checking the status files', () => {
+const COMMANDS = ['handoff', 'send'] as const;
+
+describe.each(COMMANDS)('checking the status files for %s', command => {
+   beforeEach(() => { checked = command; });
+
    it('a fresh, valid ready file confirms', () => {
       put('Planner-wf-a.json');
       expect(check()).toStrictEqual({ outcome: 'confirmed' });
    });
 
    it.each(['Enforcer', 'enforcer', 'ENFORCER', 'Verifier'])('[H] next.to "%s" resolves to the profile', to => {
-      put('Planner-wf-a.json', ready({ next: { command: 'handoff', to } }));
+      put('Planner-wf-a.json', ready({ next: { command, to } }));
       expect(check().outcome).toBe('confirmed');
    });
 
    it('[H] fields beside the contract fields are ignored', () => {
-      put('Planner-wf-a.json', ready({ note: 'x', path: '/etc/passwd', command: 'rm', extra: { deep: [1] } }));
+      put('Planner-wf-a.json', valid({ note: 'x', path: '/etc/passwd', command: 'rm', extra: { deep: [1] } }));
       expect(check().outcome).toBe('confirmed');
    });
 
@@ -192,7 +217,7 @@ describe('checking the status files', () => {
    ];
 
    it.each(AGES)('[H] a file modified %s the start is %s', (_label, offset, outcome) => {
-      put('Planner-wf-a.json', ready(), offset);
+      put('Planner-wf-a.json', valid(), offset);
       expect(check().outcome).toBe(outcome);
    });
 
@@ -203,7 +228,7 @@ describe('checking the status files', () => {
 
    it('[H] a stale ready file does not make a fresh one ambiguous', () => {
       put('Planner-wf-a.json', ready(), STALE);
-      put('Planner-wf-b.json', ready({ workflowId: 'wf-b' }));
+      put('Planner-wf-b.json', valid({ workflowId: 'wf-b' }));
       expect(check().outcome).toBe('confirmed');
    });
 
@@ -228,7 +253,7 @@ describe('checking the status files', () => {
       expect(check().outcome).toBe('not_ready');
    });
 
-   it.each(MISMATCH)('[H] a fresh file holding %j is a mismatch', content => {
+   it.each(mismatch(command))('[H] a fresh file holding %j is a mismatch', content => {
       put('Planner-wf-a.json', content);
       expect(check().outcome).toBe('mismatch');
    });
@@ -266,7 +291,105 @@ describe('checking the status files', () => {
    });
 });
 
-describe('status file values are data', () => {
+describe('the end check', () => {
+   beforeEach(() => { checked = 'end'; });
+
+   // label, outcome, arrangement of the folder
+   const END_ORDER: Array<[string, StatusOutcome, () => void]> = [
+      ['no folder', 'missing', () => {}],
+      ['an empty folder', 'missing', () => { mkdirSync(statusDir(), { recursive: true }); }],
+      ['only a stale complete file', 'stale', () => { put('Planner-wf-a.json', valid(), STALE); }],
+      ['only a fresh file of another profile', 'missing', () => {
+         put('Enforcer-wf-a.json', valid({ profile: 'Enforcer' }));
+      }],
+      ['two fresh complete files', 'ambiguous', () => {
+         put('Planner-wf-a.json');
+         put('Planner-wf-b.json', valid({ workflowId: 'wf-b' }));
+      }],
+      ['one fresh unparseable file and a stale complete file', 'invalid', () => {
+         put('Planner-wf-a.json', 'not json');
+         put('Planner-wf-b.json', valid(), STALE);
+      }],
+      ['a fresh complete file with schema 2', 'invalid', () => {
+         put('Planner-wf-a.json', valid({ schema: 2 }));
+      }],
+      ['a fresh complete file whose profile differs from its name', 'invalid', () => {
+         put('Planner-wf-a.json', valid({ profile: 'Enforcer' }));
+      }],
+      ['a fresh waiting file', 'not_ready', () => {
+         put('Planner-wf-a.json', valid({ status: 'waiting' }));
+      }],
+      ['a fresh complete file that kept its next', 'mismatch', () => {
+         put('Planner-wf-a.json', valid({ next: { command: 'handoff', to: 'Planner' } }));
+      }],
+      ['a fresh complete file and a stale ready file', 'confirmed', () => {
+         put('Planner-wf-a.json');
+         put('Planner-wf-b.json', ready(), STALE);
+      }],
+   ];
+
+   it.each(['Enforcer', 'Nobody', ''])('[H] a complete file with no next confirms, expected "%s"', expected => {
+      put('Planner-wf-a.json');
+      expect(check('Planner', expected)).toStrictEqual({ outcome: 'confirmed' });
+   });
+
+   // A profile that is still going, or that has not said it is done. `ready` without a `next` is
+   // not ready here either.
+   const STILL_GOING: Content[] = [
+      ready({ status: 'waiting', next: undefined }), ready({ status: 'started', next: undefined }),
+      ready({ next: { command: 'send', to: 'Doctor' } }), ready({ next: { command: 'handoff', to: 'Planner' } }),
+      ready({ next: undefined }),
+      ready({ status: 'COMPLETE', next: undefined }), ready({ status: 'done', next: undefined }),
+      ready({ status: undefined, next: undefined }), ready({ status: null, next: undefined }),
+   ];
+
+   it.each(STILL_GOING)('[H] a fresh file holding %j is not ready to end', content => {
+      put('Planner-wf-a.json', content);
+      expect(check().outcome).toBe('not_ready');
+   });
+
+   // A profile that created a changeover has not closed the trip, whatever `next` holds.
+   const CREATED_A_CHANGEOVER: Content[] = [
+      ready({ status: 'complete', next: { command: 'handoff', to: 'Planner' } }),
+      ready({ status: 'complete', next: { command: 'send', to: 'Doctor' } }),
+      ready({ status: 'complete', next: null }), ready({ status: 'complete', next: {} }),
+   ];
+
+   it.each(CREATED_A_CHANGEOVER)('[H] a fresh file holding %j is a mismatch', content => {
+      put('Planner-wf-a.json', content);
+      expect(check().outcome).toBe('mismatch');
+   });
+
+   it.each(END_ORDER)('[H] the order of outcomes: %s gives %s', (_label, outcome, arrange) => {
+      arrange();
+      expect(check().outcome).toBe(outcome);
+   });
+
+   it.each(END_ORDER)('the check only reads: %s gives %s', (_label, _outcome, arrange) => {
+      arrange();
+      const before = snapshot();
+      check();
+      expect(snapshot()).toEqual(before);
+   });
+});
+
+describe('the commands do not cross', () => {
+   it('[H] a send file confirms for a send to another profile', () => {
+      put('Enforcer-wf-a.json', ready({ profile: 'Enforcer', next: { command: 'send', to: 'Doctor' } }));
+      expect(check('Enforcer', 'Doctor', 'send')).toStrictEqual({ outcome: 'confirmed' });
+   });
+
+   it.each<['handoff' | 'send', 'handoff' | 'send']>([['handoff', 'send'], ['send', 'handoff']])(
+      '[H] a ready file for a %s is a mismatch for a %s', (written, asked) => {
+         put('Planner-wf-a.json', ready({ next: { command: written, to: 'Enforcer' } }));
+         expect(check('Planner', 'Enforcer', asked)).toStrictEqual({ outcome: 'mismatch' });
+      },
+   );
+});
+
+describe.each([...COMMANDS, 'end'] as const)('status file values are data for %s', command => {
+   beforeEach(() => { checked = command; });
+
    // overrides of a ready file, outcome
    const HOSTILE: Array<[Record<string, unknown>, StatusOutcome]> = [
       [{ next: { command: 'handoff', to: '$(touch pwned)' } },  'mismatch'],
@@ -279,7 +402,7 @@ describe('status file values are data', () => {
    ];
 
    it.each(HOSTILE)('[H] %j is never run and never used as a path (%s)', (overrides, outcome) => {
-      put('Planner-wf-a.json', ready(overrides));
+      put('Planner-wf-a.json', valid(overrides));
       expect(check().outcome).toBe(outcome);
       const made = readdirSync(dirOf(), { recursive: true }).map(String).filter(name => name.includes('pwned'));
       expect(made).toEqual([]);
@@ -288,8 +411,8 @@ describe('status file values are data', () => {
 
    // Pads a ready file with an extra field to exactly `bytes` bytes.
    const padded = (bytes: number) => {
-      const base = textOf(ready({ pad: '' }));
-      return textOf(ready({ pad: 'x'.repeat(bytes - Buffer.byteLength(base)) }));
+      const base = textOf(valid({ pad: '' }));
+      return textOf(valid({ pad: 'x'.repeat(bytes - Buffer.byteLength(base)) }));
    };
 
    const SIZES: Array<[string, number, StatusOutcome]> = [
@@ -353,10 +476,10 @@ describe('status file values are data', () => {
       const marked = (content: Content): Content =>
          'string' === typeof content ? content : { ...content, workflowId: MARKER, note: MARKER };
       const rows: Content[] = [
-         ...[...INVALID, ...NOT_READY, ...MISMATCH].map(marked),
+         ...[...INVALID, ...NOT_READY, ...mismatch('handoff'), ...mismatch('send')].map(marked),
          ready({ next: { command: 'handoff', to: MARKER } }),
          ready({ profile: MARKER }),
-         ready({ workflowId: MARKER, note: MARKER }),
+         valid({ workflowId: MARKER, note: MARKER }),
       ];
       for (const row of rows) {
          put('Planner-wf-a.json', row);

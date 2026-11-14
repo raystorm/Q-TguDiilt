@@ -8,6 +8,14 @@
  * nothing.
  */
 
+/** The main thread's session while a side trip runs: what the record's own fields held before it. */
+export interface ParkedSession {
+   driver:           string;
+   model?:           string;
+   driverSessionId?: string;
+   profile?:         string;
+}
+
 export interface SessionRecord {
    sessionId:        string;
    workflowId:       string;
@@ -20,6 +28,11 @@ export interface SessionRecord {
    profile?:         string;
    /** One chat line the next turn leads with. Cleared when a turn ends normally. */
    notice?:          string;
+   /**
+    * Set while a side trip is open: the main thread's session, waiting for the trip to end. The
+    * record's own fields are always the session that is running.
+    */
+   parked?:          ParkedSession;
    abort?:           AbortController;
 }
 

@@ -16,7 +16,7 @@ const dirOf = useTempDir();
 
 const makeRig = (routes = ROUTES) => loopRig({ routes, dir: dirOf() });
 
-describe('the changeover loop: steps', () => {
+describe('the automated changeover process: steps', () => {
    it('carries a workflow from one profile to the next inside one prompt', async () => {
       const rig = makeRig();
       const { alpha, beta } = rig.scripted;
@@ -238,7 +238,7 @@ describe('the changeover loop: steps', () => {
    });
 });
 
-describe('the changeover loop: a fresh session for every start', () => {
+describe('the automated changeover process: a fresh session for every start', () => {
    it('[H] on the same driver the old session is released and its id dropped', async () => {
       const rig = makeRig(ALL_ON_ALPHA);
       const { alpha } = rig.scripted;
@@ -355,7 +355,7 @@ describe('the changeover loop: a fresh session for every start', () => {
    });
 });
 
-describe('the changeover loop: one activation step for every command', () => {
+describe('the automated changeover process: one activation step for every command', () => {
    it('[H] the handoff turn activates nothing', async () => {
       const rig = makeRig();
       const { alpha, beta } = rig.scripted;
@@ -452,7 +452,7 @@ describe('the changeover loop: one activation step for every command', () => {
    });
 });
 
-describe('the changeover loop: long loops and isolation between turns', () => {
+describe('the automated changeover process: long loops and isolation between turns', () => {
    it('[H] a loop of 300 profile changes completes', async () => {
       const rig   = makeRig(ALL_ON_ALPHA);
       const names = Array.from({ length: 301 }, (_, at) => 0 === at % 2 ? 'Planner' : 'PromptEngineer');
@@ -552,7 +552,7 @@ describe('the changeover loop: long loops and isolation between turns', () => {
    });
 });
 
-describe('the changeover loop: over the real driver core', () => {
+describe('the automated changeover process: over the real driver core', () => {
    it('[H] a two-hop loop starts a second agent and ends the first', async () => {
       const { agent, downstreams, done } = overRealCore({ agents: 2, workDir: dirOf() });
       const [first, second] = downstreams;

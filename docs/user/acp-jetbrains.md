@@ -87,7 +87,7 @@ inside the one prompt you sent. The IDE shows one long prompt with a continuous 
 A profile ends its last message with a line like this:
 
 ```text
-**Next**: Run `@handoff to=Planner` (or `@send Doctor`)
+**Next**: Run `@handoff to=Planner`
 ```
 
 When that line names exactly one profile after `@handoff`, the service first checks that the
@@ -110,14 +110,57 @@ profile it names.
 - **You no longer review each handoff** before the next profile starts. Watch the chat.
 - **You can type the handoff yourself.** A prompt that holds `@handoff` or `/handoff` as a
   whole word counts. The service then checks the handoff file and sends `@start`; it does not
-  look at the status file. After a stop, typing `@handoff to=<Profile>` makes the service take
-  changeover steps again.
+  look at the status file. After a stop, typing `@handoff to=<Profile>` makes the service start the
+  automated changeover process again.
 - **Approvals still come to you.** The service never answers an approval for you. It waits
   until you do.
-- **Side trips are not carried on.** A message that suggests only `@send` stops the service.
+- **Side trips are carried on.** A line that suggests one `@send` starts a side trip (see "Side
+  trips"). A line that suggests both a handoff and a send stops the service.
 - **A prompt typed while the service is moving on** is rejected as "turn in progress". The
   workflow carries on.
 - **There is no off switch and no limit on profile changes.** Stop is the way out.
+
+## Side trips
+
+A side trip lets the profile you are working with ask another profile for help, in the same
+chat, and then carry on with the result. For example, Enforcer asks Doctor to look at a failure.
+There is one side trip at a time. A profile starts one with a last message like this:
+
+```text
+**Next**: Run `@send to=Doctor`
+```
+
+The profile first writes its status file with `ready` and a send to that profile. Then the
+service goes on, and you see these lines in the chat:
+
+1. `Changeover: sending @send to=Doctor`. The profile writes `.amazonq/work/current/MESSAGE.md`.
+2. The service checks that the message was written for this step and names a known profile.
+3. `Changeover: sending @receive`, then `Side trip: Doctor`. Doctor starts in a fresh agent
+   session, with the driver and model its registry entry asks for. Its work streams into the
+   chat. The first profile's session is kept, not ended, while the side trip runs.
+4. Doctor can send on to another profile in the same way, for example to PromptEngineer. Each
+   move ends the session of the profile that sent it. The kept session is never ended.
+5. The trip ends when a profile's last message suggests nothing and its status file says
+   `complete`. The service then ends that session, shows the fixed return prompt it sends to
+   the first profile, then `Back to Enforcer`. The first profile carries on in its own
+   session, with everything it had before.
+
+- **The return carries no result.** The prompt only says the side trip finished and names its
+  last profile. The first profile finds the result in the files the trip changed and in the
+  workflow log.
+- **You can answer a question.** If a side-trip profile asks you something, its status file says
+  `waiting`, the service stops and shows no line. Type your answer. It goes to that profile, and
+  the trip can end in that prompt.
+- **A side trip moves only by a send.** A handoff inside one, suggested or typed, stops the
+  service with a line. Type `@send to=<Profile>` to move the trip.
+- **You can type the send yourself.** A prompt that holds `@send` or `/send` as a whole word
+  counts, like a typed handoff: the service checks the message file and sends `@receive`, and
+  does not look at the status file. A prompt that holds both a handoff and a send stops.
+- **Stop ends the turn only.** The side trip stays open, and your next prompt goes to the profile
+  that was running.
+- **Closing the chat ends everything**, including the kept session.
+- **Not tested yet:** a trip that runs for many minutes, and two sessions of one agent at once.
+  If the kept session did not survive, the return would fail with an error.
 
 ## What you see during a turn
 
@@ -156,7 +199,8 @@ where noted. You then type the next command.
 
 - **The last message suggested no handoff:** no line.
 - **Several next steps are suggested:** "Several next steps are suggested above. Enter the one
-  you want, for example `@handoff to=<Profile>`."
+  you want, for example `@handoff to=<Profile>`." A handoff and a send in one line count as
+  several.
 - **The suggestion names no profile:** "The agent's next step names no profile to hand off
   to. Enter the command you want, for example `@handoff to=<Profile>`."
 - **The profile is not known:** `"<word>" is not a known profile.` followed by the same
@@ -164,7 +208,13 @@ where noted. You then type the next command.
   characters.
 - **The handoff file was not written:** "The handoff file was not written for this turn, or
   it names a different profile (.amazonq/work/current/HANDOFF.md)."
-- **The profile did not mark itself ready:** no line. You see only the agent's own text. The
+- **The message file was not written:** "The message file was not written for this turn, or it
+  names a different profile (.amazonq/work/current/MESSAGE.md)."
+- **A handoff inside a side trip:** "A side trip moves only by a send. Enter the command you
+  want, for example `@send to=<Profile>`."
+- **The profile did not mark itself ready, or did not finish a side trip:** no line. You see
+  only the agent's own text. A profile in a side trip that suggests nothing must have its status
+  file say `complete`, or the trip stays open. The
   `status_check` entry in `.workflow/work/acp.log` has an `outcome` that says why:
   - `missing`: the profile wrote no status file, or the chat has no profile.
   - `stale`: the profile's status file was not written during this turn.
@@ -172,12 +222,13 @@ where noted. You then type the next command.
   - `invalid`: the status file cannot be read or does not follow the format.
   - `not_ready`: the status file says the profile is still working or waiting, for example
     for your answer to a question.
-  - `mismatch`: the status file hands off to another profile, or by another command.
+  - `mismatch`: the status file hands off to another profile, or by another command. At the end
+    of a side trip, a file that names any next step.
 
-  Type `@handoff to=<Profile>` yourself to go on.
-- **A turn ended early or failed:** the usual line or error, then "The changeover loop
+  Type `@handoff to=<Profile>` (or, in a side trip, `@send to=<Profile>`) yourself to go on.
+- **A turn ended early or failed:** the usual line or error, then "Automatic changeover
   stopped." This second line appears only when the service sent a command in that prompt, or
-  you typed a handoff.
+  you typed a handoff or a send.
 - **You pressed Stop:** no line. Nothing further is sent.
 
 What each agent does when its context window fills is not known yet. If a turn ends early or
@@ -200,8 +251,8 @@ Use your IDE's stop (cancel) action to end a running turn. The service
 passes the stop on to the provider, shows any text produced so far, and
 ends the turn as cancelled. The session stays usable.
 
-- **In a workflow:** Stop ends the changeover steps at once and nothing further is sent. Stop
-  is the only way to end them; a word typed in the chat does not.
+- **In a workflow:** Stop ends the automated changeover process at once and nothing further is sent. Stop
+  is the only way to end it; a word typed in the chat does not. In a side trip the trip stays open.
 - **Winding down:** the session stays busy until the provider has
   finished. A new prompt sent right after Stop can be rejected as "turn
   in progress"; wait a moment and retry.
@@ -231,8 +282,8 @@ version-controlled.
   service itself, such as start-up and configuration messages. It never
   holds text from an agent or a provider, or your prompts, replies, titles,
   diffs or tool input. In a workflow it also records `changeover_sent` (each command the
-  service sent), `loop_stopped` (why the service stopped), `status_check` (each status check
-  and its outcome) and `status_read_failed` (a status folder or file that could not be read,
+  service sent), `loop_stopped` (why the service stopped), `status_check` (each status check,
+  its kind and outcome) and `status_read_failed` (a status folder or file that could not be read,
   with the error code), with no agent text and nothing from a status file.
 - **`acp-diagnostic.log`** is the diagnostic log. When an agent fails, the
   service writes one record about it: why it failed, the exit code or

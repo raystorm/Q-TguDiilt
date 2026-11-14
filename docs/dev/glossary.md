@@ -225,7 +225,16 @@ Main Thread
 Side Trip
 : A temporary, secondary, isolated workflow that runs outside the Main Thread.  
 Used for clarity, diagnosis, exploration,  
-or small corrective actions without disturbing the primary workflow's state or momentum.
+or small corrective actions without disturbing the primary workflow's state or momentum.  
+Started with `@send` and begun with `@receive`. In the ACP service one runs at a time in the
+chat you are watching, moves by `@send`, and ends by returning to the Parked Session.
+
+Trip Starter
+: The profile whose `@send` wrote the first message of a Side Trip.  
+A profile begun by `@receive` reads it from the `Trip starter:` line of its message's Context
+Capsule, or from the message's `## From` when there is none. The last profile of the trip ends
+"Close this tab and return to [trip starter] tab". The ACP service does not read the line:
+it returns to the Parked Session.
 
 Escalation
 : A governed routing decision where a profile determines  
@@ -488,34 +497,65 @@ resolved`. The service turns it into a Notice. In `fail-fast` mode, a listed dri
 lacks a model another driver lists is still substituted (same model, other driver).
 
 Changeover Step
-: What the Protocol Layer does after a Normal End to move a workflow to the next profile on its
-own: it sends `@handoff to=<Profile>` when the Completion Block names one known profile and the
-Status Check confirms it, or it checks the handoff file and sends `@start` in a fresh session.  
-A prompt repeats steps until one cannot be taken. Steps keep no state, have no off switch and
-no limit on Profile Hops. The user's stop ends them. A suggestion to `@send` stops them; Side
-Trips are not carried.
+: One move in a workflow from one profile to the next: the current profile finishes and the
+next one starts. A handoff with its start, a send with its receive, and a return are each one.
+
+Automated Changeover Process
+: The Protocol Layer taking Changeover Steps one after another on its own, within one prompt.  
+It runs the user's command, then after each Normal End sends `@handoff to=<Profile>` when the
+Completion Block names one known profile and the Status Check confirms it, or checks the
+handoff file and sends `@start` in a fresh session. It repeats until a step cannot be taken.
+Steps keep no state except the Parked Session. It has no off switch and no limit on Profile
+Hops; the user's stop ends it. It also carries a Side Trip: a Completion Block with one `@send`
+target that the Status Check confirms starts it, the trip moves by `@send`, and the End Check
+closes it. A handoff and a send together stop it, as does a handoff inside a Side Trip. It is
+not a workflow loop (Plan, Implement, Improve).
 
 Completion Block
 : The end of a profile's last message where it names the next step: the last line that begins
 with `**Next**`, and every line after it.  
 Only single-backtick code spans are read. One span that starts with `@handoff` or `/handoff`
 and names a known profile is the one suggestion a Changeover Step follows, once the Status
-Check confirms it.
+Check confirms it. One span that starts with `@send` or `/send` and names a known profile is
+the one suggestion that starts or moves a Side Trip. A handoff span and a send span together
+are several suggestions.
 
 Status Check
-: What the Protocol Layer does before a Changeover Step sends `@handoff`: it reads the Status
-Files of the session's profile and goes on only when exactly one fresh file says `ready` and
-hands off to the profile the Completion Block named.  
+: What the Protocol Layer does before a Changeover Step sends `@handoff` or `@send`: it reads
+the Status Files of the session's profile and goes on only when exactly one fresh file says
+`ready` and names that command and the profile the Completion Block named. The check that ran
+is logged as `check`: `handoff`, `send` or `end` (see End Check).  
 The Completion Block prompts the read; the file confirms. The result is one of seven outcomes,
 decided in this order: `missing`, `stale`, `ambiguous`, `invalid`, `not_ready`, `mismatch`,
 `confirmed`. Only `confirmed` goes on; any other ends the steps with the stop reason
 `status_not_confirmed`, no chat line and a `status_check` log entry. Fresh means modified at or
-after the start of the turn. The check only reads, and a typed handoff skips it.
+after the start of the turn. The check only reads, and a typed handoff or send skips it.
 
 Profile Hop
 : One change of profile made by Changeover Steps.  
-A `@handoff` and its `@start` share one number; a typed handoff's `@start` is hop 1. Logged as
-`profileHop`.
+A `@handoff` and its `@start` share one number, and so do a `@send` and its `@receive`. Each move
+inside a Side Trip is the next number, and the Return Prompt is one more. A typed handoff's
+`@start` and a typed send's `@receive` are hop 1. Logged as `profileHop`.
+
+Parked Session
+: The main thread's session while a Side Trip runs: its driver, model, session id and profile,
+kept in the session record's `parked` slot instead of being released.  
+The Side Trip is open while the slot is set. A move inside the trip never releases it. The end
+of the trip restores it as the record's own session, with no new resolution, and empties the
+slot. It lives between prompts and ends with the chat.
+
+Return Prompt
+: The one fixed prompt the Protocol Layer sends the Parked Session when a Side Trip ends.  
+It names the last profile of the trip and carries no result: the results are in the files the
+trip changed and in the workflow log. It holds no `@` or `/` word and does not begin with `as`,
+so it is never taken for a command.
+
+End Check
+: The Status Check, with `check: end`, that confirms the profile of a Side Trip is done.  
+It runs when a turn in the trip ends normally and suggests nothing. It confirms only a fresh
+Status File that says `complete` with no `next`. A `waiting` file (the profile asked the user
+something) or a `complete` file with a `next` does not end the trip: the process stops with
+`status_not_confirmed` and the trip stays open.
 
 Tool Call
 : An action the AI takes: read, edit, delete, move, search, execute,

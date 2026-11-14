@@ -67,6 +67,35 @@ describe('SessionStore — profile and notice', () => {
    });
 });
 
+describe('SessionStore — parked session', () => {
+   const parked = { driver: 'beta', model: 'm2', driverSessionId: 'e-1', profile: 'Enforcer' };
+
+   it('a created and a loaded record have no parked session', () => {
+      const store = createSessionStore({ newWorkflowId: () => 'wf-1' });
+      for (const record of [store.create('sess-1'), store.load('sess-2', 'wf-2')]) {
+         expect(record.parked).toBeUndefined();
+      }
+   });
+
+   it('[H] close drops a record that holds a parked session, and only that one', () => {
+      const store = createSessionStore({ newWorkflowId: fixedIds() });
+      store.create('sess-1').parked = parked;
+      store.create('sess-2').parked = parked;
+      store.close('sess-1');
+      expect(store.get('sess-1')).toBeUndefined();
+      expect(store.get('sess-2')?.parked).toEqual(parked);
+   });
+
+   it('[H] closeAll drops every record that holds a parked session', () => {
+      const store = createSessionStore({ newWorkflowId: fixedIds() });
+      store.create('sess-1').parked = parked;
+      store.create('sess-2').parked = parked;
+      store.closeAll();
+      expect(store.get('sess-1')).toBeUndefined();
+      expect(store.get('sess-2')).toBeUndefined();
+   });
+});
+
 describe('SessionStore — active-turn flag', () => {
    it('defaults to false for a new session', () => {
       const store = createSessionStore({ newWorkflowId: () => 'wf-1' });

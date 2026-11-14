@@ -81,6 +81,16 @@ export function detectHandoff(text: string): boolean
    return (text.match(/\S+/g) ?? []).some(word => /^[@/]handoff$/i.test(word));
 }
 
+/**
+ * True when the text holds `@send` or `/send` as a whole word, ignoring case: a send the user
+ * typed. The arguments are not read. It is not an activation, and `detectActivation` does not
+ * find it.
+ */
+export function detectSend(text: string): boolean
+{
+   return (text.match(/\S+/g) ?? []).some(word => /^[@/]send$/i.test(word));
+}
+
 export interface ProfileNames {
    /** The canonical spelling of a profile name or alias, ignoring case; undefined for any other word. */
    resolve(name: string): string | undefined;

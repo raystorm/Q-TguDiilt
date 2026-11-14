@@ -126,8 +126,8 @@ vi.mock('../../drivers/acp-driver-core/connect.js', async importOriginal => ({
 }));
 
 // Real agent; only a spy on its onDisconnect, to prove the stdin wiring calls it.
-vi.mock('../agent.js', async importOriginal => {
-   const actual = await importOriginal<typeof import('../agent.js')>();
+vi.mock('../agent/index.js', async importOriginal => {
+   const actual = await importOriginal<typeof import('../agent/index.js')>();
    return {
       ...actual,
       createAgent: vi.fn((deps: any) => {
@@ -245,7 +245,7 @@ const failuresAbout = (path: string) =>
    mocks.logEntries.filter(entry => 'error' === entry.level && path === entry.data.filePath);
 
 const agentDeps = async () => {
-   const { createAgent } = await import('../agent.js');
+   const { createAgent } = await import('../agent/index.js');
    return vi.mocked(createAgent).mock.calls[0][0];
 };
 

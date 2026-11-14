@@ -157,7 +157,7 @@ denies if asking fails.
 
 ## Workflow runs
 
-Changeover steps never answer an ask. The service waits for you, then goes on.
+The automated changeover process never answers an ask. The service waits for you, then goes on.
 
 The engine's own files are asks every time with the shipped rules: `.amazonq/workflow.log`,
 `.amazonq/.timestamp-temp`, everything under `.amazonq/work/` (the handoff file included) and

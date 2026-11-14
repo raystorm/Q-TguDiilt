@@ -1,4 +1,5 @@
-import { createAgent } from '../agent.js';
+import { expect } from 'vitest';
+import { createAgent } from '../agent/index.js';
 import { utimesSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -18,7 +19,7 @@ import type { DispatchResult, DispatchSubstitution } from '../../modelResolver/t
 import { makeDriver } from '../../drivers/acp-driver-core/__tests__/acp-driver.helpers.js';
 import { SESSION } from '../../drivers/acp-driver-core/__tests__/permissions.helpers.js';
 import type { UnsafeSetting } from '../../drivers/acp-driver-core/types.js';
-import { HANDOFF_PATH, STATUS_DIR, parseProfileNames } from '../workflow-command.js';
+import { HANDOFF_PATH, MESSAGE_PATH, STATUS_DIR, parseProfileNames } from '../workflow-command.js';
 import { writeFile } from '../../drivers/__tests__/catalog-fixtures.js';
 import { PROFILE_FIXTURE } from './profile-fixtures.js';
 
@@ -455,12 +456,13 @@ export function createScriptedDriver(name = 'scripted') {
 }
 
 /**
- * A chat for the changeover loop. `routes` maps each profile to a driver name, or to
+ * A chat for the automated changeover process. `routes` maps each profile to a driver name, or to
  * `[driver, model]`; there is one scripted driver for each name, under `scripted`. The resolver
  * answers by profile. `commands` lists every command any driver received, in order.
  * `writeHandoff` writes the handoff file under `dir` naming a profile, with a modification time
  * `offset` ms from now (ahead by default, so it is fresh whatever the clock grain).
  * `writeStatus` writes the `ready` status file of a profile that hands off to `to`, dated the same way.
+ * `writeMessage` writes the message file under `dir` naming a profile, dated the same way.
  */
 export function loopRig(
    { routes, dir, ...overrides }:
@@ -485,7 +487,8 @@ export function loopRig(
    const made    = makeAgent({ catalog, resolver, workDir: dir, ...overrides });
    const writeHandoff = (profile: string, offset?: number) => handoffFile(dir, profile, offset);
    const writeStatus  = (profile: string, to: string, offset?: number) => readyFile(dir, profile, to, {}, offset);
-   return { ...made, scripted, commands, writeHandoff, writeStatus };
+   const writeMessage = (profile: string, offset?: number) => messageFile(dir, profile, offset);
+   return { ...made, scripted, commands, writeHandoff, writeStatus, writeMessage };
 }
 
 /**
@@ -495,6 +498,15 @@ export function loopRig(
 export function handoffFile(dir: string, profile: string, offset = 5000): string
 {
    const file    = changeover(HANDOFF_PATH, profile, dir);
+   const seconds = (Date.now() + offset) / 1000;
+   utimesSync(file, seconds, seconds);
+   return file;
+}
+
+/** Writes the message file under `dir` naming `profile`, dated as `handoffFile` is. */
+export function messageFile(dir: string, profile: string, offset = 5000): string
+{
+   const file    = changeover(MESSAGE_PATH, profile, dir);
    const seconds = (Date.now() + offset) / 1000;
    utimesSync(file, seconds, seconds);
    return file;
@@ -551,6 +563,69 @@ export const handoffTurn = (rig: LoopRig, profile: string) =>
 /** A turn in which `from` marks itself ready, then suggests `to`, as a profile does when its work is done. */
 export const suggests = (rig: LoopRig, from: string, to: string) =>
    [act(() => rig.writeStatus(from, to)), say(nextLine(to))];
+
+/** The completion line a profile writes when it suggests one send. */
+export const sendLine = (profile: string) => `**Next**: Run \`@send to=${profile}\``;
+
+/** A turn in which `from` marks itself ready for a send to `to`, then suggests it. */
+export const suggestsSend = (rig: LoopRig, from: string, to: string) => [
+   act(() => readyFile(rig.workDir, from, to, { next: { command: 'send', to } })),
+   say(sendLine(to)),
+];
+
+/** The turn after `@send to=<to>`: `from` writes the message file naming `to`, marks itself waiting, says so. */
+export const sendTurn = (rig: LoopRig, from: string, to: string) => [
+   act(() => {
+      rig.writeMessage(to);
+      readyFile(rig.workDir, from, to, { status: 'waiting', next: undefined });
+   }),
+   say('Message written.'),
+];
+
+/** The last turn of a side trip: `profile` marks itself complete with no next, and says to return to `source`. */
+export const closesTrip = (rig: LoopRig, profile: string, source: string) => [
+   act(() => readyFile(rig.workDir, profile, source, { status: 'complete', next: undefined })),
+   say(`Close this tab and return to ${source}.`),
+];
+
+/**
+ * A side trip on beta, where Enforcer and Doctor run. Enforcer suggests a send to Doctor and writes the
+ * message; Doctor plays `sideTurns` one after another in the driver session `side`; Enforcer plays `back`
+ * after the return. Enforcer's turns run in the driver session `enf-1`, so the sessions are told apart.
+ */
+export function scriptSideTrip(
+   rig: LoopRig, sideTurns: ScriptStep[][], back: ScriptStep[] = [say('Resumed.')], side = 'doc-1',
+)
+{
+   const { beta } = rig.scripted;
+   beta.script(suggestsSend(rig, 'Enforcer', 'Doctor'), { sessionId: 'enf-1' });
+   beta.script(sendTurn(rig, 'Enforcer', 'Doctor'), { sessionId: 'enf-1' });
+   for (const turn of sideTurns) { beta.script(turn, { sessionId: side }); }
+   beta.script(back, { sessionId: 'enf-1' });
+}
+
+/** Doctor's status file, written as `readyFile` writes one, with `overrides`. */
+export const doctorFile = (rig: LoopRig, overrides: Record<string, unknown>, offset?: number) =>
+   readyFile(rig.workDir, 'Doctor', 'Enforcer', overrides, offset);
+
+/** A turn of Doctor that leaves its file `waiting` and asks the user a question. */
+export const asks = (rig: LoopRig): ScriptStep[] => [
+   act(() => doctorFile(rig, { status: 'waiting', next: undefined })),
+   say('Which file do you mean?'),
+];
+
+/**
+ * The trip of `scriptSideTrip` is still open: the side profile runs in the session `running` (none
+ * when its turn threw before the driver named one), the main one is parked, nothing was released.
+ */
+export function expectOpen(rig: LoopRig, sessionId: string, running: string | null = 'doc-1')
+{
+   const record = rig.sessionStore.get(sessionId);
+   expect(rig.scripted.beta.released).toEqual([]);
+   expect(record?.profile).toBe('Doctor');
+   expect(record?.driverSessionId ?? null).toBe(running);
+   expect(record?.parked?.driverSessionId).toBe('enf-1');
+}
 
 /**
  * How Planner's status file can fail to confirm a handoff to Enforcer, by outcome. Each entry leaves the

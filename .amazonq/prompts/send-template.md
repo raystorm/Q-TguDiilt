@@ -7,6 +7,9 @@ Write message to `.amazonq/work/current/MESSAGE.md`.
 Follow the canonical changeover shape defined in
 `.workflow/rules/workflow/changeover-format.md`.
 
+A message written by a profile activated by `@receive` also follows Trip Starter in
+`.workflow/rules/workflow/workflow-mechanics.md`.
+
 ## After Writing
 
 - Update the status file per Change invariant (`.workflow/rules/workflow/status-format.md`)

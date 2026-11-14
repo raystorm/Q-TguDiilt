@@ -15,7 +15,7 @@ const dirOf = useTempDir();
 
 const makeRig = (routes = loopRoutes) => loopRig({ routes, dir: dirOf() });
 
-const STOPPED = 'The changeover loop stopped.';
+const STOPPED = 'Automatic changeover stopped.';
 
 // reason, the stop reason the IDE gets
 const ENDS: Array<[Exclude<TurnEnd, 'completed'>, string]> = [
@@ -25,7 +25,7 @@ const ENDS: Array<[Exclude<TurnEnd, 'completed'>, string]> = [
 /** What the client was sent as text, one entry per update, without the padding. */
 const trimmed = (cx: Cx) => textsIn(cx).map(text => text.trim());
 
-describe('the changeover loop: what the user sees', () => {
+describe('the automated changeover process: what the user sees', () => {
    it('[H] each command is shown before its turn runs', async () => {
       const rig = makeRig();
       const { alpha, beta } = rig.scripted;
@@ -91,14 +91,27 @@ describe('the changeover loop: what the user sees', () => {
 
    it('[H] no target, an unknown profile and a handoff not written each get one distinct line', async () => {
       const noTarget = await linesAfter('as Planner go', 'Done.\n\n**Next**: Run `@handoff`');
-      const sendOnly = await linesAfter('as Planner go', 'Done.\n\n**Next**: Run `@send Doctor`');
       const unknown  = await linesAfter('as Planner go', 'Done.\n\n**Next**: Run `@handoff to=Nobody`');
       const notSaved = await linesAfter('@handoff to=Planner', 'Done.');
 
-      for (const lines of [noTarget, sendOnly, unknown, notSaved]) { expect(lines).toHaveLength(1); }
-      expect(noTarget).toEqual(sendOnly);
+      for (const lines of [noTarget, unknown, notSaved]) { expect(lines).toHaveLength(1); }
       expect(new Set([noTarget[0], unknown[0], notSaved[0]]).size).toBe(3);
       expect(unknown[0]).toContain('"Nobody"');
+   });
+
+   it('[H] a send with no status file stops with no chat line', async () => {
+      const rig = makeRig();
+      const cx  = createCx();
+      rig.scripted.alpha.script([say('Done.\n\n**Next**: Run `@send Doctor`')]);
+      const sessionId = await openChat(rig);
+
+      const response = await sendPrompt(rig, sessionId, 'as Planner go', cx);
+
+      expect(response).toEqual({ stopReason: 'end_turn' });
+      expect(rig.commands).toEqual(['as Planner go']);
+      expect(trimmed(cx).slice(1)).toEqual([]);
+      const stops = eventsOf(rig.logger, 'loop_stopped').map(entry => entry.data.reason);
+      expect(stops).toEqual(['status_not_confirmed']);
    });
 
    it('[H] an unknown profile is shown as written, capped at 64 characters', async () => {
@@ -197,7 +210,7 @@ describe('the changeover loop: what the user sees', () => {
    });
 });
 
-describe('the changeover loop: cancel, asks and disconnect', () => {
+describe('the automated changeover process: cancel, asks and disconnect', () => {
    it('[H] a cancel during a hop ends the loop and sends nothing more', async () => {
       const rig = makeRig();
       const cx  = createCx();
@@ -381,7 +394,7 @@ describe('the changeover loop: cancel, asks and disconnect', () => {
    });
 });
 
-describe('the changeover loop: failures and abnormal ends', () => {
+describe('the automated changeover process: failures and abnormal ends', () => {
    it.each(ENDS)('[H] a turn that ends with %s stops the loop even with a valid next step', async (
       reason, stopReason,
    ) => {

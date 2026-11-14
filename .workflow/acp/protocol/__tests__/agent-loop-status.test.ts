@@ -18,7 +18,7 @@ const dataOf = (rig: LoopRig, event: string) => eventsOf(rig.logger, event).map(
 /** What the client was sent as text, one entry per update, without the padding. */
 const trimmed = (cx: Cx) => textsIn(cx).map(text => text.trim());
 
-describe('the changeover loop: the status file confirms completion', () => {
+describe('the automated changeover process: the status file confirms completion', () => {
    it('continues only with a fresh ready file, hop after hop', async () => {
       const rig = makeRig();
       const { alpha, beta } = rig.scripted;
@@ -61,7 +61,7 @@ describe('the changeover loop: the status file confirms completion', () => {
       expect(rig.commands).toEqual(['as Planner go']);
       expect(response).toEqual({ stopReason: 'end_turn' });
       expect(rig.scripted.beta.seen).toHaveLength(0);
-      expect(dataOf(rig, 'status_check')).toEqual([{ sessionId, profile: 'Planner', outcome }]);
+      expect(dataOf(rig, 'status_check')).toEqual([{ sessionId, profile: 'Planner', check: 'handoff', outcome }]);
    });
 
    it.each(unconfirmed)('a stop for %s shows no chat line', async (_outcome, arrange) => {
@@ -134,7 +134,7 @@ describe('the changeover loop: the status file confirms completion', () => {
       await send(rig, sessionId, 'go');
 
       expect(rig.commands).toEqual(['go']);
-      expect(dataOf(rig, 'status_check')).toEqual([{ sessionId, outcome: 'missing' }]);
+      expect(dataOf(rig, 'status_check')).toEqual([{ sessionId, check: 'handoff', outcome: 'missing' }]);
    });
 
    it('[H] a follow-up turn needs a new write', async () => {
@@ -191,7 +191,9 @@ describe('the changeover loop: the status file confirms completion', () => {
       await send(rig, sessionId, 'as Planner go');
 
       expect(rig.commands).toEqual(['as Planner go', '@handoff to=Enforcer', '@start']);
-      expect(dataOf(rig, 'status_check')).toEqual([{ sessionId, profile: 'Planner', outcome: 'confirmed' }]);
+      expect(dataOf(rig, 'status_check')).toEqual([
+         { sessionId, profile: 'Planner', check: 'handoff', outcome: 'confirmed' },
+      ]);
    });
 
    it('[H] a typed handoff checks no status file', async () => {

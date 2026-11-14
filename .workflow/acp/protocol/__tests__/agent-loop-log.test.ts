@@ -1,13 +1,13 @@
 import { describe, it, expect } from 'vitest';
-import { mkdirSync, utimesSync } from 'node:fs';
+import { mkdirSync, rmSync, utimesSync } from 'node:fs';
 import { join } from 'node:path';
 import { end, say } from '../../drivers/__tests__/fake-governed-driver.js';
 import { useTempDir, writeFile } from '../../drivers/__tests__/catalog-fixtures.js';
 import { STATUS_DIR } from '../workflow-command.js';
 import {
    type LogEntry, type LoopRig, act, createCx, eventsOf, handoffTurn, loopRig, loopRoutes, nextLine, openChat,
-   plannerToEnforcer, readyFile, scriptChain, sendPrompt, statusFile, suggests, textsIn, throws,
-   unconfirmed, wait,
+   plannerToEnforcer, readyFile, scriptChain, sendLine, sendPrompt, sendTurn, statusFile, suggests,
+   suggestsSend, textsIn, throws, unconfirmed, wait,
 } from './agent.helpers.js';
 
 const dirOf = useTempDir();
@@ -20,7 +20,7 @@ const dataOf = (rig: LoopRig, event: string) => eventsOf(rig.logger, event).map(
 /** The event name of every log entry, in order. */
 const eventNamesOf = (rig: LoopRig): string[] => rig.logger.entries.map((entry: LogEntry) => entry.event);
 
-describe('the changeover loop: logging', () => {
+describe('the automated changeover process: logging', () => {
    it('each command sent is logged with its profiles, trigger and hop', async () => {
       const rig = makeRig();
       plannerToEnforcer(rig, 'beta');
@@ -187,9 +187,9 @@ describe('the changeover loop: logging', () => {
       await sendPrompt(rig, sessionId, 'as Planner go');
 
       expect(dataOf(rig, 'status_check')).toEqual([
-         { sessionId, profile: 'Planner',        outcome: 'confirmed' },
-         { sessionId, profile: 'PromptEngineer', outcome: 'confirmed' },
-         { sessionId, profile: 'Architect',      outcome: 'confirmed' },
+         { sessionId, profile: 'Planner',        check: 'handoff', outcome: 'confirmed' },
+         { sessionId, profile: 'PromptEngineer', check: 'handoff', outcome: 'confirmed' },
+         { sessionId, profile: 'Architect',      check: 'handoff', outcome: 'confirmed' },
       ]);
       const order = eventNamesOf(rig).filter(event => 'status_check' === event || 'changeover_sent' === event);
       expect(order).toEqual(Array(3).fill(['status_check', 'changeover_sent', 'changeover_sent']).flat());
@@ -213,7 +213,10 @@ describe('the changeover loop: logging', () => {
       await sendPrompt(rig, sessionId, 'as Planner go');
 
       expect(eventsOf(rig.logger, 'status_check')).toEqual([
-         { level: 'info', event: 'status_check', data: { sessionId, profile: 'Planner', outcome } },
+         {
+            level: 'info', event: 'status_check',
+            data:  { sessionId, profile: 'Planner', check: 'handoff', outcome },
+         },
       ]);
    });
 
@@ -241,9 +244,37 @@ describe('the changeover loop: logging', () => {
       expect(eventsOf(rig.logger, 'status_read_failed')).toEqual([
          { level: 'warn', event: 'status_read_failed', data: { sessionId, code } },
       ]);
-      expect(dataOf(rig, 'status_check')).toEqual([{ sessionId, profile: 'Planner', outcome }]);
+      expect(dataOf(rig, 'status_check')).toEqual([{ sessionId, profile: 'Planner', check: 'handoff', outcome }]);
       const order = eventNamesOf(rig).filter(event => event.startsWith('status_'));
       expect(order).toEqual(['status_read_failed', 'status_check']);
+   });
+
+   // the check that reads the folder, the profile whose file it reads
+   const TRIP_CHECKS: Array<['send' | 'end', string]> = [['send', 'Enforcer'], ['end', 'Doctor']];
+
+   it.each(TRIP_CHECKS)('[H] a failed read for a %s check: a warning with the code only, then the check', async (
+      check, profile,
+   ) => {
+      const rig = makeRig();
+      const { beta } = rig.scripted;
+      const breakFolder = () => {
+         rmSync(join(dirOf(), STATUS_DIR), { recursive: true, force: true });
+         writeFile(join(dirOf(), STATUS_DIR), 'x');
+      };
+      if ('send' === check) { breakFolder(); beta.script([say(sendLine('Doctor'))]); }
+      else {
+         beta.script(suggestsSend(rig, 'Enforcer', 'Doctor'));
+         beta.script(sendTurn(rig, 'Enforcer', 'Doctor'));
+         beta.script([act(breakFolder), say('Close this tab and return to Enforcer.')]);
+      }
+      const sessionId = await openChat(rig);
+
+      await sendPrompt(rig, sessionId, 'as Enforcer go');
+
+      expect(eventsOf(rig.logger, 'status_read_failed')).toEqual([
+         { level: 'warn', event: 'status_read_failed', data: { sessionId, code: 'ENOTDIR' } },
+      ]);
+      expect(dataOf(rig, 'status_check').at(-1)).toEqual({ sessionId, profile, check, outcome: 'missing' });
    });
 
    // how the folder is left when there is nothing to read

@@ -51,10 +51,12 @@ When your work is complete, write the status file per
 
 **When Changeover is next:**
 ```
-**Next**: Run `@send` to [next profile in the workflow],
+**Next**: Run `@send to=[next profile in the workflow]`
 ```
 
 **When no Changeover (side trip completion):**
 ```
-Close this tab and return to [source profile] tab.
+Close this tab and return to [trip starter] tab.
 ```
+
+The trip starter is defined in `.workflow/rules/workflow/workflow-mechanics.md` (Trip Starter).

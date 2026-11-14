@@ -22,7 +22,7 @@ JetBrains IDE
 @agentclientprotocol/sdk        ← transport, framing, dispatch
    │  typed handler calls
    ▼
-protocol/agent.ts               ← ACP ⇄ driver translation seam
+protocol/agent/                 ← ACP ⇄ driver translation seam
    │  driver.execute(...)
    ▼
 drivers/ (Kiro, Copilot, ...)   ← provider-neutral driver layer
@@ -67,7 +67,7 @@ SDK). A JetBrains IDE launches the entry point as a subprocess via
 (`initialize`, `session/new`, `session/load`, `session/prompt`,
 `session/cancel`) to boundary handlers; on stdin EOF it disconnects.
 
-## Translation seam (`agent.ts`)
+## Translation seam (`agent/`)
 
 The seam is deliberately narrow: **one turn maps to exactly one
 `driver.execute(...)`**. A `session/prompt` runs one turn, or several when
@@ -101,6 +101,18 @@ changeover steps follow (see "Changeover step").
   update.
 
 An empty prompt (no text content) is rejected with a clear error.
+
+The seam is the folder `protocol/agent/`, one module for each concern:
+
+| Module          | What it holds                                                  |
+| --------------- | -------------------------------------------------------------- |
+| `index.ts`      | `createAgent`: the wiring and the ACP session methods          |
+| `tool-calls.ts` | Asks and tool calls: governance, cards, approval requests      |
+| `turn.ts`       | `runTurn`: one turn, one `driver.execute`                      |
+| `activation.ts` | `applyActivation`, `governedDriver`, `releaseDriverSession`    |
+| `loop.ts`       | `runLoop`: the automated changeover process                    |
+| `loop-stops.ts` | Stop reasons, the chat lines of a stop, and the loop's state   |
+| `side-trip.ts`  | The return prompt, the side-trip chat lines, the end of a trip |
 
 ## Streaming
 
@@ -222,6 +234,9 @@ exactly one `workflowId`** and tracks:
   profile activation.
 - `profile` — the canonical name of the profile the last applied activation
   found. A new or reopened session has none until one is applied.
+- `parked` — set while a side trip is open: the main thread's driver, model,
+  driver session id and profile, kept until the trip ends. The record's own
+  fields are always the session that is running (see "Side trips").
 - `notice` — the one chat line the next turn leads with. Cleared when a turn
   ends normally (see "How a turn ends").
 - `activeTurn` — the per-session in-flight flag.
@@ -274,7 +289,7 @@ unchanged. A profile activation sets the notice again, as described next.
 
 ### Profile activation
 
-`applyActivation(record, command)` in `agent.ts` applies the profile a
+`applyActivation(record, command)` in `agent/activation.ts` applies the profile a
 prompt activates. `prompt` calls it after the active-turn flag is set and
 before it fetches the driver; it does not touch the flag. The user's text
 reaches the driver unchanged.
@@ -347,24 +362,34 @@ the profile and the source).
 ### Changeover step
 
 After a turn that ended normally, the service can move the workflow to the next profile on its
-own. That is a changeover step. `prompt` wraps its turns in `runLoop` (`agent.ts`), which
-repeats steps until one cannot be taken. `runTurn` runs one turn: the notice, one
+own. That is a changeover step. `prompt` wraps its turns in `runLoop` (`agent/loop.ts`), which
+repeats steps until one cannot be taken. `runTurn` (`agent/turn.ts`) runs one turn: the notice, one
 `driver.execute`, and the text the driver did not stream. All steps of a prompt run under the
 prompt's one active-turn flag, abort signal and update sink, so the IDE sees one long prompt.
-The steps keep no state of their own, and there is no off switch and no hop cap.
+The steps keep no state of their own except the record's `parked` slot (see "Side trips"),
+and there is no off switch and no hop cap.
 
 After each turn:
 
 - A turn that was cancelled stops the steps (`cancelled`). A turn that ended abnormally stops
   them (`abnormal_end`). A failed delivery to the IDE stops them (`failed`), because they
   would otherwise run unseen. The abort signal is read after every wait.
+- A prompt that holds both a handoff and a send, typed (`detectHandoff` and `detectSend`), stops
+  after its turn with `several_suggestions`. A completion block that holds both stops the same way.
 - If the last command was a handoff (typed by the user, found by `detectHandoff`, or sent by
   the service), `checkHandoff` runs, then `applyActivation(record, '@start', { fresh: true })`.
   `@start` always runs in a fresh downstream session. The old one is released after the
-  profile is resolved. A profile that cannot be resolved keeps the old session.
-- Otherwise `parseCompletionBlock` reads the turn's text. Anything but one distinct known target
-  stops. For one target, `checkStatus` runs. Only a `confirmed` result sends
-  `@handoff to=<Profile>` (canonical name) in the same session; any other result stops.
+  profile is resolved. A profile that cannot be resolved keeps the old session. Inside a side
+  trip a handoff stops with `handoff_in_trip` and nothing is checked (see "Side trips").
+- If the last command was a send (typed, found by `detectSend`, or sent by the service),
+  `checkHandoff` runs on `MESSAGE_PATH`, then `applyActivation(record, '@receive', ...)` starts
+  the target in a fresh session (see "Side trips").
+- Otherwise `parseCompletionBlock` reads the turn's text. One distinct known handoff target, or
+  one distinct known send target, goes on; anything else stops. `checkStatus` runs with the
+  command to confirm, `handoff` or `send`. Only a `confirmed` result sends `@handoff to=<Profile>`
+  or `@send to=<Profile>` (canonical name) in the same session; any other result stops. In a side
+  trip a block that suggests nothing is the end of the trip, not a stop: `checkStatus` runs with
+  `end`.
 
 Each command the service sends is shown first as its own paragraph, "Changeover: sending
 `<command>`", and reaches the provider as plain prompt text. The service gives no approvals.
@@ -375,29 +400,35 @@ character, and every line after it. Lines between triple-backtick fences are ign
 single-backtick code spans are read; text outside a span, bold and headings are never read.
 
 - A span is a handoff suggestion when it starts with `@handoff` or `/handoff` (any case, whole
-  word). It is a side trip when it starts with `@send` or `/send`. Side-trip spans never
-  continue the steps.
+  word). It is a send suggestion when it starts with `@send` or `/send`. A send suggestion
+  starts or moves a side trip; it never sends a handoff.
 - The profile name is what follows `to=` (any case), or the rest of the span when there is no
   `to=`. `@handoff Planner` and `@handoff to=Planner` are the same suggestion. One trailing
   `,` `.` `:` or `;` is removed. Names match profile names and aliases exactly, ignoring case.
   There is no fuzzy matching.
-- Stop reasons, in order of testing: no handoff and no send span is `no_suggestion`. Send
-  spans only is `no_target`. Two or more distinct suggestions is `several_suggestions`; a bare
-  span counts as one. One bare span is `no_target`. One unknown name is `unknown_profile`.
+- Stop reasons, in order of testing: no handoff and no send span is `no_suggestion`. A handoff
+  span and a send span together is `several_suggestions`. Two or more distinct suggestions of
+  one command is `several_suggestions`; a bare span counts as one. One bare span is
+  `no_target`. One unknown name is `unknown_profile`.
 
 **Handoff check.** Before `@start`, `checkHandoff` (`protocol/handoff-check.ts`) requires that
 the file was modified at or after the start of the handoff turn (modification time only), that
 `## To` names a known profile, and, for a handoff the service sent, that it is that profile.
 A typed prompt counts as a handoff when `@handoff` or `/handoff` is a whole word anywhere in
-it. Its arguments are not read.
+it. Its arguments are not read. The same check runs on `MESSAGE_PATH` before `@receive`, and a
+typed prompt counts as a send the same way (`detectSend`).
 
 **Status check.** Before the steps continue, `checkStatus` (`protocol/status-check.ts`) reads the
 status files in `STATUS_DIR` (`.amazonq/work/status`, a constant in `workflow-command.ts`, under
 `workDir`). The prose of the turn only triggers the read; the file confirms. A file never causes
 a handoff by itself. The profiles write the files, named `<profile>-<workflowId>.json`; the
-service only reads, and never writes, renames or deletes in the folder. The check runs only when
-the completion block names one known target. It does not run after a handoff turn or before any
-other stop, and a typed handoff skips it. It is synchronous and never throws.
+service only reads, and never writes, renames or deletes in the folder. `checkStatus` takes the
+command it checks, `handoff`, `send` or `end`, and `expected`, the profile the block named
+(`end` ignores it). `handoff` and `send` confirm a suggestion; `end` confirms that the profile
+of a side trip is done. The check runs only when the completion block names one known target,
+or, inside a side trip, when it suggests nothing. It does not run after a handoff or send turn
+or before any other stop, and a typed handoff or send skips it. It is synchronous and never
+throws.
 
 The first step that applies decides the outcome:
 
@@ -407,8 +438,8 @@ The first step that applies decides the outcome:
 | `stale`     | Files of this profile exist, but none was modified since the turn started        |
 | `ambiguous` | More than one file of this profile was modified since the turn started           |
 | `invalid`   | The one fresh file is too large, unreadable, or not what the format allows       |
-| `not_ready` | `status` is anything but `ready`                                                 |
-| `mismatch`  | `next.command` is not `handoff`, or `next.to` is not the block's target          |
+| `not_ready` | `status` is not `ready` (for `end`: not `complete`)                              |
+| `mismatch`  | `next.command` or `next.to` is not what was checked (for `end`: any `next`)      |
 | `confirmed` | None of the above                                                                |
 
 - **Which files count.** Names that start with `<profile>-` and end with `.json`, compared as
@@ -436,28 +467,33 @@ The first step that applies decides the outcome:
 A result other than `confirmed` ends the steps with the stop reason `status_not_confirmed`. It
 sends no chat line, so the user sees only the agent's own text.
 
-| Event                | Level | Fields                            |
-| -------------------- | ----- | --------------------------------- |
-| `status_check`       | info  | `sessionId`, `profile`, `outcome` |
-| `status_read_failed` | warn  | `sessionId`, `code`               |
+| Event                | Level | Fields                                     |
+| -------------------- | ----- | ------------------------------------------ |
+| `status_check`       | info  | `sessionId`, `profile`, `check`, `outcome` |
+| `status_read_failed` | warn  | `sessionId`, `code`                        |
 
 `status_check` is logged once per check, with `profile` left out when the chat has none.
+`check` is `handoff`, `send` or `end`.
 `status_read_failed` comes first when `failureCode` is set, at most once per check. Neither
 holds agent text or anything from a status file: no value, path or error message, only the
-session id, the profile, the outcome and the error code.
+session id, the profile, the check, the outcome and the error code.
 
 **Stop reasons.** One vocabulary in code, chat and log: `no_suggestion`, `several_suggestions`,
-`no_target`, `unknown_profile`, `handoff_not_written`, `status_not_confirmed`, `abnormal_end`,
-`failed`, `cancelled`. The first four come from the completion block.
+`no_target`, `unknown_profile`, `handoff_not_written`, `message_not_written`, `handoff_in_trip`,
+`status_not_confirmed`, `abnormal_end`, `failed`, `cancelled`. The first four come from the
+completion block.
 
-- `several_suggestions`, `no_target`, `unknown_profile` and `handoff_not_written` each send one
-  chat line. The unknown name is shown as the agent wrote it, cut at 64 characters.
-- `abnormal_end` and `failed` send "The changeover loop stopped." only when the service sent a
-  command in the prompt, or the prompt was a typed handoff.
+- `several_suggestions`, `no_target`, `unknown_profile`, `handoff_not_written`,
+  `message_not_written` and `handoff_in_trip` each send one chat line. The unknown name is
+  shown as the agent wrote it, cut at 64 characters.
+- `abnormal_end` and `failed` send "Automatic changeover stopped." only when the service sent a
+  command in the prompt, or the prompt was a typed handoff or send.
 - `no_suggestion`, `status_not_confirmed`, `cancelled` and a failed delivery send no line.
 
 **Profile hop.** `profileHop` counts profile changes. A `@handoff` and its `@start` share one
-number. A typed handoff's `@start` is hop 1.
+number. A `@send` and its `@receive` share one number, each move inside a side trip is the next
+one, and the return prompt is one more. A typed handoff's `@start` and a typed send's `@receive`
+are hop 1.
 
 | Event             | Level | Fields                                             |
 | ----------------- | ----- | -------------------------------------------------- |
@@ -465,9 +501,9 @@ number. A typed handoff's `@start` is hop 1.
 | `loop_stopped`    | info  | `sessionId`, `reason`, `profileHop`, `word`        |
 
 `changeover_sent` is logged once per command sent; `from` is left out when the chat has no
-profile yet, and `trigger` is `handoff` or `start`. `loop_stopped` is logged once per prompt
-that reached its first turn; `word` is set for an unknown profile, redacted and cut at 64
-characters. Neither holds agent text.
+profile yet, and `trigger` is `handoff`, `start`, `send`, `receive` or `return`.
+`loop_stopped` is logged once per prompt that reached its first turn; `word` is set for an
+unknown profile, redacted and cut at 64 characters. Neither holds agent text.
 
 **Late tool calls.** A tool call a driver reports after its turn ended is denied without
 evaluation and logged as `governance_outcome` with `reason: turn_ended` (see "Failure
@@ -478,13 +514,69 @@ handling").
 - `protocol/completion-block.ts`: the grammar above (`parseCompletionBlock`).
 - `protocol/handoff-check.ts`: the check before `@start` (`checkHandoff`).
 - `protocol/status-check.ts`: the check before the steps continue (`checkStatus`).
-- `detectHandoff` in `protocol/workflow-command.ts`: what counts as a typed handoff.
-- `runLoop`, `runTurn` and `applyActivation` in `protocol/agent.ts`: the steps.
+- `detectHandoff` and `detectSend` in `protocol/workflow-command.ts`: what counts as a typed
+  handoff or send.
+- `runLoop` in `protocol/agent/loop.ts`, `runTurn` in `turn.ts`, `applyActivation` in
+  `activation.ts`, and the end of a trip in `side-trip.ts`: the steps.
 
 The parser and the checks take the profile names from the same source as profile activation.
 The service sends plain prompt text, so a skill or custom tool is reached through the agent
 (which expands the saved prompt) or through a driver (see `extending-drivers.md`). The steps
 need no change for either.
+
+### Side trips
+
+A side trip runs one profile after another in the chat you are watching, then returns to the
+profile that started it. Two threads run: the main thread and at most one side trip. `@handoff`
+writes `HANDOFF.md` and `@start` reads it; `@send` writes `MESSAGE.md` and `@receive` reads it.
+From the main thread `@send` starts a trip. Inside the trip `@send` moves it to the next profile.
+The trip is open while the record's `parked` slot is set; the steps keep nothing else.
+
+- **Start.** A turn ends with one `@send to=<Profile>` suggestion and `checkStatus` with `send`
+  confirms the sender's file. The service shows "Changeover: sending `@send to=<Profile>`" and
+  sends it to the sender's session. The sender writes `MESSAGE.md` and sets its own file to
+  `waiting`. After that turn `checkHandoff` runs on `MESSAGE_PATH`. Then
+  `applyActivation(record, '@receive', { fresh: true, park: true })` resolves the target first,
+  and only then saves the sender's driver, model, session id and profile in `record.parked`.
+  The sender's session is not released. A target that cannot be resolved changes nothing. The
+  service shows "Changeover: sending `@receive`" and the line `Side trip: <Profile>`, and the
+  target starts in a fresh session on the driver and model its registry entry asks for.
+- **Inside the trip.** Only `@send` moves it. Each move runs the same checks, reads the status
+  file of the profile that is running, and releases that profile's session once the next target
+  is resolved. A move never releases the parked session. A handoff in a trip, suggested or
+  typed, stops with `handoff_in_trip` and sends nothing.
+- **End.** A turn in the trip ends normally and suggests nothing, and `checkStatus` with `end`
+  confirms the profile's file: fresh, `complete`, no `next`. `end` in `agent/side-trip.ts`
+  releases the running session (a failure is logged as `release_failed` and does not stop the
+  trip's end), puts the parked driver, model, session id and profile back on the record, and
+  empties the slot. The profile is not resolved again, so the main thread resumes on the driver,
+  model and session it had.
+- **Return.** The service sends the restored session one fixed prompt, shown like any command,
+  then the line `Back to <Profile>`: "The side trip to <Profile> is finished. Its results are in
+  the files it changed and in the workflow log. Continue your work." It names the last profile of
+  the trip and carries no result. It holds no `@` or `/` word and does not begin with `as`, so it
+  is never taken for a command. The return is one profile hop. After it the main thread goes on
+  as before: a handoff suggested in the return turn is carried.
+- **Between prompts.** A stop leaves the trip open, for example `status_not_confirmed` when a
+  side profile asked a question. The user's next prompt goes to the running (side) session, and
+  the trip can end in that prompt. A prompt sent while a turn runs is rejected as a turn in
+  progress.
+- **Typed commands.** `@send` or `/send` as a whole word is carried like a typed handoff: the
+  message file is checked, then `@receive` starts the target, with no status check and no
+  comparison with the typed argument. Inside a trip it moves the trip. A typed handoff inside a
+  trip stops with `handoff_in_trip`. A prompt that holds both stops with `several_suggestions`.
+- **Cancel, failures, disconnect.** A cancel in a side turn ends the turn and releases nothing;
+  the trip stays open and the next prompt carries on in the side session. A cancel in the return
+  turn finds the slot already empty. An abnormal end, a failed delivery or a throw in a side
+  turn stops the prompt and keeps the trip open. A return turn that fails ends the prompt after
+  the side session was released. Disconnect aborts the turn and closes every driver, so the
+  parked session ends with the rest, and the store is emptied.
+- **Trip starter.** The rules have a message written inside a trip begin its Context Capsule
+  with `Trip starter: <profile>`, so the last profile ends "Close this tab and return to
+  [trip starter] tab". The service does not read that line; it returns to the parked session.
+
+The trip adds no log event. `changeover_sent` has the triggers `send` and `receive` (the start
+and each move) and `return`, and `status_check` says which check ran.
 
 ### Cancel and wind-down
 
@@ -659,8 +751,14 @@ prompt text are written to logs.
 
 ## Known limits
 
-- **One handoff file.** There is one `HANDOFF.md` per working folder. Two chats that take
-  changeover steps at the same time share it.
+- **One handoff file and one message file.** There is one `HANDOFF.md` and one `MESSAGE.md`
+  per working folder. Two chats that run the automated changeover process at the same time
+  share them.
+- **Side trips.** One at a time, with no limit on the moves inside it. A side-trip profile that
+  is the main profile, or the profile that sent to it, shares that profile's status file name,
+  because the trip reuses the workflow id. The parked agent process sits idle while the trip
+  runs. Whether it survives a long trip has not been tested; if it does not, the return fails
+  as a session collapse. Two live sessions of one driver at once have not been tested either.
 - **Status files.** A profile has one status file per workflow, so the same profile running
   twice at once in one workflow shares it, and the later writer wins. Links are followed,
   including to files outside the workspace. Modification times are compared to the millisecond,

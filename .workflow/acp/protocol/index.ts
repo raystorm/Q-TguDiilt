@@ -15,7 +15,7 @@ import { agent, methods, ndJsonStream, PROTOCOL_VERSION } from '@agentclientprot
 import { buildDriverCatalog, type DriverCatalog } from '../drivers/driver-catalog.js';
 import { loadRegistryConfig, type RegistryConfig } from '../drivers/registry.js';
 import { createDispatchResolver } from '../modelResolver/resolver.js';
-import { createAgent } from './agent.js';
+import { createAgent } from './agent/index.js';
 import { registryPath } from './registry-location.js';
 import { createSessionStore } from './session-store.js';
 import { createShutdownHandler } from './shutdown.js';
