@@ -1,3 +1,8 @@
+---
+name: handoff
+version: 1.0.0
+description: "Linear progression to the next profile."
+---
 ## Guard
 
 Resolve the recipient profile (`to`) in this order:

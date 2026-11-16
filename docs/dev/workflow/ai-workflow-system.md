@@ -423,7 +423,7 @@ The system supports features requiring multiple sequential stories:
 
 ## Saved Prompts
 
-Saved prompts are stored in `.amazonq/prompts/` (version-controlled, team-shared)
+Saved prompts are stored in `.workflow/prompts/` (version-controlled, team-shared)
 and enable workflow coordination.
 
 Saved Prompts can be roughly divided into categories:

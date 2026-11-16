@@ -1,3 +1,8 @@
+---
+name: resume
+version: 1.0.0
+description: "Restore a suspended (or auto-suspended) context."
+---
 Load suspended workflow context.
 
 ## Missing File Fallback

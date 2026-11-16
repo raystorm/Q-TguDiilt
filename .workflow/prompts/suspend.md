@@ -1,3 +1,8 @@
+---
+name: suspend
+version: 1.0.0
+description: "Save full workflow context."
+---
 Save current workflow context to `.amazonq/suspended/[name].md`.
 
 Extract profile and goal from conversation.

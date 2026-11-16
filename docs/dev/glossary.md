@@ -113,7 +113,8 @@ Prompt
 In this system, prompts serve three roles:  
 **Command Prompts** (user‑facing entry points that control workflow),  
 **Saved Prompts** (implementation infrastructure  
-that Command Prompts invoke to set up workflow plumbing),  
+that Command Prompts invoke to set up workflow plumbing,  
+stored in `.workflow/prompts/`),  
 and **conversational prompts** (direct user messages  
 for correction, clarification, or guidance).
 

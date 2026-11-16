@@ -1,3 +1,8 @@
+---
+name: inquiry
+version: 1.0.0
+description: "Enter question-only mode for a single message."
+---
 # Inquiry Mode
 
 You are in inquiry mode. The user wants to ask questions or explore ideas without triggering any workflow commands.

@@ -1,4 +1,9 @@
-Read `.amazonq/prompts/send-template.md` for message structure.
+---
+name: send
+version: 1.0.0
+description: "Create a side trip message for parallel or isolated work."
+---
+Read `.workflow/prompts/send-template.md` for message structure.
 
 Resolve `{{to}}` as a profile (canonical name or alias, ignoring case) first.
 

@@ -1,3 +1,8 @@
+---
+name: start
+version: 1.0.0
+description: "Activate a profile from a handoff."
+---
 # Profile Activation from Handoff — Stability-Anchored Version
 
 ## CRITICAL: Stability Override (Not a Reset)
@@ -21,7 +26,7 @@ If `.amazonq/work/current/HANDOFF.md` does not exist:
    of workflow routing and the task to perform.
 
 3. **Activate as Target Profile**  
-   Read `.amazonq/prompts/as.md` and follow its instructions to load the profile
+   Read `.workflow/prompts/as.md` and follow its instructions to load the profile
    specified in the "To:" field of HANDOFF.md.
 
 4. **Operate strictly within that profile's lane**  

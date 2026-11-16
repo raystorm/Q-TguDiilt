@@ -38,7 +38,7 @@ automatically stage them with: `git add`.
 - Schemas: `.graphql`, `.sql` files
 - Documentation in `docs/` directory
 - Rules: `.amazonq/rules/`, `.workflow/rules/` files
-- Prompts: `.amazonq/prompts/` files
+- Prompts: `.workflow/prompts/` files
 
 **Never add:**
 - Files outside project folder (`~/.aws/`, `~/`, `/tmp/`, etc.)

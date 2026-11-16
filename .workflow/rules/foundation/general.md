@@ -243,7 +243,7 @@ Before stating, using, or writing any factual information, classify the informat
 - Check existing rule files before creating new ones
 
 ## Saved Prompts
-- Saved prompts MUST be created and updated in `.amazonq/prompts/`.
+- Saved prompts MUST be created and updated in `.workflow/prompts/`.
 
 ## Error Handling
 - Provide meaningful error messages

@@ -1,7 +1,7 @@
 # Profile Activation Rule
 
 When a user message starts with `@as` or `as` (case insensitive) 
-read and follow `.amazonq/prompts/as.md` to activate the requested profile.
+read and follow `.workflow/prompts/as.md` to activate the requested profile.
 
 ## Trigger
 
@@ -17,6 +17,6 @@ If the text after `@as`/`as` is empty or whitespace-only:
 
 ## Action
 
-1. Read `.amazonq/prompts/as.md`
+1. Read `.workflow/prompts/as.md`
 2. Follow all instructions in that prompt
 3. Execute the profile activation workflow

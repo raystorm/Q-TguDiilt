@@ -1,3 +1,8 @@
+---
+name: as
+version: 1.0.0
+description: "Activate a profile directly by name."
+---
 # Profile Activation with Explicit Rule Loading
 
 ## CRITICAL: Explicit-Only Loading

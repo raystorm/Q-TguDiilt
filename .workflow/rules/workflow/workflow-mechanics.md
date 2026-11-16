@@ -591,9 +591,9 @@ Rules:
 
 - `.workflow/` - Base folder for all AI workflow rules files
 - `.workflow/rules/` - AI rules files that, comprise and control the workflow
+- `.workflow/prompts/` - saved prompts
 - `.amazonq/` - Base folder for all AI facing context and control files
 - `.amazonq/rules/` - AI workflow/profile activation rules
-- `.amazonq/prompts/` - saved prompts
 - `.amazonq/suspended/` - Saved context capsules 
 - `.amazonq/work/` - technical AI-facing workflow artifacts
 - `.amazonq/work/current/` - current work cycle

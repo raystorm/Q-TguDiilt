@@ -1,4 +1,9 @@
-Read `.amazonq/prompts/send-template.md` for message structure.
+---
+name: send-epr
+version: 1.0.0
+description: "Side trip version of `@epr`."
+---
+Read `.workflow/prompts/send-template.md` for message structure.
 
 Generate message content for Enforcer.
 

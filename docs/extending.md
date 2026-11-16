@@ -337,12 +337,12 @@ in an already‑loaded rule.
 
 ### How Commands Differ from Rules and Saved Prompts
 
-| Aspect    | Workflow Rules               | On‑Demand Commands            | Saved Prompts       |
-| --------- | ---------------------------- | ----------------------------- | ------------------- |
-| Loaded at | Profile activation           | `process @_commandName`       | User invocation     |
-| Location  | `.workflow/rules/<category>` | `.workflow/rules/commands/`   | `.amazonq/prompts/` |
-| Purpose   | Govern behavior              | Implement procedures          | Control workflow    |
-| Naming    | descriptive                  | `_camelCase.md` (underscore)  | descriptive         |
+| Aspect    | Workflow Rules               | On‑Demand Commands            | Saved Prompts        |
+| --------- | ---------------------------- | ----------------------------- | -------------------- |
+| Loaded at | Profile activation           | `process @_commandName`       | User invocation      |
+| Location  | `.workflow/rules/<category>` | `.workflow/rules/commands/`   | `.workflow/prompts/` |
+| Purpose   | Govern behavior              | Implement procedures          | Control workflow     |
+| Naming    | descriptive                  | `_camelCase.md` (underscore)  | descriptive          |
 
 ### When to Create a Command vs a Rule
 
@@ -392,7 +392,7 @@ A new command must:
 * create or load a well‑defined artifact
 * follow confirmation rules
 * be documented in `user-commands.md`
-* be implemented as a saved prompt in `.amazonq/prompts/`
+* be implemented as a saved prompt in `.workflow/prompts/`
 
 Commands must not:
 * bypass confirmation

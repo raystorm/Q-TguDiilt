@@ -1,3 +1,8 @@
+---
+name: list
+version: 1.0.0
+description: "Show all suspended and auto-suspended contexts."
+---
 Check if `.amazonq/suspended/INDEX.md` exists.
 
 If it does not exist, display:

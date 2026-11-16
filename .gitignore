@@ -71,6 +71,9 @@ Thumbs.db
 # ACP local driver registry (copy of registry.example.yaml)
 /.workflow/acp/drivers/registry.yaml
 
+# Local copy of the saved prompts for Kiro (written by the installer, not versioned)
+/.kiro/prompts/
+
 # Local scratch/parking-lot files (not for git history; mined into
 # GitHub Projects once that integration lands)
 /scratch/

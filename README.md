@@ -138,10 +138,10 @@ Type the following message into the Amazon Q chat:
 Install the saved prompts, from @prompts
 into your active Amazon Q prompts directory.
 ```
-*Note*: @prompts should be selected to point to: `.amazonq/prompts`
+*Note*: @prompts should be selected to point to: `.workflow/prompts`
 
 Amazon Q will copy saved prompts from the repository, to the user's prompt directory.  
-*Note:* The prompts are used from `.amazonq/prompts`.
+*Note:* The prompts are used from `.workflow/prompts`.
 
 ---
 

@@ -1,4 +1,9 @@
-Read `.amazonq/prompts/as.md`
+---
+name: internalWorkflowScan
+version: 1.0.0
+description: "Run a full Workflow Engine analysis for drift, contradiction and gaps (Analyst)."
+---
+Read `.workflow/prompts/as.md`
 and follow its instructions to load the Analyst profile.
 
 Perform a full‑scope Workflow Engine analysis.

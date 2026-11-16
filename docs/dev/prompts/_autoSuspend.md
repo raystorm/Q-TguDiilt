@@ -47,6 +47,6 @@ Atomic writes prevent corruption:
 ## Related Files
 
 - **Rule:** `.workflow/rules/workflow/auto-suspend.md` - MANDATORY requirements and core specifications
-- **Prompt:** `.amazonq/prompts/_autoSuspend.md` - Implementation patterns (load on-demand)
+- **Command:** `.workflow/rules/commands/_autoSuspend.md` - Implementation patterns (load on-demand)
 - **Reference:** `docs/dev/workflow/auto-suspend-implementation.md` - Detailed reference with examples
 - **Cleanup:** Future cleanup prompts will handle auto-suspend deletion

@@ -1,3 +1,8 @@
+---
+name: receive
+version: 1.0.0
+description: "Activate a profile from a message."
+---
 # Profile Activation from Message — Stability-Anchored Version
 
 ## CRITICAL: Stability Override (Not a Reset)
@@ -20,7 +25,7 @@ If `.amazonq/work/current/MESSAGE.md` does not exist:
    Read `.amazonq/work/current/MESSAGE.md` and treat it as the authoritative source of workflow routing and the task to perform.
 
 3. **Activate as Target Profile**  
-   Read `.amazonq/prompts/as.md` and follow its instructions to load the profile
+   Read `.workflow/prompts/as.md` and follow its instructions to load the profile
    specified in the "To:" field of MESSAGE.md.
 
 4. **Operate strictly within that profile's lane**  

@@ -1,3 +1,8 @@
+---
+name: send-template
+version: 1.0.0
+description: "Template for the side-trip message that send and send-epr write."
+---
 # Send Message Template
 
 Write message to `.amazonq/work/current/MESSAGE.md`.

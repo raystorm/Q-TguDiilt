@@ -46,7 +46,7 @@ Rules Files
 : Files that control how the System behaves. `.amazonq/rules/` and `.workflow/rules/`
 
 Prompt Files
-: Saved Prompts that encode complex commands `.amazonq/prompts/`
+: Saved Prompts that encode complex commands `.workflow/prompts/`
 
 Context Capsule
 : A structured emergent container for workflow state,

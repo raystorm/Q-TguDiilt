@@ -3,10 +3,10 @@
 User commands are the primary workflow actions a user can issue.
 Commands may change workflow state, activate profiles, transfer work,
 or perform stateless operations.
-All commands are saved prompts stored in `.amazonq/prompts/`.
+All commands are saved prompts stored in `.workflow/prompts/`.
 
 > [!IMPORTANT]
-> Prompts are saved in `.amazonq/prompts/` inside the repository,
+> Prompts are saved in `.workflow/prompts/` inside the repository,
 > for version control, and portability.
 > See the [Installation Guide](../README.md#installation) for more information.
 

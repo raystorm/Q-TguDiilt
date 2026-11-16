@@ -1,3 +1,8 @@
+---
+name: note
+version: 1.0.0
+description: "Append a human insight to the workflow log."
+---
 Extract the observation text from the user's message.
 
 Read `.amazonq/workflow.log` to find the most recent workflowId.
