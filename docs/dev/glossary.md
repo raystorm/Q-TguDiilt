@@ -114,7 +114,8 @@ In this system, prompts serve three roles:
 **Command Prompts** (user‑facing entry points that control workflow),  
 **Saved Prompts** (implementation infrastructure  
 that Command Prompts invoke to set up workflow plumbing,  
-stored in `.workflow/prompts/`),  
+stored in `.workflow/prompts/` in one neutral form  
+that declares its input as Prompt Arguments),  
 and **conversational prompts** (direct user messages  
 for correction, clarification, or guidance).
 
@@ -124,6 +125,19 @@ Invoked by the user to drive the system
 (`@handoff`, `@start`, `@as`, `@send`).  
 Uses Saved Prompts as implementation infrastructure.  
 Command Prompts control workflow; Saved Prompts implement the plumbing.
+
+Prompt Argument
+: A named place in a Saved Prompt where the user's input goes.  
+Declared by name in the prompt's frontmatter `arguments`, whose order gives the number,  
+and written `{{name}}` in the body. The reserved argument `input` takes all the text  
+typed after the command. Each agent gets its own form:  
+Kiro `${n}` and `$ARGUMENTS`, Copilot `$(n)` and `$(input)`.  
+Any other `{{...}}` in a prompt is output text and is left as written.
+
+Helper Prompt
+: A Saved Prompt marked `user-invocable: false`.  
+Other prompts read it by path. It is not a command the user can run,  
+and the transform classifies it without rendering it.
 
 Activation Rule
 : A rule in `.amazonq/rules/`, a legacy Amazon Q location that Kiro also reads.  

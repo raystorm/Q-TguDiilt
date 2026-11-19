@@ -1,13 +1,17 @@
 ---
 name: debugProfile
-version: 1.0.0
+version: 1.1.0
 description: "Load a specific profile's rules and generate a profile-scoped debug report."
+arguments: [profile]
+argument-hint: "[profile]"
 ---
 # Profile Debug with Explicit Loading
 
 ## Step 1: Load Profile Using @as Logic
 
 **Extract profile name from user command:**
+User command argument (profile name): `{{profile}}`
+
 - `@debugProfile Planner` → Profile = "Planner"
 - `@debugProfile PE` → Profile = "PromptEngineer"
 

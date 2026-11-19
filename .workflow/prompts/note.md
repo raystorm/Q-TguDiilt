@@ -1,9 +1,12 @@
 ---
 name: note
-version: 1.0.0
+version: 1.1.0
 description: "Append a human insight to the workflow log."
+arguments: [input]
+argument-hint: "[observation]"
 ---
 Extract the observation text from the user's message.
+Observation text: {{input}}
 
 Read `.amazonq/workflow.log` to find the most recent workflowId.
 If the log doesn't exist or is empty,

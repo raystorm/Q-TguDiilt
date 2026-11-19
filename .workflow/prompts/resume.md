@@ -1,9 +1,13 @@
 ---
 name: resume
-version: 1.0.0
+version: 1.1.0
 description: "Restore a suspended (or auto-suspended) context."
+arguments: [name]
+argument-hint: "[context name]"
 ---
 Load suspended workflow context.
+
+Context name: `{{name}}`
 
 ## Missing File Fallback
 If any `.amazonq/suspended/` file needed below does not exist:

@@ -1,7 +1,9 @@
 ---
 name: epr
-version: 1.0.0
+version: 1.1.0
 description: "Evaluate a prompt/response pair for rule compliance."
+arguments: [input]
+argument-hint: "[prompt and response]"
 ---
 Read `.workflow/prompts/as.md` and follow its instructions to activate the Enforcer profile.
 
@@ -17,4 +19,4 @@ Report violations and suggest corrections.
 
 ---
 
-<pasted Prompt and Response pair>
+{{input}}

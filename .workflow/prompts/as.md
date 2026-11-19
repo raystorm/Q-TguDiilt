@@ -1,7 +1,9 @@
 ---
 name: as
-version: 1.0.0
+version: 1.1.0
 description: "Activate a profile directly by name."
+arguments: [input]
+argument-hint: "[profile] [task]"
 ---
 # Profile Activation with Explicit Rule Loading
 
@@ -16,6 +18,8 @@ No implicit loading. No "for reference" loading.
 ---
 
 ## Step 1: Extract Profile Name and Task
+
+Command text, when run as `/as`: {{input}}
 
 **From user command:**
 - `@as Planner create story for user search` → Profile = "Planner", Task = "create story for user search"

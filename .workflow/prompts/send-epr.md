@@ -1,7 +1,9 @@
 ---
 name: send-epr
-version: 1.0.0
+version: 1.1.0
 description: "Side trip version of `@epr`."
+arguments: [input]
+argument-hint: "[extra context]"
 ---
 Read `.workflow/prompts/send-template.md` for message structure.
 
@@ -11,6 +13,7 @@ Use these values:
 - To: Enforcer
 - Task: Review current work for rule compliance.
   Does this follow all rules (formatting, architecture, testing)?
+- Additional context: {{input}}
 
 - Write MESSAGE.md to `.amazonq/work/current/MESSAGE.md`
 - Update the status file per Change invariant (`.workflow/rules/workflow/status-format.md`)

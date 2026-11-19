@@ -1,7 +1,8 @@
 ---
 name: send-template
-version: 1.0.0
+version: 1.1.0
 description: "Template for the side-trip message that send and send-epr write."
+user-invocable: false
 ---
 # Send Message Template
 

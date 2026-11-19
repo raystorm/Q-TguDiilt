@@ -1,7 +1,9 @@
 ---
 name: send
-version: 1.0.0
+version: 1.1.0
 description: "Create a side trip message for parallel or isolated work."
+arguments: [to, task]
+argument-hint: "[profile] [task]"
 ---
 Read `.workflow/prompts/send-template.md` for message structure.
 

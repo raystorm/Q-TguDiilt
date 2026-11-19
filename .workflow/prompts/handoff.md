@@ -1,7 +1,9 @@
 ---
 name: handoff
-version: 1.0.0
+version: 1.1.0
 description: "Linear progression to the next profile."
+arguments: [to]
+argument-hint: "[profile]"
 ---
 ## Guard
 
@@ -13,7 +15,7 @@ Resolve the recipient profile (`to`) in this order:
 3. If the context does not make the intended profile clear, ask: “Which profile should receive this handoff?”
    Wait for the user’s response before proceeding.
 
-Treat an empty, unresolved, or literal `{{to}}` as not provided.
+Treat an empty value, or placeholder text that was not replaced, as not provided.
 
 ## Execution
 

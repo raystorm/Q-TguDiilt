@@ -1,9 +1,13 @@
 ---
 name: suspend
-version: 1.0.0
+version: 1.1.0
 description: "Save full workflow context."
+arguments: [name]
+argument-hint: "[context name]"
 ---
 Save current workflow context to `.amazonq/suspended/[name].md`.
+
+Context name: `{{name}}`
 
 Extract profile and goal from conversation.
 
