@@ -245,6 +245,16 @@ Before stating, using, or writing any factual information, classify the informat
 ## Saved Prompts
 - Saved prompts MUST be created and updated in `.workflow/prompts/`.
 
+## Generated Copies of Prompts and Skills
+- Generated copies
+  (the installer's output in `.kiro/prompts/`, `.kiro/skills/` and `.agents/skills/`)
+  MUST NOT be edited directly.
+  Edit the canonical prompt in `.workflow/prompts/` or skill in `.workflow/skills/` instead.
+- In a repository that contains the installer (`installer/`),
+  after a canonical prompt or skill is created, edited or removed,
+  the generated copies MUST be synced with the installer.
+- The change is NOT complete until the installer's `--dry-run` reports nothing to write.
+
 ## Error Handling
 - Provide meaningful error messages
 - Log errors appropriately for debugging
