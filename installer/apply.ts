@@ -2,7 +2,7 @@ import { join, posix } from 'node:path';
 import type { Io } from './io.js';
 import { manifest } from './manifest.js';
 import { serialize } from './marker.js';
-import type { Action, Plan } from './plan.js';
+import type { Action, ActionKind, Plan } from './plan.js';
 
 /** What a run prints and the code it ends with. */
 export interface Result
@@ -13,18 +13,31 @@ export interface Result
 
 const label = (action: Action) => `${action.kind} ${action.path}${action.forced ? ' (forced)' : ''}`;
 
+const byPath = (a: { path: string }, b: { path: string }) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0);
+
+/** The order actions are printed in: what needs attention first, then what is done. Skips are not printed. */
+const KINDS: ActionKind[] = ['conflict', 'update', 'create', 'remove'];
+const byKind = (a: Action, b: Action) => KINDS.indexOf(a.kind) - KINDS.indexOf(b.kind) || byPath(a, b);
+
+/** A line that sets the marker apart from the grouped actions: as wide as the widest status, `conflict`. */
+const SEPARATOR = '--------';
+
 /**
- * What a run prints: the stops, the warnings, each action that is not a skip, then the marker. A run
- * with nothing to write ends with `nothing to write`.
+ * What a run prints: the stops, the warnings by path, then each action that is not a skip, grouped by
+ * kind (conflicts, updates, creates, removes) and by path within a kind, then a separator line and the
+ * marker. A run with nothing to write ends with `nothing to write`.
  */
 function report(plan: Plan): string[]
 {
    const lines = [
       ...plan.stops.map((stop) => `stop: ${stop.detail}`),
-      ...plan.warnings.map((warning) => `warning ${warning.path}: ${warning.detail}`),
-      ...plan.actions.filter((action) => 'skip' !== action.kind).map(label),
-      ...(null === plan.marker ? [] : [`${plan.marker.kind} ${manifest.marker}`]),
+      ...[...plan.warnings].sort(byPath).map((warning) => `warning ${warning.path}: ${warning.detail}`),
+      ...plan.actions.filter((action) => 'skip' !== action.kind).sort(byKind).map(label),
    ];
+   if (null !== plan.marker)
+   {
+      lines.push(...(0 < lines.length ? [SEPARATOR] : []), `${plan.marker.kind} ${manifest.marker}`);
+   }
    const idle = 0 === plan.stops.length && null === plan.marker
       && plan.actions.every((action) => 'skip' === action.kind);
    return idle ? [...lines, 'nothing to write'] : lines;

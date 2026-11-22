@@ -137,6 +137,7 @@ describe('an authored skill', () =>
       const { result } = again(ctx);
 
       expect([...result.lines].sort()).toEqual([
+         '--------',
          'create .agents/skills/fake-new/SKILL.md',
          'create .kiro/skills/.gitignore',
          'create .kiro/skills/fake-new/SKILL.md',

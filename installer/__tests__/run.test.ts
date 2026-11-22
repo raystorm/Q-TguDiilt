@@ -7,7 +7,9 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, sep } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { canonical } from './fixtures.js';
-import { cleanup, filesIn, makeEngine, recordingIo, runOn, tempDir, tree, type Engine } from './engine.js';
+import {
+   again, cleanup, filesIn, makeEngine, prompt, put, recordingIo, runOn, start, tempDir, tree, type Engine,
+} from './engine.js';
 
 afterEach(cleanup);
 
@@ -188,5 +190,36 @@ describe('a full install', () =>
       expect(recorded.writes.every((path) => path.startsWith(`${target}${sep}`))).toBe(true);
       expect(tree(recorded.home)).toEqual(homeBefore);
       expect(stray).toEqual([]);
+   });
+});
+
+describe('the list a run prints', () =>
+{
+   it('is grouped by kind, then path, with a separator before the marker', () =>
+   {
+      const ctx = start(true, {
+         '.workflow/prompts/fake-stray.md': 'No frontmatter.\n',
+         ...prompt('fake-b'),
+         ...prompt('fake-a'),
+      });
+      put(ctx.target, '.kiro/prompts/fake-a.md', 'fake hand edit\n');
+      ctx.engine.put('docs/overview.md', 'fake new overview\n');
+      ctx.engine.put('.workflow/prompts/fake-c.md', canonical({ name: 'fake-c' }));
+      ctx.engine.remove('.workflow/rules/foundation/fake-rule.md');
+
+      const { result } = again(ctx);
+
+      const order = ['warning', 'conflict', 'update', 'create', 'remove'];
+      const body  = result.lines.slice(0, -2);
+      const kinds = body.map((line) => line.split(' ')[0]);
+      const ranks = kinds.map((kind) => order.indexOf(kind));
+      expect([...new Set(kinds)]).toEqual(order);
+      expect(ranks).toEqual([...ranks].sort((a, b) => a - b));
+      for (const kind of order)
+      {
+         const paths = body.filter((line) => line.startsWith(`${kind} `)).map((line) => line.split(' ')[1]);
+         expect(paths).toEqual([...paths].sort());
+      }
+      expect(result.lines.slice(-2)).toEqual(['--------', 'update .workflow/installed.json']);
    });
 });

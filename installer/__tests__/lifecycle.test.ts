@@ -105,6 +105,7 @@ describe('a self-install after the canonical prompts change', () =>
       const { result } = runOn(engine, [engine.dir], recorded);
 
       expect([...result.lines].sort()).toEqual([
+         '--------',
          'remove .agents/skills/fake-drop/SKILL.md',
          'remove .kiro/prompts/fake-drop.md',
          'update .agents/skills/.gitignore',

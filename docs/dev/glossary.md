@@ -115,7 +115,8 @@ In this system, prompts serve three roles:
 **Saved Prompts** (implementation infrastructure  
 that Command Prompts invoke to set up workflow plumbing,  
 stored in `.workflow/prompts/` in one neutral form  
-that declares its input as Prompt Arguments),  
+that declares its input as Prompt Arguments, and that the installer writes  
+out for each agent as Generated Prompts),  
 and **conversational prompts** (direct user messages  
 for correction, clarification, or guidance).
 
@@ -138,6 +139,26 @@ Helper Prompt
 : A Saved Prompt marked `user-invocable: false`.  
 Other prompts read it by path. It is not a command the user can run,  
 and the transform classifies it without rendering it.
+
+Generated Prompt
+: The copy of a Saved Prompt, or of an authored skill, that the installer writes  
+for one agent: a Kiro prompt in `.kiro/prompts/`, a Copilot skill in  
+`.agents/skills/`, a Kiro skill in `.kiro/skills/`.  
+Never edited by hand: the canonical file in `.workflow/prompts/` or  
+`.workflow/skills/` is edited and the installer is run again.  
+A `.gitignore` the installer writes in each folder keeps the copies out of git.
+
+Installer Marker
+: `.workflow/installed.json`, written by the installer in the target.  
+Records the installer's version, the time, and a hash for each file the installer  
+manages. A file whose hash still matches is updated or removed without `--force`;  
+any other difference is a conflict. Never tracked by git.
+
+Self-Install
+: Running the installer with the engine's own repository as the target.  
+Nothing is copied onto itself and the canonical files are not recorded; the  
+Generated Prompts, the ignore files and the marker are written.  
+`--dry-run` ending in `nothing to write` shows the copies are in sync.
 
 Activation Rule
 : A rule in `.amazonq/rules/`, a legacy Amazon Q location that Kiro also reads.  

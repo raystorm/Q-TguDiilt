@@ -2,8 +2,8 @@
 
 How a saved prompt or an authored skill is written once, and what each agent gets from it.
 The transform in `installer/transform.ts` is pure: it takes the text of a file and returns the
-Kiro text and the Copilot skill. It reads and writes no files. The installer that puts the forms
-into a target repository is separate work and uses this transform.
+Kiro text and the Copilot skill. It reads and writes no files. The installer uses it to write
+the forms into a target repository (see `docs/user/installer.md`).
 
 ## Canonical files
 

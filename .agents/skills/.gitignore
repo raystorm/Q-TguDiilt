@@ -1,0 +1,18 @@
+# Written by the installer.
+as/
+debug-current/
+debug-full/
+debug-profile/
+dr/
+epr/
+handoff/
+inquiry/
+internal-workflow-scan/
+list/
+note/
+receive/
+resume/
+send-epr/
+send/
+start/
+suspend/

@@ -50,19 +50,22 @@ Each skill lives in its own subdirectory under `.workflow/skills/`:
 
 ---
 
-## Symlink Targets
+## Generated Copies
 
-Skills are shared across providers via symlinks. The installer creates
-these symlinks — they are documented here for reference only.
+`.workflow/skills/` is the canonical source. The installer writes one rendered
+copy of each skill for each agent. It makes no symlinks, because Kiro and Copilot
+write an argument differently.
 
-| Provider | Symlink Target    |
-| -------- | ----------------- |
-| Copilot  | `.agents/skills/` |
-| Kiro     | `.kiro/skills/`   |
+| Provider | Generated copy                   |
+| -------- | -------------------------------- |
+| Copilot  | `.agents/skills/<name>/SKILL.md` |
+| Kiro     | `.kiro/skills/<name>/SKILL.md`   |
 
-`.workflow/skills/` is the canonical source. Provider directories symlink
-to it, so a single skill definition works across all supported
-environments.
+- Never edit a copy. Edit the skill, then run the installer.
+- The installer copies the whole skill folder to a target's `.workflow/skills/`.
+  A generated copy holds `SKILL.md` only, so a skill names its scripts by their
+  path from the project root: `.workflow/skills/<name>/scripts/...`.
+- `docs/user/installer.md` describes the installer's options and output.
 
 ---
 

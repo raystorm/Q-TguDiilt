@@ -22,8 +22,10 @@ stability earns trust, and automation is earned, not assumed.
 > Platform support:
 > 
 > - **Kiro**: supported, and in active use.
-> - **GitHub Copilot**: in development. Targeted for future support, untested,
->   and not expected to work until ACP support is complete.
+> - **GitHub Copilot**: in development. Installed prompts and skills work in the
+>   Copilot CLI and in the JetBrains AI Assistant with a Copilot agent. The Copilot
+>   IDE plugin on the free plan does not load skills. Not expected to be complete
+>   until ACP support is.
 > - **Amazon Q**: legacy. No longer supported.
 > 
 > The engine needs several capabilities from its platform:
@@ -100,48 +102,45 @@ User‑facing documentation (to be expanded as features land).
 
 ## Installation
 
-> [!NOTE]
-> The steps below were written for Amazon Q, a legacy platform that is no longer
-> supported. An installer is planned for Kiro and GitHub Copilot and is not
-> available yet. Step 1 applies to any platform.
+The installer copies the engine into your repository and writes each saved prompt
+and skill in the form your agent runs. It needs Node.js and a checkout of this
+repository.
 
-Follow these steps to install the Amazon Q prompts, rules, and documentation
-into your repository and activate them in your IDE.
+### 1. Prepare the installer
 
-### Prerequisite
+Once, in your checkout of this repository:
 
-Ensure Amazon Q is installed, signed in, and configured in your IDE (VS Code, JetBrains, etc.).  
-Amazon Q must be active and authenticated before it can load prompts from this repository.
-
-### 1. Copy the required folders into your repository
-
-Place the following directories at the root of your repository:
-
-- `.amazonq/` — prompt files, rules, workflow, and agent configurations
-- `docs/` — extended context and reference material
-
-Commit these folders so the agent can read them.
-
-### 2. Open your IDE with Amazon Q enabled
-
-Launch your editor with Amazon Q active.  
-Amazon Q will automatically detect the repository boundary and read the files you added.
-
-### 3. Open the Amazon Q chat panel
-
-Open the Amazon Q chat sidebar inside your IDE.
-
-### 4. Install the prompts, rules, and docs into Amazon Q’s active configuration
-
-Type the following message into the Amazon Q chat:
-```text
-Install the saved prompts, from @prompts
-into your active Amazon Q prompts directory.
+```bash
+cd installer && npm ci
 ```
-*Note*: @prompts should be selected to point to: `.workflow/prompts`
 
-Amazon Q will copy saved prompts from the repository, to the user's prompt directory.  
-*Note:* The prompts are used from `.workflow/prompts`.
+### 2. Look first
+
+From the root of the checkout, with the path of an existing repository:
+
+```bash
+node installer/install.mjs <path-to-your-repository> --dry-run
+```
+
+It prints what it would do and writes nothing.
+
+### 3. Install
+
+```bash
+node installer/install.mjs <path-to-your-repository>
+```
+
+A file you edited by hand is reported as a conflict and left alone. Add `--force`
+to overwrite it, after you have read the list.
+
+### 4. Open a new chat
+
+Agents read prompts and skills when a chat starts. Open a new chat, type your
+commands (for example `/inquiry what is a profile?`), and continue with
+[Getting Started](#getting-started).
+
+Options, what is written, which agents work and the known limits are in the
+[installer guide](docs/user/installer.md).
 
 ---
 
