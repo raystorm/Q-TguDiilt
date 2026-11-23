@@ -15,13 +15,14 @@ argument differently, so each agent gets its own copy.
 ## Run It
 
 ```bash
-node installer/install.mjs <target> [--dry-run] [--force]
+node installer/install.mjs <target> [--dry-run] [--force] [--name <name>]
 ```
 
 | Option      | What it does                                     |
 | ----------- | ------------------------------------------------ |
 | `--dry-run` | Prints what a real run would do. Writes nothing. |
 | `--force`   | Overwrites or removes a file that is a conflict. |
+| `--name`    | A custom name for this installation (default: `acp`). Used for entries in generated config files and to avoid collisions when you install multiple instances. |
 
 `--dry-run` writes nothing, not even a folder. Start with it, read the list, then
 run without it.
@@ -29,6 +30,9 @@ run without it.
 ## What It Prints
 
 ```text
+target:       /home/tburton/IdeaProjects/Q-TguDiilt
+registration: /home/tburton/.jetbrains/acp.json
+
 warning .workflow/prompts/hello.md: not a prompt or a helper, so not copied
 conflict .kiro/prompts/handoff.md
 create .agents/skills/handoff/SKILL.md
@@ -40,13 +44,27 @@ create .workflow/installed.json
   `remove`, then a line of dashes and the line for the marker. Each kind is sorted
   by path.
 - A file that is already right prints nothing. When there is nothing to do, the
-  last line is `nothing to write`.
-- `--force` prints `update <path> (forced)` or `remove <path> (forced)`.
-- A real run prints the same list as a dry run, after it has written.
-- Exit code 0 means the run did what was asked. Exit code 1 means a conflict
-  (also in a dry run), a stop, a failed write or a bad command line.
+  last line is `nothing to write`. A dry run and a real run print the same list.
+
+**Registration verb and line format:**
+- The registration's verb is about the file: `create` when `acp.json` does not exist,
+  `update` when it exists and is rewritten (a new entry or a changed one), and nothing
+  when the entry is already right.
+- The indented line under the registration says `add key` when the entry is new in the file
+  and `update key` when an entry of ours is changed.
+- The registration's own line in the list shows the absolute path of `acp.json`; every
+  other path in the list is relative to the target.
 
 ## What It Writes
+
+**Header (before the report):**
+- When the installer runs with a registration (a dry run or a real run that proceeds),
+  it prints a header:
+  ```
+  target:       <absolute path of target folder>
+  registration: <absolute path of acp.json>
+  ```
+  followed by a blank line. If a stop prevents registration, no header is printed.
 
 - `.workflow/`: rules, saved prompts, skills and the ACP service sources.
 - `.amazonq/rules/`: the activation rules, as they stand.
@@ -59,6 +77,9 @@ create .workflow/installed.json
 - `.kiro/skills/`: one Kiro skill for each skill in `.workflow/skills/`.
 - A `.gitignore` in each generated folder, in `.amazonq/` and in `.workflow/`.
 - `.workflow/installed.json`: the marker (see below).
+- `.workflow/acp/`: the ACP service entry point (`start.mjs`), dependencies
+  (`package.json` and `package-lock.json`), and driver sources.
+  Run `npm ci` in `.workflow/acp/` once after installation to prepare the service.
 
 Details:
 
@@ -72,8 +93,25 @@ Details:
 - Never touched: your home folder, `.amazonq/prompts/`, `.github/`, the target's own
   root `.gitignore`, and any file in a generated folder that the installer did not
   write.
-- Not set up yet: the ACP service (`acp.json`, its dependencies, `registry.yaml`).
-  See [ACP with JetBrains](acp-jetbrains.md).
+- Not set up yet: the ACP service registry (`registry.yaml`). See [ACP with JetBrains](acp-jetbrains.md).
+
+## npm ci and the ACP Service
+
+After installation, the ACP service needs its dependencies prepared:
+
+```bash
+cd <your-project>/.workflow/acp && npm ci --omit=dev
+```
+
+If `npm ci` fails (for example, due to a lockfile conflict or unmet peer dependencies):
+
+- **On the next run**, the installer will try `npm ci` again, including failures that stopped
+  before npm cleared `node_modules`. You do not need to clean up manually.
+- **On Windows**, `npm` is a `.cmd` file and cannot be run without a shell. The installer
+  runs commands without a shell, so it prints `failed npm ci --omit=dev: npm could not be run`
+  and exits with code 1. Run `npm ci --omit=dev` by hand in `.workflow/acp/`.
+- **npm version**: The service was tested with npm [version to be filled in by the user].
+  Ask the user which npm version they ran when troubleshooting failures.
 
 ## Conflicts, Re-runs and Removal
 
@@ -158,3 +196,5 @@ hand-made copies needs `--force`.
   `inquiry`, `send` and `send-epr`. A bare `/inquiry` keeps the chat in inquiry mode.
 - A symlink in the target is followed when the installer writes through it.
 - Do not rely on a leading `_` in a skill name for the Copilot CLI.
+- A symlinked `acp.json` is handled (the real file changes, the link stays, the backup
+  sits beside the real file). A symlinked generated folder is still followed.

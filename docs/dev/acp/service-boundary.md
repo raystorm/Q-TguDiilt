@@ -34,7 +34,9 @@ LLM provider (ACP-agnostic)
 Entry point `protocol/index.ts` assembles the SDK stdio transport, the
 translation agent (`createAgent`), a session store, the Driver Catalog
 and dispatch resolver built from the driver registry, the governance
-engine, and a file logger, then serves the ACP client. The governance
+engine, and a file logger, then serves the ACP client. The entry point
+is wrapped by a launcher (`start.mjs`) that handles Node.js setup
+and process initialization before starting the service. The governance
 config, the profile names and the registry are each loaded once at startup,
 in that order, and the catalog is built before the server connects. A
 missing or malformed config, a profile names file that fails, or a registry

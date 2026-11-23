@@ -12,7 +12,7 @@ import { HANDOFF_PATH, MESSAGE_PATH } from '../workflow-command.js';
  */
 export type LoopStop =
    | BlockStopReason | 'handoff_not_written' | 'message_not_written' | 'handoff_in_trip'
-   | 'status_not_confirmed' | 'abnormal_end' | 'failed' | 'cancelled';
+   | 'status_not_confirmed' | 'handoff_not_complete' | 'abnormal_end' | 'failed' | 'cancelled';
 
 /**
  * What a prompt and its loop share: whether the service sent a command, whether a send failed,
@@ -51,6 +51,9 @@ export function stopLine(reason: LoopStop, word: string | undefined, moved: bool
       case 'handoff_not_written':
          return 'The handoff file was not written for this turn, or it names a different profile '
             + `(${HANDOFF_PATH}).`;
+      case 'handoff_not_complete':
+         return 'The sending profile\'s handoff is not yet complete. Post-handoff work (logging, '
+            + 'suspend updates) is still pending. Wait for the profile to finish before running `@start`.';
       case 'message_not_written':
          return 'The message file was not written for this turn, or it names a different profile '
             + `(${MESSAGE_PATH}).`;

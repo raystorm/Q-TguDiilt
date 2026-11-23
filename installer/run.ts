@@ -8,24 +8,36 @@ interface Command
    target: string;
    dryRun: boolean;
    force:  boolean;
+   name:   string | null;
 }
 
-const USAGE = 'usage: node installer/install.mjs <target> [--dry-run] [--force]';
+const USAGE = 'usage: node installer/install.mjs <target> [--dry-run] [--force] [--name <key>]';
 
 /** The command line, or what is wrong with it. */
 function parse(argv: string[]): Command | string
 {
    let target: string | undefined;
+   let name: string | null = null;
    let dryRun = false;
    let force  = false;
-   for (const arg of argv)
+   for (let at = 0; at < argv.length; at += 1)
    {
+      const arg = argv[at];
       if ('--dry-run' === arg) { dryRun = true; }
       else if ('--force' === arg) { force = true; }
+      else if ('--name' === arg)
+      {
+         const value = argv[at + 1];
+         if (null !== name) { return '--name given twice'; }
+         if (undefined === value || value.startsWith('--') || '' === value.trim())
+         { return '--name needs a key'; }
+         name = value;
+         at  += 1;
+      }
       else if (undefined === target && !arg.startsWith('--')) { target = arg; }
       else { return `unexpected argument ${arg}`; }
    }
-   return undefined === target ? 'no target folder given' : { target, dryRun, force };
+   return undefined === target ? 'no target folder given' : { target, dryRun, force, name };
 }
 
 /** A refused command line: the problem, the usage, and a failure code. Nothing is written. */
@@ -44,6 +56,12 @@ export function run(argv: string[], io: Io, source: string): Result
    const kind   = io.stat(target);
    if ('dir' !== kind) { return refuse(`${target} ${null === kind ? 'does not exist' : 'is not a folder'}`); }
 
-   const planned = plan(io, source, target, command.force);
-   return command.dryRun ? outcome(planned) : apply(planned, io);
+   const planned = plan(io, source, target, command.force, command.name);
+   const result  = command.dryRun ? outcome(planned) : apply(planned, io);
+   const { registration } = planned;
+   const where = [
+      `target:       ${target}`,
+      ...(null === registration ? [] : [`registration: ${registration.path}`]),
+   ];
+   return { ...result, where };
 }

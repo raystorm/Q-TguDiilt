@@ -14,7 +14,7 @@ export interface Marker
 /** The hash of a file's bytes, as the marker records it. The mode is not part of it. */
 export const hash = (data: Buffer) => createHash('sha256').update(data).digest('hex');
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
+export const isRecord = (value: unknown): value is Record<string, unknown> =>
    'object' === typeof value && null !== value && !Array.isArray(value);
 
 /** A path the marker may hold: relative, with `/`, and no `.` or `..` segment. */

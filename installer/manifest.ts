@@ -45,16 +45,40 @@ export const manifest = {
    /** The marker file. The installer writes it, and it holds no entry for itself. */
    marker: '.workflow/installed.json',
 
+   /** The service launcher. The registration in the IDE points at it. */
+   launcher: '.workflow/acp/start.mjs',
+
+   /**
+    * The service's dependencies: `npm ci` runs in `folder` when the lockfile is written, or when `done`,
+    * which npm leaves last, is missing.
+    */
+   install: {
+      folder:   '.workflow/acp',
+      lockfile: '.workflow/acp/package-lock.json',
+      done:     '.workflow/acp/node_modules/.package-lock.json',
+      command:  'npm',
+      args:     ['ci', '--omit=dev'],
+   },
+
    /** The installer's version, written as the marker's `version`. Keep equal to `package.json`. */
    version: '0.1.0',
 
    /** Folders the installer never removes, even when a removal leaves them empty. */
    keep: ['.kiro/prompts', '.kiro/skills', '.agents/skills'],
 
+   /**
+    * Files written only when absent, as a copy of an example the engine ships. A seed is never recorded in
+    * the marker and never removed, so a later run leaves what the user did with it.
+    */
+   seeds: [
+      { path: '.workflow/acp/drivers/registry.yaml', from: '.workflow/acp/drivers/registry.example.yaml' },
+   ],
+
    /** Files the installer writes itself, with their text. They are never taken from the engine. */
    written: {
-      '.amazonq/.gitignore':  '# Written by the installer.\nworkflow.log\n.timestamp-temp\n',
-      '.workflow/.gitignore': '# Written by the installer.\ninstalled.json\n',
+      '.amazonq/.gitignore':              '# Written by the installer.\nworkflow.log\n.timestamp-temp\n',
+      '.workflow/.gitignore':             '# Written by the installer.\ninstalled.json\n',
+      '.workflow/acp/drivers/.gitignore': '# Written by the installer.\nregistry.yaml\n',
    },
 
    deny: {
@@ -64,7 +88,10 @@ export const manifest = {
       files:    ['registry.yaml'],
       /** A file whose name ends with one of these is not copied. */
       suffixes: ['-project.md'],
-      /** Paths that are never copied: the installer writes two of them, the third is a Working Directory. */
-      paths:    ['.workflow/installed.json', '.workflow/.gitignore', '.workflow/work'],
+      /** Paths that are never copied: the installer writes or seeds four of them, one is a Working Directory. */
+      paths:    [
+         '.workflow/installed.json', '.workflow/.gitignore', '.workflow/work',
+         '.workflow/acp/drivers/.gitignore', '.workflow/acp/drivers/registry.yaml',
+      ],
    },
 };

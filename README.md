@@ -133,7 +133,15 @@ node installer/install.mjs <path-to-your-repository>
 A file you edited by hand is reported as a conflict and left alone. Add `--force`
 to overwrite it, after you have read the list.
 
-### 4. Open a new chat
+### 4. Prepare the ACP service (if using ACP)
+
+After installation, if you plan to use the engine with an ACP-compatible IDE (JetBrains, etc.):
+
+```bash
+cd <path-to-your-repository>/.workflow/acp && npm ci --omit=dev
+```
+
+### 5. Open a new chat
 
 Agents read prompts and skills when a chat starts. Open a new chat, type your
 commands (for example `/inquiry what is a profile?`), and continue with

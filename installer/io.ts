@@ -1,6 +1,7 @@
+import { spawnSync } from 'node:child_process';
 import {
-   chmodSync, lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmdirSync, statSync, unlinkSync,
-   writeFileSync,
+   chmodSync, lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, renameSync, rmdirSync, statSync,
+   unlinkSync, writeFileSync,
 } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname } from 'node:path';
@@ -22,6 +23,13 @@ export interface Contents
    executable: boolean;
 }
 
+/** What a command did: its exit status (null when it did not start or was killed) and what it printed. */
+export interface Ran
+{
+   status: number | null;
+   output: string;
+}
+
 /**
  * Everything the installer needs from the machine, in one place, so a test can watch it. Paths are
  * absolute, with the platform's separator. There is no network.
@@ -34,16 +42,29 @@ export interface Io
    list(path: string): Entry[];
    /** What the path is; null when nothing is there. */
    stat(path: string): EntryKind | null;
-   /** Writes a file, makes its folders, and sets its executable bit. */
-   write(path: string, data: Buffer, executable: boolean): void;
+   /** Writes a file, makes its folders, and sets its mode: `mode` when given, else by `executable`. */
+   write(path: string, data: Buffer, executable: boolean, mode?: number): void;
+   /** Moves a file onto `to`, replacing what is there. Both are in one folder. */
+   rename(from: string, to: string): void;
+   /** The permission bits of the file, links followed; null when there is none. */
+   mode(path: string): number | null;
+   /** Whether the path itself is a symbolic link, even one that leads nowhere. */
+   isLink(path: string): boolean;
+   /** Runs a command with an argument list, no shell, in `cwd`. A command that cannot start is a result. */
+   run(command: string, args: string[], cwd: string): Ran;
    /** Removes a file, or an empty folder. */
    remove(path: string): void;
    /** The path with links, `..` and a trailing slash resolved; the path itself when nothing is there. */
    realPath(path: string): string;
    /** The time of the run. */
    now(): Date;
-   /** The user's home folder. The installer writes nothing there. */
+   /**
+    * The user's home folder. The installer writes only `.jetbrains/acp.json`, its backup and a temporary
+    * file there.
+    */
    home: string;
+   /** The node the installer registers: the one that runs it. */
+   node: string;
 }
 
 const kindOf = (item: { isFile(): boolean; isDirectory(): boolean }): EntryKind =>
@@ -75,11 +96,22 @@ export function realIo(): Io
       list:     (path) => orNull(() => readdirSync(path, { withFileTypes: true }))
                              ?.map((entry) => ({ name: entry.name, kind: kindOf(entry) })) ?? [],
       stat:     (path) => orNull(() => kindOf(statSync(path))),
-      write:    (path, data, executable) =>
+      write:    (path, data, executable, mode) =>
       {
+         const bits = mode ?? (executable ? 0o755 : 0o644);
          mkdirSync(dirname(path), { recursive: true });
-         writeFileSync(path, data);
-         chmodSync(path, executable ? 0o755 : 0o644);
+         writeFileSync(path, data, { mode: bits });
+         chmodSync(path, bits);
+      },
+      rename:   (from, to) => renameSync(from, to),
+      mode:     (path) => orNull(() => statSync(path).mode & 0o777),
+      isLink:   (path) => orNull(() => lstatSync(path).isSymbolicLink()) ?? false,
+      // No shell, so on Windows `npm` (a .cmd file) cannot start: Windows is untested.
+      run:      (command, args, cwd) =>
+      {
+         const done = spawnSync(command, args, { cwd, shell: false, encoding: 'utf8' });
+         const text = `${done.stdout ?? ''}${done.stderr ?? ''}${done.error?.message ?? ''}`;
+         return { status: done.status, output: text };
       },
       remove:   (path) =>
       {
@@ -89,5 +121,6 @@ export function realIo(): Io
       realPath: (path) => orNull(() => realpathSync(path)) ?? path,
       now:      () => new Date(),
       home:     homedir(),
+      node:     process.execPath,
    };
 }

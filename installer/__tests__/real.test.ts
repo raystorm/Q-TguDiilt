@@ -57,7 +57,9 @@ describe('installing the real engine into an empty target', () =>
       const files   = filesIn(target);
       const working = ['.amazonq/work', '.amazonq/suspended', '.workflow/work'];
       expect(files.filter((path) => /(^|\/)(node_modules|__tests__|__integration__)\//.test(path))).toEqual([]);
-      expect(files.filter((path) => path.endsWith('/registry.yaml') || path.endsWith('-project.md'))).toEqual([]);
+      const seeded = '.workflow/acp/drivers/registry.yaml';
+      expect(files.filter((path) => (path.endsWith('/registry.yaml') && seeded !== path)
+         || path.endsWith('-project.md'))).toEqual([]);
       expect(files.filter((path) => working.some((folder) => path.startsWith(`${folder}/`))).sort())
          .toEqual([...MARKERS].sort());
       expect(markerOf(target).installedAt).toBe(recorded.clock.time.toISOString());

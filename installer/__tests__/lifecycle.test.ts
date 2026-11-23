@@ -148,14 +148,15 @@ describe('the first self-install of a repository with hand-made copies', () =>
 
    it('replaces them with --force, leaves the files of the user, and then has nothing to write', () =>
    {
-      const engine = repository();
+      const engine   = repository();
+      const recorded = recordingIo();
 
-      const { result } = runOn(engine, [engine.dir, '--force']);
+      const { result } = runOn(engine, [engine.dir, '--force'], recorded);
 
       for (const name of HAND)
       { expect(textOf(engine.dir, `.kiro/prompts/${name}.md`)).not.toContain('hand made'); }
       expectUntouched(engine.dir, result.lines);
-      expect(runOn(engine, [engine.dir, '--dry-run']).result.lines).toEqual(['nothing to write']);
+      expect(runOn(engine, [engine.dir, '--dry-run'], recorded).result.lines).toEqual(['nothing to write']);
    });
 });
 

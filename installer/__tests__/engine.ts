@@ -3,10 +3,12 @@
  * and an `io` that records what the installer touches. Every name and text made up here is fake.
  */
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+   existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, readlinkSync, rmSync, writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join, posix } from 'node:path';
-import { realIo, type Io } from '../io.js';
+import { basename, dirname, join, posix } from 'node:path';
+import { realIo, type Io, type Ran } from '../io.js';
 import { run } from '../run.js';
 import { canonical, type CanonicalFields } from './fixtures.js';
 
@@ -23,6 +25,13 @@ export function tempDir(prefix = 'installer-test-'): string
 export function cleanup(): void
 {
    for (const dir of made.splice(0)) { rmSync(dir, { recursive: true, force: true }); }
+}
+
+/** The environment of a child process a test starts: `HOME` and `USERPROFILE` are a temporary folder. */
+export function childEnv(): NodeJS.ProcessEnv
+{
+   const home = tempDir('installer-child-home-');
+   return { ...process.env, HOME: home, USERPROFILE: home };
 }
 
 /** The structure markers of the Working Directories. */
@@ -72,6 +81,12 @@ function baseFiles(): Record<string, string>
       '.amazonq/rules/fake-rule.md',
       'docs/user/fake-guide.md',
       'docs/user/fake-more.md',
+      '.workflow/acp/start.mjs',
+      '.workflow/acp/package.json',
+      '.workflow/acp/package-lock.json',
+      '.workflow/acp/drivers/registry.example.yaml',
+      // A checkout with its dependencies installed, so a self-install has nothing to say about npm ci.
+      '.workflow/acp/node_modules/.package-lock.json',
    ];
    for (const path of paths) { files[path] = fake(path); }
 
@@ -125,7 +140,8 @@ export function tree(dir: string): Record<string, string>
       for (const entry of readdirSync(join(dir, folder), { withFileTypes: true }))
       {
          const path = '' === folder ? entry.name : `${folder}/${entry.name}`;
-         if (entry.isDirectory())
+         if (entry.isSymbolicLink()) { found[path] = `-> ${readlinkSync(join(dir, path))}`; }
+         else if (entry.isDirectory())
          {
             found[`${path}/`] = '';
             visit(path);
@@ -145,6 +161,48 @@ function makeHome(): string
    return home;
 }
 
+/** The node path every test installs, unless it sets another. */
+export const FAKE_NODE = '/fake/bin/node';
+
+/** Where the IDE keeps its ACP agents, in a home folder. */
+export const acpPath = (home: string) => join(home, '.jetbrains', 'acp.json');
+
+export interface AcpFixture
+{
+   /** The entries under `agent_servers`. */
+   servers?: Record<string, unknown>;
+   /** Other top-level keys. */
+   extra?:   Record<string, unknown>;
+}
+
+/** Writes `acp.json` in `home` with the entries and top-level keys the test names; returns its path. */
+export function acpJson(home: string, { servers = {}, extra = {} }: AcpFixture = {}): string
+{
+   put(home, '.jetbrains/acp.json', `${JSON.stringify({ ...extra, agent_servers: servers }, null, 2)}\n`);
+   return acpPath(home);
+}
+
+/** The parsed `acp.json` of a home folder. */
+export const acpOf = (home: string) => JSON.parse(readFileSync(acpPath(home), 'utf8'));
+
+/** The key the installer registers a target under, unless `--name` says another. */
+export const keyOf = (target: string) => `Q-TguDiilt (${basename(target)})`;
+
+/** The launcher of a target. */
+export const startOf = (target: string) => join(target, '.workflow', 'acp', 'start.mjs');
+
+/** The entry the installer writes for a target. */
+export const entryOf = (target: string, command = FAKE_NODE) => ({ command, args: [startOf(target)] });
+
+/** One call to the fake runner, and what existed in its folder when it was made. */
+export interface NpmCall
+{
+   command: string;
+   args:    string[];
+   cwd:     string;
+   had:     { lockfile: boolean; packageJson: boolean };
+}
+
 export interface Recorded
 {
    io:      Io;
@@ -154,39 +212,75 @@ export interface Recorded
    writes:  string[];
    /** Every path the installer removed. */
    removes: string[];
+   /** Every path the installer renamed something onto. */
+   renames: string[];
+   /** Every command the installer ran, with what existed in its folder. */
+   calls:   NpmCall[];
+   /** What the fake runner answers; a test sets it. A success leaves a complete `node_modules`. */
+   npm:     { answer: Ran };
    home:    string;
    /** The time `io.now()` gives; a test moves it. */
    clock:   { time: Date };
 }
 
 /**
- * The real file system, with every call recorded, a movable clock and a fake home folder. A write to
- * a path for which `failOn` is true throws, and is not recorded.
+ * The real file system, with every call recorded, a movable clock, a fake home folder and a fake Node.
+ * A write to a path for which `failOn` is true throws, and is not recorded; so is a rename onto a path
+ * for which `failRename` is true.
  */
-export function recordingIo(failOn: (path: string) => boolean = () => false): Recorded
+export function recordingIo(
+   failOn: (path: string) => boolean = () => false,
+   failRename: (path: string) => boolean = () => false,
+): Recorded
 {
    const real = realIo();
    const reads: string[]   = [];
    const writes: string[]  = [];
    const removes: string[] = [];
+   const renames: string[] = [];
+   const calls: NpmCall[]  = [];
+   const npm               = { answer: { status: 0, output: '' } as Ran };
    const clock = { time: new Date('2026-01-01T00:00:00.000Z') };
    const home  = makeHome();
    const io: Io = {
       read:     (path) => { reads.push(path); return real.read(path); },
       list:     (path) => { reads.push(path); return real.list(path); },
       stat:     (path) => { reads.push(path); return real.stat(path); },
-      write:    (path, data, executable) =>
+      write:    (path, data, executable, mode) =>
       {
          if (failOn(path)) { throw new Error('fake disk failure'); }
          writes.push(path);
-         real.write(path, data, executable);
+         real.write(path, data, executable, mode);
+      },
+      rename:   (from, to) =>
+      {
+         if (failRename(to)) { throw new Error('fake disk failure'); }
+         renames.push(to);
+         real.rename(from, to);
+      },
+      mode:     (path) => { reads.push(path); return real.mode(path); },
+      isLink:   (path) => { reads.push(path); return real.isLink(path); },
+      run:      (command, args, cwd) =>
+      {
+         calls.push({
+            command, args, cwd,
+            had: {
+               lockfile:    existsSync(join(cwd, 'package-lock.json')),
+               packageJson: existsSync(join(cwd, 'package.json')),
+            },
+         });
+         const { status } = npm.answer;
+         if (null !== status) { put(cwd, 'node_modules/fake-package/index.js', 'fake\n'); }
+         if (0 === status) { put(cwd, 'node_modules/.package-lock.json', '{}\n'); }
+         return npm.answer;
       },
       remove:   (path) => { removes.push(path); real.remove(path); },
       realPath: (path) => real.realPath(path),
       now:      () => clock.time,
       home,
+      node:     FAKE_NODE,
    };
-   return { io, reads, writes, removes, home, clock };
+   return { io, reads, writes, removes, renames, calls, npm, home, clock };
 }
 
 /** Runs the installer on `engine`; pass `recorded` again to run a second time with the same `io`. */
@@ -195,8 +289,9 @@ export function runOn(engine: Engine, argv: string[], recorded = recordingIo())
    return { ...recorded, result: run(argv, recorded.io, engine.dir) };
 }
 
-/** The files (no folders) under `dir`, relative. */
-export const filesIn = (dir: string) => Object.keys(tree(dir)).filter((path) => !path.endsWith('/'));
+/** The files (no folders) under `dir`, relative, less what the fake runner leaves in the service folder. */
+export const filesIn = (dir: string) => Object.keys(tree(dir)).filter((path) =>
+   !path.endsWith('/') && !path.startsWith('.workflow/acp/node_modules/'));
 
 /** Whether `git` can be run. The tests that need it are skipped without it. */
 export const hasGit = 0 === spawnSync('git', ['--version']).status;

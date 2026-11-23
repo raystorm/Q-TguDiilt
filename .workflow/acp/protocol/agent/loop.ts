@@ -115,7 +115,13 @@ export function createLoop(
                   ? stop('handoff_not_written', 'end_turn')
                   : stop('unknown_profile', 'end_turn', checked.word);
             }
+            // Before firing @start, verify that the sending profile's status is `complete`.
+            // `ready` means the handoff was verified but post-handoff work (logging, suspend, etc) is still pending.
+            // Only `complete` means all work is done and @start can proceed.
             const from = record.profile;
+            if (!confirms('end', from)) {
+               return stop('handoff_not_complete', 'end_turn');
+            }
             if (!await applyActivation(record, '@start', { fresh: true })) {
                return stop('handoff_not_written', 'end_turn');
             }

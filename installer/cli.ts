@@ -6,6 +6,6 @@ import { run } from './run.js';
 /** The engine root is the folder above `installer/`. */
 const source = join(dirname(fileURLToPath(import.meta.url)), '..');
 
-const { code, lines } = run(process.argv.slice(2), realIo(), source);
-for (const line of lines) { console.log(line); }
+const { code, lines, where = [] } = run(process.argv.slice(2), realIo(), source);
+for (const line of 0 < where.length ? [...where, '', ...lines] : lines) { console.log(line); }
 process.exitCode = code;

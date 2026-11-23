@@ -9,7 +9,7 @@ reviewing [handoffs](../dev/glossary.md#handoff), and steering multi‑profile w
 
 If you want to understand the philosophy, architecture, or rules behind the system,  
 see:
-* [**Workflow System One-Pager Deep Dive**](../dev/ai-workflow-system.md)
+* [**Workflow System One-Pager Deep Dive**](../dev/workflow/ai-workflow-system.md)
 * [**Overview**](../overview.md)
 * [**Profiles**](../profiles.md)
 * [**User Commands**](../user-commands.md)
@@ -129,7 +129,7 @@ which you must approve before the next profile begins.
 Each handoff begins with `@handoff`, and the next profile starts with `@start`.
 
 This section teaches you how to operate the workflow.  
-For deeper architectural context, see the [Workflow System Deep Dive](../dev/ai-workflow-system.md).
+For deeper architectural context, see the [Workflow System Deep Dive](../dev/workflow/ai-workflow-system.md).
 
 ---
 
@@ -612,7 +612,7 @@ for the full set of diagnostic tools.
 ## 9. Where to Go Next
 
 For deeper understanding:
-* [**Workflow System One-Pager Deep Dive**](../dev/ai-workflow-system.md)
+* [**Workflow System One-Pager Deep Dive**](../dev/workflow/ai-workflow-system.md)
 * [**Overview**](../overview.md) — entry point
 * [**Workflow Patterns**](../dev/workflow-patterns.md) — execution shapes
 * [**Profiles**](../profiles.md) — actors

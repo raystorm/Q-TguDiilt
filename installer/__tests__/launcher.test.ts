@@ -7,7 +7,7 @@ import { spawnSync } from 'node:child_process';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, expect, it } from 'vitest';
-import { cleanup, tempDir, tree } from './engine.js';
+import { childEnv, cleanup, tempDir, tree } from './engine.js';
 
 afterEach(cleanup);
 
@@ -20,10 +20,29 @@ it('starts through tsx, prints the creates for the real engine and writes nothin
    const child = spawnSync(
       process.execPath,
       [LAUNCHER, target, '--dry-run'],
-      { encoding: 'utf8', timeout: 60000 },
+      { encoding: 'utf8', timeout: 60000, env: childEnv() },
    );
 
    expect(child.status, child.stderr).toBe(0);
    expect(child.stdout.split('\n').some((line) => line.startsWith('create .workflow/rules/'))).toBe(true);
    expect(tree(target)).toEqual({});
+}, 60000);
+
+it('prints the target and the registration file, then a blank line, before the list', () =>
+{
+   const target = tempDir('installer-target-');
+   const env    = childEnv();
+
+   const child = spawnSync(
+      process.execPath,
+      [LAUNCHER, target, '--dry-run'],
+      { encoding: 'utf8', timeout: 60000, env },
+   );
+
+   expect(child.status, child.stderr).toBe(0);
+   expect(child.stdout.split('\n').slice(0, 3)).toEqual([
+      `target:       ${target}`,
+      `registration: ${join(env.HOME ?? '', '.jetbrains', 'acp.json')}`,
+      '',
+   ]);
 }, 60000);

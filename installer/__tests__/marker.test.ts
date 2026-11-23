@@ -31,7 +31,8 @@ describe('the marker after an install', () =>
       runOn(engine, [target], recorded);
 
       const marker  = markerOf(target);
-      const managed = filesIn(target).filter((path) => MARKER !== path).sort();
+      const seeded  = '.workflow/acp/drivers/registry.yaml';
+      const managed = filesIn(target).filter((path) => MARKER !== path && seeded !== path).sort();
       expect(marker.installedAt).toBe('2026-03-04T05:06:07.000Z');
       expect(Object.keys(marker.files).sort()).toEqual(managed);
       expect(marker.files['docs/user/fake-twin-a.md']).toBe(marker.files['docs/user/fake-twin-b.md']);

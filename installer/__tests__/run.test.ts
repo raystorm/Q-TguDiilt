@@ -4,7 +4,7 @@
  * only inside the target.
  */
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
-import { join, sep } from 'node:path';
+import { basename, isAbsolute, join, sep } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { canonical } from './fixtures.js';
 import {
@@ -13,7 +13,16 @@ import {
 
 afterEach(cleanup);
 
-const creates = (lines: string[]) => lines.filter((line) => line.startsWith('create '));
+/** The `create` lines for files of the target; the registration's line has an absolute path. */
+const creates = (lines: string[]) =>
+   lines.filter((line) => line.startsWith('create ') && !isAbsolute(line.slice('create '.length)));
+
+/** The lines of a run with its temporary target and home replaced, so that two runs can be compared. */
+const generic = (lines: string[], target: string, home: string) =>
+   lines.map((line) => line
+      .replaceAll(target, '<target>')
+      .replaceAll(basename(target), '<name>')
+      .replaceAll(home, '<home>'));
 
 describe('--dry-run', () =>
 {
@@ -42,10 +51,37 @@ describe('--dry-run', () =>
       const dry  = runOn(engine, [dryTarget, '--dry-run']);
       const real = runOn(engine, [realTarget]);
 
-      expect(real.result.lines).toEqual(dry.result.lines);
+      expect(generic(real.result.lines.slice(0, dry.result.lines.length), realTarget, real.home))
+         .toEqual(generic(dry.result.lines, dryTarget, dry.home));
       expect(0 < creates(real.result.lines).length).toBe(true);
       for (const line of creates(real.result.lines))
       { expect(existsSync(join(realTarget, line.slice('create '.length)))).toBe(true); }
+   });
+});
+
+describe('where it installs', () =>
+{
+   it.each([
+      { name: 'a dry run',  options: ['--dry-run'] },
+      { name: 'a real run', options: [] as string[] },
+   ])('names the target and the registration file on $name', ({ options }) =>
+   {
+      const target = tempDir('installer-target-');
+
+      const { result, home } = runOn(makeEngine(), [target, ...options]);
+
+      expect(result.where).toEqual([
+         `target:       ${target}`,
+         `registration: ${join(home, '.jetbrains', 'acp.json')}`,
+      ]);
+   });
+
+   it('names nothing when the command line is refused', () =>
+   {
+      const { result } = runOn(makeEngine(), [join(tempDir('installer-target-'), 'missing')]);
+
+      expect(result.code).toBe(1);
+      expect(result.where).toBeUndefined();
    });
 });
 
@@ -172,7 +208,7 @@ describe('a full install', () =>
    /** Places the installer must never write: Amazon Q prompts and Copilot prompt files. */
    const NEVER = ['.amazonq/prompts/', '.github/prompts/'];
 
-   it('writes only inside the target and never to the home folder or an Amazon Q prompt place', () =>
+   it('writes only inside the target and the IDE\'s acp.json, never elsewhere in the home folder', () =>
    {
       const engine = makeEngine({
          '.workflow/skills/fake-skill/SKILL.md': canonical({ name: 'fake-skill' }),
@@ -181,14 +217,19 @@ describe('a full install', () =>
       const target     = tempDir('installer-target-');
       const recorded   = recordingIo();
       const homeBefore = tree(recorded.home);
+      const jetbrains  = join(recorded.home, '.jetbrains');
 
       runOn(engine, [target, '--force'], recorded);
 
       const stray = filesIn(target).filter((path) =>
          NEVER.some((folder) => path.startsWith(folder)) || path.endsWith('.prompt.md'));
+      const homeAfter = tree(recorded.home);
       expect(0 < recorded.writes.length).toBe(true);
-      expect(recorded.writes.every((path) => path.startsWith(`${target}${sep}`))).toBe(true);
-      expect(tree(recorded.home)).toEqual(homeBefore);
+      expect(recorded.writes.every((path) =>
+         path.startsWith(`${target}${sep}`) || path.startsWith(`${jetbrains}${sep}`))).toBe(true);
+      for (const path of Object.keys(homeBefore)) { expect(homeAfter[path]).toBe(homeBefore[path]); }
+      expect(Object.keys(homeAfter).filter((path) => !(path in homeBefore)).sort())
+         .toEqual(['.jetbrains/', '.jetbrains/acp.json']);
       expect(stray).toEqual([]);
    });
 });

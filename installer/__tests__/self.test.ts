@@ -15,6 +15,7 @@ const RULE    = '.workflow/rules/foundation/fake-rule.md';
 const RECORDED = [
    '.amazonq/.gitignore',
    '.workflow/.gitignore',
+   '.workflow/acp/drivers/.gitignore',
    '.agents/skills/.gitignore',
    '.agents/skills/fake-prompt/SKILL.md',
    '.kiro/prompts/.gitignore',
@@ -50,7 +51,8 @@ describe.each(SPELLINGS)('an install into the engine, spelled as $name', ({ spel
       const after = tree(engine.dir);
       const added = Object.keys(after).filter((path) => !path.endsWith('/') && !(path in before)).sort();
       const kept  = Object.keys(markerOf(engine.dir).files).sort();
-      expect(added).toEqual([...RECORDED, '.workflow/installed.json'].sort());
+      const seeded = '.workflow/acp/drivers/registry.yaml';
+      expect(added).toEqual([...RECORDED, seeded, '.workflow/installed.json'].sort());
       for (const path of Object.keys(before)) { expect(after[path]).toBe(before[path]); }
       expect(kept).toEqual([...RECORDED].sort());
       expect(recorded.removes).toEqual([]);

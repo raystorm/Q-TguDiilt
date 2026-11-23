@@ -4,6 +4,7 @@ import { generate, shadowed } from './generate.js';
 import type { Contents, Entry, Io } from './io.js';
 import { manifest } from './manifest.js';
 import { hash, readMarker } from './marker.js';
+import { planRegistration, type Registration } from './register.js';
 import { classify, type Kind } from './transform.js';
 
 /**
@@ -21,6 +22,8 @@ export interface Action
    executable: boolean;
    /** An update that overwrites a conflict, because of `--force`. */
    forced?:    true;
+   /** A file written only when absent: never recorded in the marker, never removed. */
+   seed?:      true;
 }
 
 /** Something to tell the user while the run goes on. */
@@ -45,14 +48,28 @@ export interface MarkerPlan
    previous: Record<string, string>;
 }
 
+/** The `npm ci` a run would do. */
+export interface Install
+{
+   command: string;
+   args:    string[];
+   cwd:     string;
+}
+
 /** What a run would do. A stop leaves `actions` empty. `marker` is null when it would not change. */
 export interface Plan
 {
-   target:   string;
-   actions:  Action[];
-   warnings: Warning[];
-   stops:    Stop[];
-   marker:   MarkerPlan | null;
+   target:       string;
+   actions:      Action[];
+   warnings:     Warning[];
+   /** Lines that are not actions, such as the Node the registration uses. */
+   notes:        string[];
+   stops:        Stop[];
+   marker:       MarkerPlan | null;
+   /** The entry in the IDE's `acp.json`; null when a stop prevents it. */
+   registration: Registration | null;
+   /** The `npm ci` to run after the files are written; null when none is needed. */
+   install:      Install | null;
 }
 
 interface Found
@@ -165,7 +182,7 @@ function entriesAfter(actions: Action[], previous: Record<string, string>): Reco
    const files: Record<string, string> = {};
    for (const action of actions)
    {
-      if ('remove' === action.kind) { continue; }
+      if ('remove' === action.kind || action.seed) { continue; }
       if ('conflict' !== action.kind) { files[action.path] = hash(action.data); }
       else if (action.path in previous) { files[action.path] = previous[action.path]; }
    }
@@ -192,25 +209,78 @@ function retire(io: Io, target: string, path: string, entry: string, force: bool
 const sameEntries = (a: Record<string, string>, b: Record<string, string>) =>
    JSON.stringify(Object.entries(a).sort()) === JSON.stringify(Object.entries(b).sort());
 
+/** The paths a run would write as files, where the target holds a folder. */
+const foldersInTheWay = (io: Io, target: string, paths: string[]) =>
+   paths.filter((path) => 'dir' === io.stat(join(target, path)));
+
+/** A `create` for each seed with nothing at its path, as a copy of its example. */
+function seedActions(io: Io, target: string, files: Map<string, Contents>): Action[]
+{
+   const actions: Action[] = [];
+   for (const { path, from } of manifest.seeds)
+   {
+      const example = files.get(from);
+      if (undefined !== example && null === io.stat(join(target, path)))
+      { actions.push({ kind: 'create', path, data: example.data, executable: false, seed: true }); }
+   }
+   return actions;
+}
+
+/** A note for each seed that already exists while this run writes its example. */
+function seedNotes(io: Io, target: string, actions: Action[]): string[]
+{
+   return manifest.seeds
+      .filter(({ path, from }) =>
+      {
+         const example = actions.find((action) => from === action.path);
+         return ('create' === example?.kind || 'update' === example?.kind) && null !== io.stat(join(target, path));
+      })
+      .map(({ path, from }) =>
+         `${from} changed and ${path} already exists: compare the two and merge what you need`);
+}
+
+/** Why `npm ci` did not run for the engine itself, and what to do. */
+const selfNote = (cwd: string) => `npm ci was not run: the target is the engine itself; run it in ${cwd}`;
+
+/** The Node the registration uses, and when the installer must run again. */
+const nodeNote = (node: string) =>
+   `registered with the Node at ${node}; after a Node upgrade, run the installer again`;
+
 /**
  * Reads the engine and the target through `io` and says what a run would do. `force` overwrites a
  * conflict. When the target is the engine itself, nothing is copied onto itself: those files are
- * neither planned nor recorded, and a removal never touches them. Writes nothing.
+ * neither planned nor recorded, and a removal never touches them. The IDE registration is planned
+ * for the target either way, under `name` or the default key. Writes nothing.
  */
-export function plan(io: Io, source: string, target: string, force: boolean): Plan
+export function plan(io: Io, source: string, target: string, force: boolean, name: string | null = null): Plan
 {
    const { files, warnings, stops } = collect(io, source);
    const made   = generate(files);
    stops.push(...made.stops.map((detail) => ({ detail })));
-   const marker = readMarker(io, target);
+   for (const { from } of manifest.seeds)
+   {
+      if (!files.has(from)) { stops.push({ detail: `the engine has no file ${from}` }); }
+   }
+   const folders = foldersInTheWay(io, target, [
+      ...files.keys(), ...made.files.map(([path]) => path), ...Object.keys(manifest.written),
+      ...manifest.seeds.map((seed) => seed.path), manifest.marker,
+   ]);
+   stops.push(...folders.map((path) => ({ detail: `${path} is a folder where a file belongs` })));
+   const found  = planRegistration(io, target, name);
+   warnings.push(...found.warnings);
+   stops.push(...found.stops);
+   const marker = folders.includes(manifest.marker) ? null : readMarker(io, target);
    if ('invalid' === marker) { stops.push({ detail: `${manifest.marker} cannot be read; fix or delete it` }); }
-   if (0 < stops.length || 'invalid' === marker) { return { target, actions: [], warnings, stops, marker: null }; }
+   if (0 < stops.length || 'invalid' === marker)
+   { return { target, actions: [], warnings, notes: [], stops, marker: null, registration: null, install: null }; }
 
    warnings.push(...shadowed(io, target, made.skills));
    const previous = marker?.files ?? {};
-   const copies   = io.realPath(source) === io.realPath(target) ? [] : [...files];
+   const itself   = io.realPath(source) === io.realPath(target);
+   const copies   = itself ? [] : [...files];
    const actions  = [...copies, ...made.files, ...written()]
       .map(([path, file]) => decide(io, target, path, file, previous[path], force));
+   actions.push(...seedActions(io, target, files));
    const wanted   = new Set([...files.keys(), ...actions.map((action) => action.path)]);
    for (const [path, entry] of Object.entries(previous))
    {
@@ -219,8 +289,20 @@ export function plan(io: Io, source: string, target: string, force: boolean): Pl
    }
    const entries  = entriesAfter(actions, previous);
    const changed  = null === marker || !sameEntries(entries, previous);
+   const registration = found.registration;
+   const lockfile     = actions.find((action) => manifest.install.lockfile === action.path);
+   const needed       = 'create' === lockfile?.kind || 'update' === lockfile?.kind
+      || null === io.read(join(target, manifest.install.done));
+   const { folder, command, args } = manifest.install;
+   const cwd   = join(target, folder);
+   const notes = [
+      ...(null === registration || 'skip' === registration.kind ? [] : [nodeNote(registration.command)]),
+      ...(needed && itself ? [selfNote(cwd)] : []),
+      ...seedNotes(io, target, actions),
+   ];
    return {
-      target, actions, warnings, stops,
-      marker: changed ? { kind: null === marker ? 'create' : 'update', files: entries, previous } : null,
+      target, actions, warnings, stops, registration, notes,
+      install: needed && !itself ? { command, args: [...args], cwd } : null,
+      marker:  changed ? { kind: null === marker ? 'create' : 'update', files: entries, previous } : null,
    };
 }

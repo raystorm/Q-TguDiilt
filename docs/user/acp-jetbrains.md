@@ -19,9 +19,14 @@ runs your workflow. No LLM provider needs to speak ACP.
 
 ## Installation
 
-Installation is manual today. Copy `.amazonq/`, `.workflow/` and `docs/` into your project,
-create `registry.yaml` (see "Prerequisites"), then follow "Configure the connection".
-This section is completed when the installer is built.
+The installer copies the engine and writes the ACP service sources into your repository.
+See the [installer guide](installer.md) for setup and options.
+
+```bash
+node installer/install.mjs <your-project-path>
+```
+
+After installation, create `registry.yaml` (see "Prerequisites") and configure the connection below.
 
 ## Configure the connection
 
@@ -32,7 +37,7 @@ service entry point by creating `~/.jetbrains/acp.json`:
 {
   "command": "node",
   "args": [
-    ".workflow/acp/protocol/index.ts"
+    ".workflow/acp/start.mjs"
   ]
 }
 ```
@@ -43,6 +48,9 @@ Notes:
   log is written under `.workflow/work/` in that project.
 - Adjust `command`/`args` to match how your environment runs the entry
   point (for example, a compiled `index.js` or a TypeScript runner).
+- The installer writes `.workflow/acp/start.mjs` and all required dependencies into
+  `.workflow/acp/package.json` and `.workflow/acp/package-lock.json`. Run `npm ci` there
+  once after installation to prepare the service dependencies.
 
 ## Transport
 
@@ -244,6 +252,14 @@ When a step needs your approval, the service first shows you the
 tool parameters — and then presents the approval request. The specifics
 appear on the call's card, and text the agent writes meanwhile follows
 them. You always see what you are approving before you approve it.
+
+The approval dialog in IntelliJ offers **Allow** and **Reject** only.
+There is no "always allow" option. This is by design: the service offers
+`allow_once` and `reject_once` only, so each approval applies to that
+one action only. To stop being asked for an action, configure a governance
+rule in `~/.jetbrains/acp.json` or the project's governance config to
+set that action to `allow`. See the [governance configuration guide](acp-governance.md)
+for how to set up rules.
 
 ## Stopping a turn
 

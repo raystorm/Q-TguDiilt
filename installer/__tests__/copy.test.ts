@@ -58,7 +58,6 @@ describe('the .workflow tree', () =>
       '.workflow/acp/node_modules/pkg/index.js',
       '.workflow/acp/protocol/__tests__/a.test.ts',
       '.workflow/acp/drivers/__integration__/b.ts',
-      '.workflow/acp/drivers/registry.yaml',
       '.workflow/rules/foundation/fake-project.md',
       '.workflow/rules/tech/fake-project.md',
       '.workflow/skills/fake-skill/__tests__/a.test.sh',

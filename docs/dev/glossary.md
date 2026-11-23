@@ -154,6 +154,11 @@ Records the installer's version, the time, and a hash for each file the installe
 manages. A file whose hash still matches is updated or removed without `--force`;  
 any other difference is a conflict. Never tracked by git.
 
+Launcher
+: The entry point process (`start.mjs`) that initializes and starts the ACP service.  
+Wraps the protocol layer entry point, handles Node.js setup, environment preparation,  
+and process initialization before the service begins serving ACP requests.
+
 Self-Install
 : Running the installer with the engine's own repository as the target.  
 Nothing is copied onto itself and the canonical files are not recorded; the  
