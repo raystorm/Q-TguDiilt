@@ -1,34 +1,31 @@
 # Timestamp Generation Method
 
 **ONLY allowed method:**
-- fsWrite + ls pattern (shown below)
+Run one command for each log write, at that moment, and copy its output unchanged.
+Never reuse an old value.
 
 **Timestamp generation MUST ALWAYS follow the exact steps below, verbatim.
 Any alteration, or deviation from the outlined steps is invalid.**
-```bash
-# 1. Overwrite temp file to capture current system timestamp
-fsWrite({
-  path: ".amazonq/.timestamp-temp",
-  command: "create",
-  fileText: "timestamp capture"
-});
 
-# 2. Read file timestamp using ls
-executeBash({
-  command: "ls -la --time-style=full-iso .amazonq/.timestamp-temp",
-  cwd: "[ProjectRoot]"
-});
+Pick by the operating system of the shell:
 
-# 3. Parse the output to extract timestamp
-# Output format: -rw-rw-r-- 1 user group size YYYY-MM-DD HH:MM:SS.nnnnnnnnn -HHMM filename
-# Split by whitespace and extract columns 5 (date), 6 (time), 7 (timezone)
-# Combine as: column5 + "T" + column6 + column7
-# Example: "2026-04-30T16:59:53.699371886-0400"
+| System          | Command                                              | Example                              |
+| --------------- | ---------------------------------------------------- | ------------------------------------ |
+| Linux           | `date +%Y-%m-%dT%H:%M:%S.%N%z`                       | `2026-11-24T01:16:08.859714678-0500` |
+| macOS           | `date +%Y-%m-%dT%H:%M:%S%z`                          | `2026-11-24T01:16:08-0500`           |
+| Windows (PS)    | `Get-Date -Format "yyyy-MM-ddTHH:mm:ss.fffffffzzz"`  | `2026-11-24T01:16:08.8597146-05:00`  |
 
-# 4. Use timestamp in log entry
-```
+**Notes:**
 
-**Temp file:**
-- `.amazonq/.timestamp-temp`
-- Persists across log entries
-- Must be in `.gitignore`
+- **macOS:** BSD `date` has no `%N`, so the time has whole seconds. `gdate` from
+  coreutils may be used when installed.
+- **Windows:** `zzz` gives `-05:00` with a colon. It is valid ISO 8601. The
+  Retrospective timestamp checks (backward jumps, `:00:00.000Z`) do not
+  depend on the offset form.
+
+**Procedure:**
+
+1. Run the command for your OS at the moment of logging
+2. Copy output unchanged into the timestamp field
+3. Use immediately (no delay between generation and logging)
+4. Never reuse or store timestamps for later

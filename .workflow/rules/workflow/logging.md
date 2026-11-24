@@ -178,6 +178,41 @@ else {
 - `context_resumed` - resumed context with `@resume`
 - `auto_suspend_failed` - Auto-suspend write failed
 
+#### handoff_sent Shape
+
+The `handoff_sent` event carries:
+- `actor` - the sending profile (canonical name)
+- `context.sourceProfile` - sending profile (canonical name)
+- `context.targetProfile` - receiving profile (canonical name)
+- `context.sideTrip: true` - only for sends (side trips); omitted for handoffs
+
+**Example for handoff:**
+```json
+{
+  "type": "event",
+  "eventType": "handoff_sent",
+  "actor": "Builder",
+  "context": {
+    "sourceProfile": "Builder",
+    "targetProfile": "Enforcer"
+  }
+}
+```
+
+**Example for send (side trip):**
+```json
+{
+  "type": "event",
+  "eventType": "handoff_sent",
+  "actor": "Retrospective",
+  "context": {
+    "sourceProfile": "Retrospective",
+    "targetProfile": "PromptEngineer",
+    "sideTrip": true
+  }
+}
+```
+
 ### User Events
 - `user_note` - user note provided via `@note`
 - `clarification_requested` - User asked for more info
@@ -309,10 +344,11 @@ Timestamp Generation Method. NO EXCEPTIONS.**
 ### Validation Checklist
 
 Before logging any event, profiles MUST verify:
-- [ ] Timestamp captured from temp file update
-- [ ] Timestamp extracted via ls
+- [ ] Command run now for your OS (see `timestamp-method.md`)
+- [ ] Output copied unchanged into timestamp field
 - [ ] Timestamp is ISO 8601 format
 - [ ] No hardcoded date strings
+- [ ] No reuse of old timestamps
 
 ### ParentId Linking
 
@@ -336,11 +372,9 @@ When logging `workflow_start`, set parentId as follows:
 
 ### Duplicate Event Prevention
 
-**Each profile transition MUST log handoff_sent exactly once.**
+**Log `handoff_sent` once per `@handoff` turn.**
 
-If profile needs to log multiple steps:
-- Use different eventType values (e.g., "handoff_prepared", "handoff_confirmed", "handoff_sent")
-- Only log "handoff_sent" when HANDOFF.md is actually written
+A retry after a stop logs it again.
 
 ## Retrospective Analysis
 

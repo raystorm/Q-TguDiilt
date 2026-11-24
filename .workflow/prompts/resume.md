@@ -1,6 +1,6 @@
 ---
 name: resume
-version: 1.1.0
+version: 1.2.0
 description: "Restore a suspended (or auto-suspended) context."
 arguments: [name]
 argument-hint: "[context name]"
@@ -10,10 +10,28 @@ Load suspended workflow context.
 Context name: `{{name}}`
 
 ## Missing File Fallback
-If any `.amazonq/suspended/` file needed below does not exist:
-- INDEX.md missing → display: "No suspended contexts found. (INDEX.md does not exist)"
-- [name].md missing → display: "Context '[name]' not found. Use `@list` to see available contexts."
-- Do not continue. Do not log or change workflow state.
+
+Check for files by exact path, never with a file search, glob or
+directory listing. `.amazonq/suspended/` is ignored by git, and those tools
+skip ignored paths.
+
+For INDEX.md:
+1. Read `.amazonq/suspended/INDEX.md` with the file read tool.
+2. If the read fails or returns nothing, confirm with the terminal:
+   - Linux and macOS: `ls -la .amazonq/suspended/INDEX.md`
+   - Windows (cmd and PowerShell): `type .amazonq\suspended\INDEX.md`
+3. If missing, display: "No suspended contexts found. (INDEX.md does not exist)"
+   Do not continue. Do not log or change workflow state.
+
+For [name].md:
+1. Read `.amazonq/suspended/[name].md` with the file read tool.
+2. If the read fails or returns nothing, confirm with the terminal:
+   - Linux and macOS: `ls -la .amazonq/suspended/[name].md`
+   - Windows (cmd and PowerShell): `type .amazonq\suspended\[name].md`
+3. If missing, display: "Context '[name]' not found. Use `@list` to see available contexts."
+   Do not continue. Do not log or change workflow state.
+4. If the two disagree, the terminal result is the authority. Use its output
+   as the content.
 
 If no name provided:
 - Read `.amazonq/suspended/INDEX.md`

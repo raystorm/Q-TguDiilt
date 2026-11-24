@@ -1,6 +1,6 @@
 ---
 name: start
-version: 1.0.0
+version: 1.1.0
 description: "Activate a profile from a handoff."
 ---
 # Profile Activation from Handoff — Stability-Anchored Version
@@ -11,9 +11,19 @@ You are now activating as the profile specified in the handoff file.
 
 ## Guard
 
-If `.amazonq/work/current/HANDOFF.md` does not exist:
-- Display: "No HANDOFF.md found. Cannot activate — no handoff context available."
-- Do NOT proceed. Stop here.
+Check for the file by its exact path, never with a file search, glob or
+directory listing. `.amazonq/work/current/` is ignored by git, and those tools
+skip ignored paths.
+
+1. Read `.amazonq/work/current/HANDOFF.md` with the file read tool.
+2. If the read fails or returns nothing, confirm with the terminal:
+   - Linux and macOS: `ls -la .amazonq/work/current/HANDOFF.md`
+   - Windows (cmd and PowerShell): `type .amazonq\work\current\HANDOFF.md`
+3. If the terminal command also reports the file is missing, display:
+   "No HANDOFF.md found. Cannot activate — no handoff context available."
+   Do NOT proceed. Stop here.
+4. If the two disagree, the terminal result is the authority. Use its output
+   as the content (`cat` on Linux and macOS, `type` on Windows).
 
 **MANDATORY steps in order:**
 

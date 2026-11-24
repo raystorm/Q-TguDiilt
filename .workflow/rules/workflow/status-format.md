@@ -50,49 +50,44 @@ do not repeat it.
 | -------- | -------------------------------------------------- | ----------------------------- |
 | started  | Activated and working                              | Omitted                       |
 | waiting  | Blocked on the user, or on a side trip             | Omitted                       |
-| ready    | Changeover file written and verified               | Present: `handoff` or `send`  |
-| complete | All post-handoff work done (logging, suspend, etc) | Kept from `ready`, or omitted |
+| ready    | Work done, Changeover not created yet              | Present: `handoff` or `send`  |
+| complete | Changeover created and all its steps done, or none | Kept from `ready`, or omitted |
 
+- In a `@handoff` turn, `complete` is the last write. Nothing
+  is written after it.
 - `next` omitted on `started` or `waiting`: no next step is known yet.
 - `next` omitted on `complete`: nothing follows, and the user closes the tab.
-- `ready` is written immediately after HANDOFF.md/MESSAGE.md is verified.
-- `complete` is written only after ALL post-handoff work finishes (logging, suspend updates, cleanup).
+- `ready` is written immediately before the completion message.
+- `complete` is written only after the `@handoff` turn's every step is done (see `handoff.md`).
 
 ## When to Write
 
-| Event                                                           | Write                      |
-| --------------------------------------------------------------- | -------------------------- |
-| Activation (`@as`, `@start`, `@receive`), before task work      | `started`; `next` omitted  |
-| Turn asks for review, confirmation, a decision or information   | `waiting`; `next` omitted  |
-| `@send`: MESSAGE.md written and verified                        | `waiting`; `next` omitted  |
-| `@handoff`: HANDOFF.md written and verified, after the sweep    | `ready`; `next` present    |
-| All post-handoff work done (logging, suspend, cleanup)          | `complete`; `next` kept    |
-| Completion message is "close this tab" with no next handoff     | `complete`; `next` omitted |
-
-- `ready` is the first write after changeover file verification. Its `next` agrees with
-  the `**Next**` line or completion block target.
-- After `ready`, the profile does remaining work (logging event, auto-suspend update, etc).
-- Once all work completes, write `complete` to signal the handoff is fully finished.
+| Event                                                         | Write                      |
+| ------------------------------------------------------------- | -------------------------- |
+| Activation (`@as`, `@start`, `@receive`), before task work    | `started`; `next` omitted  |
+| Turn asks for review, confirmation, a decision or information | `waiting`; `next` omitted  |
+| `@send`: MESSAGE.md written and verified                      | `waiting`; `next` omitted  |
+| Work done, just before the completion message                 | `ready`; `next` present    |
+| `@handoff`: every step done (see `handoff.md`), last write    | `complete`; `next` kept    |
+| `@handoff`: a step failed or was refused                      | `waiting`; `next` omitted  |
+| Completion message is "close this tab"                        | `complete`; `next` omitted |
 
 ## Constraints
 
 - With `@as` and no task, the workflowId is unknown until the user's first message.
   Write `started` once it is resolved.
-- A changeover file that fails verification leaves the status unchanged.
+- A changeover file that fails verification: for `@handoff`, write `waiting` with
+no `next` (see `handoff.md`); for `@send`, leave the status unchanged.
 - A status write that fails or is declined does not stop the work. Tell the user
   in one line and do not retry.
 
 ## Handoff Sweep
 
-The Handoff Sweep runs after HANDOFF.md is written and verified, before `@start` can fire:
+The Handoff Sweep is step 3 of the `@handoff` turn (see `handoff.md`):
 
 1. Read each other file in the folder whose name ends with `-<workflowId>.json`.
 2. Delete it **only** when its `status` is `complete`.
-3. Leave `ready` files untouched (they represent handoffs in progress).
-4. Leave `started` and `waiting` files untouched (they represent parallel/side work).
+3. Leave `ready` files untouched.
+4. Leave `started` and `waiting` files untouched.
 5. Leave unreadable files.
 6. Never touch files of other workflows.
-
-**Key Point**: The sweep deletes only `complete` files, not `ready` files. A `ready` file
-means the handoff was verified but post-handoff work is still pending. `@start` cannot fire
-until the status transitions to `complete`.

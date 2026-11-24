@@ -138,7 +138,7 @@ governance:
       action: approve
     - pattern: "help *"
       action: approve
-    - pattern: "git status"
+    - pattern: "git status *"
       action: approve
     - pattern: "git branch"
       action: approve

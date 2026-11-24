@@ -73,6 +73,19 @@ Close this tab and return to [trip starter] tab.
 - Summary + next action instruction = **one message**  
 - Wait for the user to trigger `@handoff`, `@send`, or close tab
 
+#### Logging Check (Before Status Write)
+
+Before writing the status file that precedes the completion message:
+
+1. Read the last 40 lines of `.amazonq/workflow.log`
+2. Confirm your `profile_activated` event is logged
+3. Confirm one `file_modified` or `file_created` event for each
+   persistent file you changed since activation
+4. If events are missing:
+   - Log them now with the timestamp method
+5. If a log write was refused or failed:
+   - Add one line to the completion message: `Not logged: <events>`
+
 
 ### Change (Initiating a Changeover)
 
@@ -81,23 +94,59 @@ initiate a Changeover:
 - `@handoff` (linear)  
 - `@send` (parallel)  
 
-When the user triggers a Change command, profiles must:
-1. Write the Changeover File immediately
-2. IF the command was `@handoff`:
-   Remove stale files from `.amazonq/work/current/`
-   (all files except the newly written `HANDOFF.md` and its listed artifacts)
-3. Update the status file per `workflow/status-format.md`
-4. Display the next user command
+**For `@handoff` (linear), the execution steps are:**
 
-**Example:**
-```Markdown
-[Change] to [Profile] created.   
-  
-Next: Open new tab and run `[Begin]`
-```
+1. Write `.amazonq/work/current/HANDOFF.md`, plus any supporting files in
+   that folder only.
+2. Verify it by reading the exact path.
+3. Clean `.amazonq/work/current/`: remove stale files (all files except
+   the newly written `HANDOFF.md` and its listed artifacts). Then run the
+   Handoff Sweep (`status-format.md`).
+4. Log `handoff_sent` once, with the timestamp method. The line carries
+   `actor` (the sending profile) and `context: { sourceProfile, targetProfile }`
+   with canonical names.
+5. Update the auto-suspend file (`auto-suspend.md`, on `handoff_sent`).
+6. Write the status file: `complete`, with `next` `{ command: handoff, to:
+   <Target> }`. This is the last write.
+7. Display the **Next** line.
 
-`[Change]` is the executed of the command.
-`[Begin]` is the command to activate the next profile
+**Failure path for `@handoff`:**
+
+If step 1 to 5 fails or is refused, stop at that step. Do not do the
+later steps, and do not log `handoff_sent` when step 1 or 2 failed. Write
+`waiting` with no `next`. Show no **Next** line. Show one line that names
+the step and says "Run `@handoff to=<Target>` to try again."
+
+A write that failed with an error keeps the two retries of `Handoff Write
+Verification`. A refused call is not retried in the same turn.
+
+### Handoff Write Verification (MANDATORY)
+
+After writing HANDOFF.md or MESSAGE.md, profiles MUST verify the file
+exists by reading the exact path (step 2 of the `@handoff` order).
+
+1. Write the changeover file.
+2. Verify it by reading the exact path.
+3. If verification fails:
+   - Report: "Failed to write [file]. Retrying..."
+   - Retry the write (max 2 retries)
+   - If all retries fail: "Cannot complete handoff - file write failed.
+     Please check permissions and try again."
+   - Do NOT log `handoff_sent`.
+   - Follow the failure path (`waiting`, no **Next** line).
+4. Only after successful verification do the later steps
+   (for `@handoff`, the order in `handoff.md`;
+    for `@send`, see the `@send` steps above).
+
+The retries are for a write that failed with an error. A call the user or a
+rule refused is not retried in the same turn.
+
+**For `@send` (parallel):**
+1. Write `.amazonq/work/current/MESSAGE.md` immediately.
+2. Verify it (Handoff Write Verification).
+3. Log `handoff_sent` with `context.sideTrip: true`.
+4. Write the status file: `waiting`, `next` omitted.
+5. Display the next user command (`@receive` in a new tab).
 
 ### Begin (Activating a Changeover)
 
@@ -381,44 +430,16 @@ artifacts require the standard confirmation sequence.
 
 ### Handoff/Completion
 
+Profile completion and the `@handoff` turn follow this sequence:
+
 1. Profile completes work
 2. Profile informs user work is complete
 3. User triggers `@handoff` (if continuing workflow)
-4. Profile writes HANDOFF.md immediately
-5. Profile verifies HANDOFF.md was written successfully
-6. Profile displays next user command
-7. Next profile activates with `@start`
+4. Profile executes the seven-step Change sequence (see above)
+5. All steps must complete in order; see Change section for failure path
 
-### Handoff Write Verification (MANDATORY)
-
-After writing HANDOFF.md or MESSAGE.md, profiles MUST verify the file exists:
-
-1. Write changeover file (HANDOFF.md or MESSAGE.md)
-2. Verify file exists using fsRead
-3. If verification fails:
-   - Report error to user: "Failed to write [file]. Retrying..."
-   - Retry write operation (max 2 retries)
-   - If all retries fail: "Cannot complete handoff - file write failed. Please check permissions and try again."
-   - DO NOT log handoff_sent event
-4. Only after successful verification:
-   - Log handoff_sent event
-   - Display next user command
-
-**Pattern:**
-```typescript
-// Write handoff
-fsWrite({ command: "create", path: ".amazonq/work/current/HANDOFF.md", ... });
-
-// Verify write succeeded
-const verification = fsRead({ paths: [".amazonq/work/current/HANDOFF.md"] });
-if (!verification || verification.error) {
-  // Report failure, retry, or abort
-  return;
-}
-
-// Only log after verification
-fsWrite({ command: "append", path: ".amazonq/workflow.log", ... });
-```
+In a `@handoff` turn, the status file write (`complete`) is the last write.
+Nothing is written after it.
 
 ---
 

@@ -1,6 +1,6 @@
 ---
 name: receive
-version: 1.0.0
+version: 1.1.0
 description: "Activate a profile from a message."
 ---
 # Profile Activation from Message — Stability-Anchored Version
@@ -11,9 +11,19 @@ You are now activating as the profile specified in the message file.
 
 ## Guard
 
-If `.amazonq/work/current/MESSAGE.md` does not exist:
-- Display: "No MESSAGE.md found. Cannot activate — no message context available."
-- Do NOT proceed. Stop here.
+Check for the file by its exact path, never with a file search, glob or
+directory listing. `.amazonq/work/current/` is ignored by git, and those tools
+skip ignored paths.
+
+1. Read `.amazonq/work/current/MESSAGE.md` with the file read tool.
+2. If the read fails or returns nothing, confirm with the terminal:
+   - Linux and macOS: `ls -la .amazonq/work/current/MESSAGE.md`
+   - Windows (cmd and PowerShell): `type .amazonq\work\current\MESSAGE.md`
+3. If the terminal command also reports the file is missing, display:
+   "No MESSAGE.md found. Cannot activate — no message context available."
+   Do NOT proceed. Stop here.
+4. If the two disagree, the terminal result is the authority. Use its output
+   as the content (`cat` on Linux and macOS, `type` on Windows).
 
 **MANDATORY steps in order:**
 

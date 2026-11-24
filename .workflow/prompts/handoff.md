@@ -1,6 +1,6 @@
 ---
 name: handoff
-version: 1.1.0
+version: 1.2.0
 description: "Linear progression to the next profile."
 arguments: [to]
 argument-hint: "[profile]"
@@ -23,19 +23,40 @@ Generate handoff content for {{to}}.
 Follow the canonical shape defined in
 `.workflow/rules/workflow/changeover-format.md`.
 
-- Write HANDOFF.md to `.amazonq/work/current/HANDOFF.md` immediately
-- Write any additional supporting files to `.amazonq/work/current/` directory only
-- Clean `.amazonq/work/current/` per Change invariant
-  (remove stale files, keep HANDOFF.md and listed artifacts)
-- Update the status file per Change invariant (`.workflow/rules/workflow/status-format.md`)
-- Display: "---\n**Next**: Open a new tab and run `@start` to continue as [Profile Name from the To field]"
+**Steps in order:**
+
+1. Write `.amazonq/work/current/HANDOFF.md`, plus any supporting files in
+   that folder only.
+2. Verify it by reading the exact path.
+3. Clean `.amazonq/work/current/`: remove stale files (all files except
+   the newly written `HANDOFF.md` and its listed artifacts). Then run the
+   Handoff Sweep (`status-format.md`).
+4. Log `handoff_sent` once, with the timestamp method. The line carries
+   `actor` (the sending profile) and `context: { sourceProfile, targetProfile }`
+   with canonical names.
+5. Update the auto-suspend file (`auto-suspend.md`, on `handoff_sent`).
+6. Write the status file: `complete`, with `next` `{ command: handoff, to:
+   <Target> }`. This is the last write.
+7. Display: "---\n**Next**: Open a new tab and run `@start` to continue as
+   [Profile Name from the To field]". Users read this line.
+
+**Failure path:**
+
+If step 1 to 5 fails or is refused, stop at that step.
+Do not do the later steps, and do not log `handoff_sent` when step 1 or 2 failed.
+Write `waiting` with no `next`. Show no **Next** line.
+Show one line that names the step and says "Run `@handoff to=<Target>` to try again."
+
+A write that failed with an error keeps the two retries of `Handoff Write Verification`.
+A refused call is not retried in the same turn.
 
 Do NOT switch profiles.
 Do NOT start the next profile.
 Do NOT run @start.
-Do NOT infer any next action, after displaying the user message.
+Do NOT infer any next action after displaying the user message.
 
-Do not auto-activate next profile. Stay as current profile. User will run `@start`.
+Do not auto-activate next profile. Stay as current profile. User will
+run `@start`.
 
 ---
 
