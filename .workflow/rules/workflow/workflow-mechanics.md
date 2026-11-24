@@ -126,7 +126,12 @@ After writing HANDOFF.md or MESSAGE.md, profiles MUST verify the file
 exists by reading the exact path (step 2 of the `@handoff` order).
 
 1. Write the changeover file.
-2. Verify it by reading the exact path.
+2. Verify it by reading the exact path with the file read tool. If the read
+   fails or returns nothing, confirm with the terminal:
+   - Linux and macOS: `ls -la <path>`
+   - Windows (cmd and PowerShell): `type <path>`, with backslashes
+
+   If the two disagree, the terminal result is the authority.
 3. If verification fails:
    - Report: "Failed to write [file]. Retrying..."
    - Retry the write (max 2 retries)
@@ -136,7 +141,7 @@ exists by reading the exact path (step 2 of the `@handoff` order).
    - Follow the failure path (`waiting`, no **Next** line).
 4. Only after successful verification do the later steps
    (for `@handoff`, the order in `handoff.md`;
-    for `@send`, see the `@send` steps above).
+    for `@send`, see the `@send` steps below).
 
 The retries are for a write that failed with an error. A call the user or a
 rule refused is not retried in the same turn.

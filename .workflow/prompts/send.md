@@ -1,6 +1,6 @@
 ---
 name: send
-version: 1.1.0
+version: 1.1.1
 description: "Create a side trip message for parallel or isolated work."
 arguments: [to, task]
 argument-hint: "[profile] [task]"
@@ -16,6 +16,9 @@ Use these values:
 - Task: {{task}}
 
 - Write MESSAGE.md to `.amazonq/work/current/MESSAGE.md`
+- Verify it as `Handoff Write Verification` in
+  `.workflow/rules/workflow/workflow-mechanics.md` says, before the status
+  file and the **Next** line
 - Update the status file per Change invariant (`.workflow/rules/workflow/status-format.md`)
 - Display: "---\n**Next**: Open new tab and run `@receive`"
 

@@ -1,6 +1,6 @@
 ---
 name: handoff
-version: 1.2.0
+version: 1.2.1
 description: "Linear progression to the next profile."
 arguments: [to]
 argument-hint: "[profile]"
@@ -27,7 +27,12 @@ Follow the canonical shape defined in
 
 1. Write `.amazonq/work/current/HANDOFF.md`, plus any supporting files in
    that folder only.
-2. Verify it by reading the exact path.
+2. Verify it by reading the exact path with the file read tool. If the read
+   fails or returns nothing, confirm with the terminal:
+   - Linux and macOS: `ls -la <path>`
+   - Windows (cmd and PowerShell): `type <path>`, with backslashes
+
+   If the two disagree, the terminal result is the authority.
 3. Clean `.amazonq/work/current/`: remove stale files (all files except
    the newly written `HANDOFF.md` and its listed artifacts). Then run the
    Handoff Sweep (`status-format.md`).
