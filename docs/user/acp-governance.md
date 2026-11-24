@@ -160,10 +160,13 @@ denies if asking fails.
 The automated changeover process never answers an ask. The service waits for you, then goes on.
 
 The engine's own files are asks every time with the shipped rules: `.amazonq/workflow.log`,
-`.amazonq/.timestamp-temp`, everything under `.amazonq/work/` (the handoff file included) and
-everything under `.amazonq/suspended/`. The shipped config has no rule for them and ends in
-`default: ask`. It cannot name your project, because a rule's `path` must be an absolute
-prefix.
+everything under `.amazonq/work/` (the handoff file included) and everything under
+`.amazonq/suspended/`. The shipped config has no rule for them and ends in `default: ask`.
+It cannot name your project, because a rule's `path` must be an absolute prefix.
+
+Workflow timestamps come from the `date` command on Linux and macOS, which the shipped config
+approves. On Windows they come from `Get-Date`, which has no shipped rule, so add one if you do
+not want to be asked each time.
 
 To stop being asked, add rules with your project's absolute path **above** any broader rule.
 For a project at `/home/me/project`:
@@ -174,8 +177,6 @@ For a project at `/home/me/project`:
 - path: /home/me/project/.amazonq/suspended
   action: approve
 - path: /home/me/project/.amazonq/workflow.log
-  action: approve
-- path: /home/me/project/.amazonq/.timestamp-temp
   action: approve
 ```
 

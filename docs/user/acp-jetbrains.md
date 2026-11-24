@@ -179,8 +179,7 @@ text, each as a **card**.
 - **A card** shows what the call is: its kind, the agent's title and, for
   a command or file call, the command or the file paths. These are what
   governance checked, so you see them even if the agent's title says
-  something else. A card never shows a diff; the diff appears only when
-  you are asked to approve.
+  something else.
 - **The outcome** is added to the end of the card's title once governance
   has finished with the call:
   - `approved by governance`: a rule approved it and you were not asked.
@@ -248,13 +247,15 @@ For causes and fixes, see [Troubleshooting a workflow run](acp-troubleshooting.m
 ## Approvals
 
 When a step needs your approval, the service first shows you the
-**specifics** of the action — the command, file paths, diff, and any
-tool parameters — and then presents the approval request. The specifics
+**specifics** of the action — the command, file paths, and any tool
+parameters — and then presents the approval request. The specifics
 appear on the call's card, and text the agent writes meanwhile follows
-them. You always see what you are approving before you approve it.
+them.
 
-The approval dialog in IntelliJ offers **Allow** and **Reject** only.
-There is no "always allow" option. This is by design: the service offers
+The approval dialog in IntelliJ shows only **Allow** and **Reject**. It
+does not show the command or the paths, and it shows no diff. Read the
+call's card in the chat before you answer. There is no "always allow"
+option. This is by design: the service offers
 `allow_once` and `reject_once` only, so each approval applies to that
 one action only. To stop being asked for an action, configure a governance
 rule in `~/.jetbrains/acp.json` or the project's governance config to
